@@ -67,6 +67,7 @@ const PACKAGE_LIBRARIES: Readonly<Record<string, string>> = {
   'packages/experimental/webworker-packer': 'Build-time VFS image packer and command library.',
   'packages/experimental/webworker-runtime': 'Browser worker runtime library with explicit host entry points.',
   'packages/experimental/hook-protocol': 'Shared wire-protocol library between the hook bridges.',
+  'packages/fork/fork-policy': 'Host egress guard and profile patch lists imported by app boot; no plugin registration.',
   'packages/identity/anonymous-user-id': 'Harness-home identity helper with no plugin registration.',
   'packages/sandbox/sandbox-windows-acl': 'Windows ACL sandbox library consumed by sandbox-local.',
   'packages/sdk/client': 'Client-process library; the spawned runtime owns plugin behavior.',

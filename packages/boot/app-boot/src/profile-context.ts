@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
+import { forkDefaultPatches, forkLockPatches } from '@anago-harness/fork-policy' // anago: also installs the egress guard on import
 
 /** Application-owned package manager executable; environment applies only to package operations. */
 export interface ProfilePnpmInvocation {
@@ -74,6 +75,7 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
   const patches = structuredClone([
     ...readBundlePatches(binName, context, initialProfile),
+    ...forkDefaultPatches(composeEntries([readBundlePatches(binName, context, initialProfile)])), // anago: defaults
     ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
     ...context.overlays,
@@ -81,5 +83,6 @@ export function readProfilePatches(binName: string, context: ProfileContext, ini
   const telemetryPatch = resolveTelemetryPatch(context.telemetryDisabledEnv,
     composeEntries([patches]).some(row => row.id === TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) patches.push(telemetryPatch)
+  patches.push(...forkLockPatches(composeEntries([patches]))) // anago: final, non-overridable layer
   return patches
 }

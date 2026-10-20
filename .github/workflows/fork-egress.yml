@@ -1,0 +1,35 @@
+name: Fork egress
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-egress-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  egress:
+    name: Egress scan and guard tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Scan shipped hosts
+        run: node ci/fork/scan-egress.mjs
+      - name: Run egress guard tests
+        run: pnpm exec vitest run packages/fork/fork-policy/tests/egress-guard.spec.ts

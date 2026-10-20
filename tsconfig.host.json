@@ -470,6 +470,7 @@
     { "path": "./packages/bundle/sdk-minimal" },
     { "path": "./packages/bundle/web-app" },
     { "path": "./packages/boot/app-boot" },
+    { "path": "./packages/fork/fork-policy" },
     { "path": "./packages/boot/cmdline" },
     { "path": "./packages/sdk/server" },
     { "path": "./packages/test-support/llm-replay" },

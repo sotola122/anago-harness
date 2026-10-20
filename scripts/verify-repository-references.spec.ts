@@ -210,6 +210,11 @@ describe('maintained repository reference policy', () => {
     expect(findRepositoryReferences('source.md', `${organizationUrl}-tools/project`, new Set())).toEqual([])
     expect(findRepositoryReferences('vendor/project/source.md', organizationUrl, new Set())).toEqual([])
     expect(findRepositoryReferences('.agents/notes/archived/process/frozen.md', organizationUrl, new Set())).toEqual([])
+    const baseline = 'a'.repeat(40)
+    expect(findRepositoryReferences('PROJECT_GUIDELINE.md', baseline, new Set([baseline]))).toEqual([])
+    expect(findRepositoryReferences('guide.md', baseline, new Set([baseline]))).toEqual([
+      { file: 'guide.md', line: 1, kind: 'commit-hash' },
+    ])
     expect(findRepositoryReferences('.agents/notes/implemented/process/current.md', organizationUrl, new Set()))
       .toEqual([{ file: '.agents/notes/implemented/process/current.md', line: 1, kind: 'organization-url' }])
   })
