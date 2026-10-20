@@ -66,16 +66,17 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
   return profile.layers.flatMap(layer => layer.patches)
 }
 
-/** Read current bundle and user layers with the launch-time overlays.
+/** Read current bundle and user layers with the launch-time overlays and the fork's default and lock layers.
  * @param binName Diagnostic prefix for malformed or missing configuration.
  * @param context Data supplied by the profile launcher.
  * @param initialProfile Already loaded startup profile; omitted reads the current files.
  * @returns Detached ordered patches; this function does not update the Loader.
  */
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
+  const bundlePatches = readBundlePatches(binName, context, initialProfile)
   const patches = structuredClone([
-    ...readBundlePatches(binName, context, initialProfile),
-    ...forkDefaultPatches(composeEntries([readBundlePatches(binName, context, initialProfile)])), // anago: defaults
+    ...bundlePatches,
+    ...forkDefaultPatches(composeEntries([bundlePatches])), // anago: defaults
     ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
     ...context.overlays,
