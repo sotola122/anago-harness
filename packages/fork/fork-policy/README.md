@@ -72,6 +72,7 @@ The guard patches `net.Socket` connect and write, DNS lookups, and child `NODE_O
 These limits are properties of the guard as it runs in the host process.
 
 - **Hostnames, not addresses** — a connection that presents only an IP address is not denied. Name lookup of a denylisted host is denied, and a connect that still carries the denylisted hostname is denied even when a custom lookup returns a local address.
+- **Proxy request line** — the first request line on a proxy connection is reassembled across writes. Later requests are inspected only when their request line begins a write.
 - **Child preload inside the test runner** — when `VITEST` is set, the guard does not modify `NODE_OPTIONS`. The denylist still applies in the process that loaded the package. Production processes that do not set `VITEST` pass the guard to Node children through `NODE_OPTIONS`.
 - **Process that loads app boot** — the guard is installed by importing `@deepseek-ai/dsh-app-boot`'s profile composer. A Node process that never loads that module does not install the guard.
 

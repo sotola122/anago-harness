@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process'
 import { lookup } from 'node:dns'
 import dnsPromises from 'node:dns/promises'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import https from 'node:https'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { forkDefaultPatches, forkLockPatches, guard } from '@anago-harness/fork-policy'
 
 const guardFile = fileURLToPath(new URL('../egress-guard.cjs', import.meta.url))
+const denylistFile = fileURLToPath(new URL('../denylist.json', import.meta.url))
 
 function errorText(error: unknown): string {
   if (typeof error !== 'object' || error === null) return String(error)
@@ -69,6 +70,28 @@ function listen(): Promise<{ port: number; close: () => Promise<void>; received:
       received.push(chunk.toString('latin1'))
       socket.end('HTTP/1.1 200 Connection Established\r\n\r\n')
     })
+  })
+  return new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (address === null || typeof address === 'string') {
+        reject(new Error('test server did not bind a TCP port'))
+        return
+      }
+      resolve({
+        port: address.port,
+        received,
+        close: () => new Promise((done) => { server.close(() => { done() }) }),
+      })
+    })
+  })
+}
+
+function listenSilently(): Promise<{ port: number; close: () => Promise<void>; received: string[] }> {
+  const received: string[] = []
+  const server = net.createServer((socket) => {
+    socket.on('data', (chunk) => { received.push(chunk.toString('latin1')) })
   })
   return new Promise((resolve, reject) => {
     server.once('error', reject)
@@ -171,14 +194,9 @@ describe('egress guard', () => {
     }))
   })
 
-  it('reaches api.deepseek.com and a local non-denylisted socket', async () => {
-    const response = await fetch('https://api.deepseek.com/')
-    expect(response.status).toBeGreaterThan(0)
-    await response.arrayBuffer()
-    const registry = await fetch('https://registry.npmjs.org/-/ping')
-    expect(registry.status).toBeGreaterThan(0)
-    await registry.arrayBuffer()
-
+  it('reaches a local socket through an allowed hostname', async () => {
+    // The allow path is proven without a live connection: resolution is replaced by a
+    // local listen port, so the test does not depend on external network access.
     const server = await listen()
     try {
       await new Promise<void>((resolve, reject) => {
@@ -238,6 +256,49 @@ describe('egress guard', () => {
     }
   })
 
+  it('inspects a CONNECT request line split across writes', async () => {
+    const server = await listenSilently()
+    setHttpsProxy(`http://127.0.0.1:${String(server.port)}`)
+    try {
+      await expectBlocked(() => new Promise((resolve, reject) => {
+        const socket = net.connect(server.port, '127.0.0.1', () => {
+          socket.write('CONNECT platform.deepsee')
+          setTimeout(() => {
+            if (!socket.destroyed) socket.write('k.com:443 HTTP/1.1\r\nHost: platform.deepseek.com:443\r\n\r\n')
+          }, 20)
+        })
+        socket.resume()
+        socket.on('error', reject)
+        socket.on('close', () => { resolve(undefined) })
+      }))
+      expect(server.received.join('')).not.toContain('platform.deepseek.com')
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('inspects a later request on a reused proxy connection', async () => {
+    const server = await listenSilently()
+    setHttpsProxy(`http://127.0.0.1:${String(server.port)}`)
+    try {
+      await expectBlocked(() => new Promise((resolve, reject) => {
+        const socket = net.connect(server.port, '127.0.0.1', () => {
+          socket.write('GET http://api.deepseek.com/ HTTP/1.1\r\nHost: api.deepseek.com\r\n\r\n')
+          setTimeout(() => {
+            if (!socket.destroyed) socket.write('GET http://platform.deepseek.com/ HTTP/1.1\r\nHost: platform.deepseek.com\r\n\r\n')
+          }, 20)
+        })
+        socket.resume()
+        socket.on('error', reject)
+        socket.on('close', () => { resolve(undefined) })
+      }))
+      expect(server.received.join('')).toContain('api.deepseek.com')
+      expect(server.received.join('')).not.toContain('platform.deepseek.com')
+    } finally {
+      await server.close()
+    }
+  })
+
   it('ignores an unparsable proxy value', async () => {
     const server = await listen()
     setHttpsProxy('not a url')
@@ -261,7 +322,7 @@ describe('egress guard', () => {
         const { execFileSync } = require('node:child_process')
         const out = execFileSync(process.execPath, ['-e', "fetch('https://platform.deepseek.com').then(() => console.log('CHILD NOT BLOCKED'), error => console.log('child:' + ((error.cause && error.cause.code) || error.code)))"], { encoding: 'utf8' })
         process.stdout.write(out)
-        if (!(process.env.NODE_OPTIONS ?? '').includes(${JSON.stringify(guardFile)})) process.stdout.write('\\nNODE_OPTIONS missing\\n')
+        if (!(process.env.NODE_OPTIONS ?? '').includes('--import=file://')) process.stdout.write('\\nNODE_OPTIONS missing\\n')
       `], { encoding: 'utf8' })
       expect(child).toContain('EDSHFORKFORBIDDEN')
       expect(child).not.toContain('NODE_OPTIONS missing')
@@ -269,6 +330,44 @@ describe('egress guard', () => {
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
+  })
+
+  it('preloads children when the guard path contains spaces', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'egress guard-'))
+    try {
+      const copiedGuard = join(directory, 'egress-guard.cjs')
+      copyFileSync(guardFile, copiedGuard)
+      copyFileSync(denylistFile, join(directory, 'denylist.json'))
+      const child = execFileSync(process.execPath, ['-e', `
+        delete process.env.VITEST
+        delete process.env.NODE_OPTIONS
+        require(${JSON.stringify(copiedGuard)})
+        const { execFileSync } = require('node:child_process')
+        const out = execFileSync(process.execPath, ['-e', "fetch('https://platform.deepseek.com').then(() => console.log('CHILD NOT BLOCKED'), error => console.log('child:' + ((error.cause && error.cause.code) || error.code)))"], { encoding: 'utf8' })
+        process.stdout.write(out)
+      `], { encoding: 'utf8' })
+      expect(child).toContain('EDSHFORKFORBIDDEN')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('guards the positional connect form without the private normalizer', () => {
+    const output = execFileSync(process.execPath, ['-e', `
+      delete process.env.VITEST
+      delete process.env.NODE_OPTIONS
+      const net = require('node:net')
+      require(${JSON.stringify(guardFile)})
+      delete net._normalizeArgs
+      const socket = net.connect(443, 'platform.deepseek.com')
+      socket.on('error', error => {
+        if (error.code === 'EDSHFORKFORBIDDEN') process.exit(0)
+        process.stderr.write(String(error.code))
+        process.exit(3)
+      })
+      socket.on('connect', () => process.exit(2))
+    `], { encoding: 'utf8' })
+    expect(output).toBe('')
   })
 
   it('does not change NODE_OPTIONS when the test runner variable is set', () => {

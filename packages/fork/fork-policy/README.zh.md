@@ -72,6 +72,7 @@ guard.verdict('platform.deepseek.com')
 这些限制是守卫在宿主进程中运行时的属性。
 
 - **主机名，而非地址** — 只提供 IP 地址的连接不会被拒绝。对 denylist 主机的名称查询会被拒绝；即使自定义 lookup 返回本地地址，仍携带 denylist 主机名的 connect 也会被拒绝。
+- **代理请求行** — 代理连接上的第一个请求行会跨多次写入重组。后续请求只在请求行位于一次写入的开头时才会被检查。
 - **测试运行器中的子进程预加载** — 设置了 `VITEST` 时，守卫不修改 `NODE_OPTIONS`。denylist 仍作用于加载了本包的进程。未设置 `VITEST` 的生产进程通过 `NODE_OPTIONS` 把守卫传给 Node 子进程。
 - **加载 app boot 的进程** — 守卫通过导入 `@deepseek-ai/dsh-app-boot` 的 profile 组合器安装。从未加载该模块的 Node 进程不会安装守卫。
 
