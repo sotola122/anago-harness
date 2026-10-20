@@ -212,6 +212,7 @@ describe('maintained repository reference policy', () => {
     expect(findRepositoryReferences('.agents/notes/archived/process/frozen.md', organizationUrl, new Set())).toEqual([])
     const baseline = 'a'.repeat(40)
     expect(findRepositoryReferences('PROJECT_GUIDELINE.md', baseline, new Set([baseline]))).toEqual([])
+    expect(findRepositoryReferences('python/sdk/uv.lock', `size = ${baseline.slice(0, 7)}`, new Set([baseline.slice(0, 7)]))).toEqual([])
     expect(findRepositoryReferences('guide.md', baseline, new Set([baseline]))).toEqual([
       { file: 'guide.md', line: 1, kind: 'commit-hash' },
     ])

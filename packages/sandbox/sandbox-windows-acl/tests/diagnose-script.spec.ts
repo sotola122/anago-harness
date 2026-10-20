@@ -25,8 +25,12 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { elevatedWindowsToken } from './elevated-windows-token.ts'
 
 const isWin32 = process.platform === 'win32'
+// See elevatedWindowsToken: these cases need a token whose effective rights
+// follow the fixture DACL. An elevated hosted runner does not.
+const skipElevatedToken = elevatedWindowsToken()
 
 function pwshAvailable(): boolean {
   try {
@@ -241,7 +245,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('grants full control to a directory that lacks WRITE_DAC and WRITE_OWNER, preserving owner and label', () => {
+  it.skipIf(skipElevatedToken)('grants full control to a directory that lacks WRITE_DAC and WRITE_OWNER, preserving owner and label', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'missing-write-owner')
@@ -268,7 +272,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('repairs a missing grant and a package ACE in the same invocation', () => {
+  it.skipIf(skipElevatedToken)('repairs a missing grant and a package ACE in the same invocation', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'both')
@@ -335,7 +339,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('repairs the whole subtree in one run when only the workspace root is named', () => {
+  it.skipIf(skipElevatedToken)('repairs the whole subtree in one run when only the workspace root is named', () => {
     const scratch = newScratch()
     try {
       // The sandbox reports its provisioning failure on the workspace root while the
@@ -374,7 +378,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('keeps an inherit-only ACE when it grants the missing right', () => {
+  it.skipIf(skipElevatedToken)('keeps an inherit-only ACE when it grants the missing right', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'inherit-only')
@@ -561,7 +565,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('restores every attempted change in reverse order when a later path fails', () => {
+  it.skipIf(skipElevatedToken)('restores every attempted change in reverse order when a later path fails', () => {
     const scratch = newScratch()
     try {
       const out = join(scratch, 'out')
@@ -583,7 +587,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('prints the pending recovery command and reports restore_pending_then_stop when rollback fails', () => {
+  it.skipIf(skipElevatedToken)('prints the pending recovery command and reports restore_pending_then_stop when rollback fails', () => {
     const scratch = newScratch()
     try {
       const out = join(scratch, 'out')
@@ -801,7 +805,7 @@ function icacls { throw [System.IO.IOException]::new('icacls unavailable') }
     }
   }, timeout)
 
-  it('repairs its own workspace root when -AllowRoot is the object itself', () => {
+  it.skipIf(skipElevatedToken)('repairs its own workspace root when -AllowRoot is the object itself', () => {
     const scratch = newScratch()
     try {
       const out = join(scratch, 'out')
@@ -823,7 +827,7 @@ function icacls { throw [System.IO.IOException]::new('icacls unavailable') }
     }
   }, timeout)
 
-  it('is idempotent: a second repair run changes nothing', () => {
+  it.skipIf(skipElevatedToken)('is idempotent: a second repair run changes nothing', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'idempotent')

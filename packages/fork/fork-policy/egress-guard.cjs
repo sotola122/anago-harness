@@ -4,14 +4,26 @@
 // request targets whose hostname matches denylist.json. No environment variable
 // disables that denylist.
 
+function requireWorkerOptional(specifier) {
+  try {
+    return require(specifier)
+  } catch (error) {
+    // The preview worker's builtin table has no DNS resolver and no
+    // single-file executable API. The host process has both.
+    if (error instanceof Error && error.message.includes('no static module is registered')) return undefined
+    throw error
+  }
+}
+
 const net = require('node:net')
-const dns = require('node:dns')
+const dns = requireWorkerOptional('node:dns')
 const { syncBuiltinESMExports } = require('node:module')
 const { domainToASCII } = require('node:url')
 const { readFileSync, appendFileSync, writeSync, mkdtempSync, copyFileSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
-const { isSea } = require('node:sea')
+const sea = requireWorkerOptional('node:sea')
+const isSea = sea === undefined ? () => false : sea.isSea
 
 const GUARD = Symbol.for('dsh-fork.egress-guard')
 if (!globalThis[GUARD]) install()
@@ -146,11 +158,13 @@ function install() {
   }
 
   const callbackNames = ['lookup', 'resolve', 'resolve4', 'resolve6', 'resolveAny', 'resolveCname', 'resolveMx', 'resolveNs', 'resolveTxt', 'resolveSrv', 'resolveCaa', 'resolveNaptr', 'resolvePtr', 'resolveSoa']
-  for (const name of callbackNames) {
-    if (typeof dns[name] === 'function') dns[name] = wrapCallback(name, dns[name])
-    if (typeof dns.Resolver.prototype[name] === 'function') dns.Resolver.prototype[name] = wrapCallback(name, dns.Resolver.prototype[name])
-    if (typeof dns.promises[name] === 'function') dns.promises[name] = wrapPromise(name, dns.promises[name])
-    if (typeof dns.promises.Resolver.prototype[name] === 'function') dns.promises.Resolver.prototype[name] = wrapPromise(name, dns.promises.Resolver.prototype[name])
+  if (dns !== undefined) {
+    for (const name of callbackNames) {
+      if (typeof dns[name] === 'function') dns[name] = wrapCallback(name, dns[name])
+      if (typeof dns.Resolver.prototype[name] === 'function') dns.Resolver.prototype[name] = wrapCallback(name, dns.Resolver.prototype[name])
+      if (typeof dns.promises[name] === 'function') dns.promises[name] = wrapPromise(name, dns.promises[name])
+      if (typeof dns.promises.Resolver.prototype[name] === 'function') dns.promises.Resolver.prototype[name] = wrapPromise(name, dns.promises.Resolver.prototype[name])
+    }
   }
   syncBuiltinESMExports()
 

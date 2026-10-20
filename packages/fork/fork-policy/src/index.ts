@@ -6,7 +6,6 @@
  */
 
 import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 
@@ -30,8 +29,10 @@ interface GuardModule {
   readonly guard: EgressGuard
 }
 
+// A string keeps the file in the worker image. A computed URL is omitted, and
+// import.meta.url in that image is not a file URL.
 // oxlint-disable-next-line typescript/no-unsafe-assignment -- createRequire is typed any; egress-guard.cjs exports the installed guard
-const guardModule: GuardModule = require(fileURLToPath(new URL('../egress-guard.cjs', import.meta.url)))
+const guardModule: GuardModule = require('../egress-guard.cjs')
 
 /** Installed egress guard. Evaluating this binding installs the denylist. */
 export const guard: EgressGuard = guardModule.guard

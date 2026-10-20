@@ -28,8 +28,8 @@ kind: "package-library"
 ```ts
 import { forkDefaultPatches, forkLockPatches, guard } from '@anago-harness/fork-policy'
 
-const defaults = forkDefaultPatches(bundleRows)
-const locks = forkLockPatches(composedRows)
+const defaults = forkDefaultPatches([])
+const locks = forkLockPatches([])
 guard.verdict('platform.deepseek.com')
 ```
 
