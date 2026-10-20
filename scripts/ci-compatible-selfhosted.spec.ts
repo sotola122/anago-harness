@@ -27,10 +27,8 @@ const workflow = yaml.load(readFileSync(resolve(import.meta.dirname, '../.github
   jobs: { 'node-compat': CompatibilityJob; 'python-sdk': { 'runs-on': string } }
 }
 const job = workflow.jobs['node-compat']
-const labels = ['self-hosted', 'linux', 'x64', 'vm-backup']
 
-// This wiring check uses equal-typed, canonical-case fixtures. Actions compares
-// strings case-insensitively; JavaScript does not. This is not an Actions evaluator.
+// Actions compares strings case-insensitively; JavaScript does not. This is not an Actions evaluator.
 function evaluate(expression: string, context: Record<string, unknown>): unknown {
   const body = expression.trim().slice(3, -2)
   return runInNewContext(body, {
@@ -54,12 +52,10 @@ function route(options: { mode?: string; author?: string; repository?: string; f
 }
 
 describe('Node compatibility self-hosted routing', () => {
-  it('uses the Linux pool only for opted-in repository-owned PRs', () => {
-    expect(route()).toEqual(labels)
-    for (const mode of ['', 'hosted', 'unexpected']) expect(route({ mode })).toBe('ubuntu-latest')
-    // The blacksmith value routes the compatibility legs onto Blacksmith's
-    // standard Linux runner regardless of PR ownership (ephemeral runners).
-    expect(route({ mode: 'blacksmith' })).toBe('blacksmith-4vcpu-ubuntu-2404')
+  it('runs every compatibility leg on the matrix runner', () => {
+    for (const mode of ['', 'hosted', 'unexpected', 'selfhosted', 'blacksmith']) {
+      expect(route({ mode })).toBe('ubuntu-latest')
+    }
     expect(route({ author: 'dependabot[bot]', actor: 'maintainer' })).toBe('ubuntu-latest')
     expect(route({ repository: 'outsider/fork', fork: true })).toBe('ubuntu-latest')
     expect(route({ repository: 'outsider/fork', fork: false })).toBe('ubuntu-latest')

@@ -120,20 +120,15 @@ jobs:
         if: always()
         run: wineserver -k 2>/dev/null || true
 
-  # Hot-standby drill for the in-house self-hosted pool: every master move
-  # re-runs the complete unsharded aggregate on the persistent 64-core VM,
-  # continuously proving that environment can take over a required lane if
-  # the hosted pools degrade (the switch is then setting the writer-manageable
-  # DSH_CI_FAILOVER_LINUX variable — see the failover runbook, no merge required).
-  # Push-triggered, so this lane always executes the base branch's own
-  # workflow definition. This workflow never listens to pull_request, so the
-  # drill does not appear in PR checks. No cache steps because the VM's
-  # persistent pnpm store and tool caches make them redundant (and saving here
-  # would poison the hosted cache namespace with self-hosted paths).
+  # Master-only serial reference: every master push re-runs the complete
+  # unsharded aggregate on a standard runner. This workflow never listens to
+  # pull_request, so the drill does not appear in PR checks. Worker caps stay
+  # at one so the reference measures the unsharded inventory.
   serial-linux-selfhosted:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    name: serial / linux (self-hosted standby)
-    runs-on: [self-hosted, linux, x64, vm-backup]
+    name: serial / linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       # DSH_ARCHIVE_BASE_REF below compares the frozen-archive gate against
       # github.event.before, so full history is required: depth 2 would miss it
@@ -213,22 +208,15 @@ jobs:
           DSH_SNAPSHOT_MAX_CONCURRENCY: '1'
         run: pnpm run check:ci
 
-  # Hot-standby drill for the in-house self-hosted Windows pool: every master
-  # move re-runs the complete unsharded Windows gate inventory on the persistent
-  # VM, continuously proving that environment can take over the required
-  # `windows` lane if the hosted pool degrades (the switch is setting the
-  # writer-manageable DSH_CI_FAILOVER_WINDOWS variable — see the failover
-  # runbook, no merge required). Push-triggered, so this lane always executes
-  # the base branch's own workflow definition. This workflow never listens to
-  # pull_request, so the drill does not appear in PR checks. No cache steps
-  # because the VM's persistent pnpm store and tool caches make them redundant
-  # (and saving here would poison the hosted cache namespace with self-hosted
-  # paths).
+  # Master-only serial reference: every master push re-runs the complete
+  # unsharded Windows gate inventory on a standard runner. This workflow never
+  # listens to pull_request, so the drill does not appear in PR checks. The
+  # 360-minute budget is the hosted job limit for a concurrency-1 inventory.
   serial-windows:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    name: serial / windows (self-hosted standby)
-    runs-on: [self-hosted, dsh-win-ci, windows]
-    timeout-minutes: 120
+    name: serial / windows
+    runs-on: windows-latest
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -276,84 +264,23 @@ jobs:
           DSH_PUBLINT_CONCURRENCY: '1'
         run: pnpm run check:ci:windows-complete
 
-  # Manual, bounded comparison of the actual critical Linux and Windows lanes.
-  # The named pools are restricted at the organization level to this repository.
+  # Manual comparison of the critical Linux typecheck and Windows site lanes
+  # on standard hosted runners. Sixty minutes covers install plus typecheck
+  # or the documentation build on 4 vCPUs.
   larger-runner-benchmark:
     if: github.event_name == 'workflow_dispatch' && inputs.suite == 'larger-runner-benchmark'
-    # Default measures the repository's own fleet tiers; under the matching
-    # platform's blacksmith failover value the tiers Blacksmith offers (up to
-    # 32 vCPU) move onto their Blacksmith equivalents, while the 64/96-core
-    # rows keep the fleet labels because Blacksmith has no such tier.
-    runs-on: >-
-      ${{ (matrix.platform == 'linux' && vars.DSH_CI_FAILOVER_LINUX == 'blacksmith'
-            || matrix.platform == 'windows' && vars.DSH_CI_FAILOVER_WINDOWS == 'blacksmith')
-          && matrix.blacksmith
-          || matrix.runner }}
-    timeout-minutes: 15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 2
       matrix:
         include:
           - platform: linux
-            cores: '4'
-            runner: dsh-ubuntu-24-04-4core
-            blacksmith: blacksmith-4vcpu-ubuntu-2404
-            workload: typecheck
-          - platform: linux
-            cores: '8'
-            runner: dsh-ubuntu-24-04-8core
-            blacksmith: blacksmith-8vcpu-ubuntu-2404
-            workload: typecheck
-          - platform: linux
-            cores: '16'
-            runner: dsh-ubuntu-24-04-16core
-            blacksmith: blacksmith-16vcpu-ubuntu-2404
-            workload: typecheck
-          - platform: linux
-            cores: '32'
-            runner: dsh-ubuntu-24-04-32core
-            blacksmith: blacksmith-32vcpu-ubuntu-2404
-            workload: typecheck
-          - platform: linux
-            cores: '64'
-            runner: dsh-ubuntu-24-04-64core
-            blacksmith: ''
-            workload: typecheck
-          - platform: linux
-            cores: '96'
-            runner: dsh-ubuntu-24-04-96core
-            blacksmith: ''
+            runner: ubuntu-latest
             workload: typecheck
           - platform: windows
-            cores: '4'
-            runner: dsh-windows-2025-4core
-            blacksmith: blacksmith-4vcpu-windows-2025
-            workload: production-site
-          - platform: windows
-            cores: '8'
-            runner: dsh-windows-2025-8core
-            blacksmith: blacksmith-8vcpu-windows-2025
-            workload: production-site
-          - platform: windows
-            cores: '16'
-            runner: dsh-windows-2025-16core
-            blacksmith: blacksmith-16vcpu-windows-2025
-            workload: production-site
-          - platform: windows
-            cores: '32'
-            runner: dsh-windows-2025-32core
-            blacksmith: blacksmith-32vcpu-windows-2025
-            workload: production-site
-          - platform: windows
-            cores: '64'
-            runner: dsh-windows-2025-64core
-            blacksmith: ''
-            workload: production-site
-          - platform: windows
-            cores: '96'
-            runner: dsh-windows-2025-96core
-            blacksmith: ''
+            runner: windows-latest
             workload: production-site
     steps:
       - uses: actions/checkout@v7.0.1
@@ -391,80 +318,20 @@ jobs:
   # Windows runs both blocking build targets concurrently through run-gates.
   consolidated-runner-benchmark:
     if: github.event_name == 'workflow_dispatch' && inputs.suite == 'consolidated-runner-benchmark'
-    # Default measures the repository's own fleet tiers; under the matching
-    # platform's blacksmith failover value the tiers Blacksmith offers (up to
-    # 32 vCPU) move onto their Blacksmith equivalents, while the 64/96-core
-    # rows keep the fleet labels because Blacksmith has no such tier.
-    runs-on: >-
-      ${{ (matrix.platform == 'linux' && vars.DSH_CI_FAILOVER_LINUX == 'blacksmith'
-            || matrix.platform == 'windows' && vars.DSH_CI_FAILOVER_WINDOWS == 'blacksmith')
-          && matrix.blacksmith
-          || matrix.runner }}
-    timeout-minutes: 15
+    # The unsharded inventory needs the hosted job limit on a 4-vCPU runner.
+    # Worker caps match that runner: four on Linux, two on Windows.
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 2
       matrix:
         include:
           - platform: linux
-            cores: '4'
-            runner: dsh-ubuntu-24-04-4core
-            blacksmith: blacksmith-4vcpu-ubuntu-2404
+            runner: ubuntu-latest
             workers: '4'
-          - platform: linux
-            cores: '8'
-            runner: dsh-ubuntu-24-04-8core
-            blacksmith: blacksmith-8vcpu-ubuntu-2404
-            workers: '8'
-          - platform: linux
-            cores: '16'
-            runner: dsh-ubuntu-24-04-16core
-            blacksmith: blacksmith-16vcpu-ubuntu-2404
-            workers: '16'
-          - platform: linux
-            cores: '32'
-            runner: dsh-ubuntu-24-04-32core
-            blacksmith: blacksmith-32vcpu-ubuntu-2404
-            workers: '32'
-          - platform: linux
-            cores: '64'
-            runner: dsh-ubuntu-24-04-64core
-            blacksmith: ''
-            workers: '32'
-          - platform: linux
-            cores: '96'
-            runner: dsh-ubuntu-24-04-96core
-            blacksmith: ''
-            workers: '32'
           - platform: windows
-            cores: '4'
-            runner: dsh-windows-2025-4core
-            blacksmith: blacksmith-4vcpu-windows-2025
-            workers: '2'
-          - platform: windows
-            cores: '8'
-            runner: dsh-windows-2025-8core
-            blacksmith: blacksmith-8vcpu-windows-2025
-            workers: '2'
-          - platform: windows
-            cores: '16'
-            runner: dsh-windows-2025-16core
-            blacksmith: blacksmith-16vcpu-windows-2025
-            workers: '2'
-          - platform: windows
-            cores: '32'
-            runner: dsh-windows-2025-32core
-            blacksmith: blacksmith-32vcpu-windows-2025
-            workers: '2'
-          - platform: windows
-            cores: '64'
-            runner: dsh-windows-2025-64core
-            blacksmith: ''
-            workers: '2'
-          - platform: windows
-            cores: '96'
-            runner: dsh-windows-2025-96core
-            blacksmith: ''
+            runner: windows-latest
             workers: '2'
     steps:
       - uses: actions/checkout@v7.0.1
