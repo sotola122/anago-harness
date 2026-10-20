@@ -176,8 +176,8 @@ const base = process.env.DOCS_BASE ?? '/'
 
 /** Site identity shared by the VitePress configuration and the llms.txt index. */
 const siteIdentity = {
-  title: 'DeepSeek Harness',
-  description: '用于构建 Agent Harness 的插件化 SDK',
+  title: 'Anago Harness',
+  description: 'Anago Harness（DeepSeek Harness 的非官方 fork）的文档',
 }
 
 /**

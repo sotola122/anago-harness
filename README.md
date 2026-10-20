@@ -1,22 +1,24 @@
-# DeepSeek Harness
+# Anago Harness
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+Anago Harness is an unofficial fork of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), an open-source agent harness developed by [DeepSeek AI](https://deepseek.com). It is not affiliated with or endorsed by DeepSeek AI. See [fork notes](docs/fork.md) for what the fork changes and what it keeps compatible.
 
 It is built on an **everything-is-a-plugin** architecture and powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
 
-Documentation: [https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+Documentation: [upstream documentation](https://deepseek-harness.github.io/deepseek-harness/)
 
 ## Developer preview
 
-DeepSeek Harness is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
+This fork inherits the upstream _developer preview_ status and iterates rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
 
 Review the [safety notice](SAFETY.md) before running the project.
 
 ## Run
 
 ### Run from `npm`
+
+This command installs the upstream package, not the fork. To run the fork, use [Run from source](#run-from-source).
 
 Install `Node.js`, then run:
 
@@ -31,8 +33,8 @@ The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it
 To run from a repository checkout:
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+git clone https://github.com/sotola122/anago-harness.git
+cd anago-harness
 pnpm install
 pnpm run build
 pnpm dsh web
@@ -42,9 +44,7 @@ pnpm dsh web
 
 ## Community and support
 
-- Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
-- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/4MrtZUhpxg">DeepSeek Harness Discord community</a>.
+This fork has no community channel of its own. The upstream project keeps [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) and a [Discord community](https://discord.gg/4MrtZUhpxg) for upstream questions; send changes to this fork as a pull request here.
 
 ## Contributing
 
@@ -59,6 +59,8 @@ Start with the [development guide](docs/development.md) and [architecture docume
 For agents, follow [AGENTS.md](AGENTS.md).
 
 ## Citation
+
+Citing the upstream project:
 
 ```bibtex
 @misc{deepseek-harness2026,
