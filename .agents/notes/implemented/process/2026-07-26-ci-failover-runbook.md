@@ -14,9 +14,9 @@ The three primary Linux jobs (`node-24`, `node-24-coverage`, `node-24-consumers`
 
 The [superseded-CI cancellation policy](../../../../.github/workflows/ci.yml) governs master pushes and manual runs in the same workflow/ref group, including standby drills. Rapid master updates can starve a drill before it reaches a verdict. Use the latest completed standby verdict and check its age and commit before treating it as readiness evidence; a cancelled or merely scheduled run is not proof of readiness.
 
-### Release rehearsals share the Linux switch
+### Main CI uses the Linux switch
 
-`DSH_CI_FAILOVER_LINUX=selfhosted` also routes the credential-free dependency-layout job and both dsh/vendor pack jobs onto `vm-backup` for eligible same-repository PRs and master pushes. Their [release rehearsal reference](../../../../.github/workflows/release.yml) owns the stricter event eligibility and hosted manual dispatch. This coupling is intentional: keeping the variable set to save release minutes also keeps the eligible main-CI Linux jobs self-hosted. Clearing it returns both workloads to their hosted targets for subsequent runs; publication stays hosted regardless.
+`DSH_CI_FAILOVER_LINUX=selfhosted` routes eligible main CI Linux jobs onto the in-house standby. Clearing it returns those jobs to their hosted targets. This tree does not run the upstream pack rehearsals that previously shared the switch.
 
 ### What the in-house pool is
 

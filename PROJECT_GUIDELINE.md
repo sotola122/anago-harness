@@ -208,7 +208,7 @@ BRAND_GUIDELINES.md requirements: do not use "DeepSeek Harness" in the name. Do 
   - Upstream still puts the mandatory-update policy into the manifest for unsigned Windows builds (`:68`, `:112`) and requires an HTTPS origin at build time (`desktop-policy-environment.mjs:4-11`). So `forkBuildEnvironment()` (#6) passes the unresolvable placeholder `https://policy.invalid`, and the builder wrapper deletes `extraMetadata.dshMandatoryUpdatePolicy`. Without a policy in the manifest the app never fetches one (`main.ts:1293-1297`, `mandatory-update-policy.ts:57`).
   - The "Check for Updates" menu item is hidden (#3).
   - CI (`ci/fork/check-no-update.mjs`) confirms that the packaged app has no `app-update.yml` and that the manifest has no `dshMandatoryUpdatePolicy`. `download.deepseek.com` is also on the guard denylist.
-- **Release workflow `anago-release.yml`** (triggered by `v*.*.*` tags; upstream's workflows target DeepSeek's self-hosted runners and are disabled in the GitHub settings):
+- **Release workflow `anago-release.yml`** (triggered by `v*.*.*` tags; not in the tree yet. Upstream publication workflows are removed. The kept desktop packaging workflows are manual):
   - `win-x64` (windows-2025) and `mac` (arm64: macos-15, x64: an Intel runner) build the installers and confirm that updates are disabled.
   - `github-release`: checks the artifacts (§7 (b)), then publishes the exe and dmg files to GitHub Releases.
 - Linux: upstream's packaging scripts have no Linux desktop target (`package-target.ts:62-83`). On Linux, use the CLI built from source.
@@ -262,7 +262,7 @@ git pull --ff-only && ./scripts/fork/install-ash.sh
    - (d) Desktop artifacts contain no `app-update.yml` and no `dshMandatoryUpdatePolicy`.
    - (e) Fork tests, plus upstream tests with the exclusion list applied.
    - (f) Install from source (`fork-install.yml`).
-4. Disable upstream's `.github/workflows/*` in the GitHub settings; do not edit those files.
+4. Upstream publication, preview, issue, and approval workflows are removed from `.github/workflows`. CI, CI master, the egress scan, sandbox, filename checks, desktop packaging, the Python runtime builder, and the native addon test workflow remain.
 
 ## 8. Effort estimate (one engineer experienced with TS/Electron)
 | Work | Days |

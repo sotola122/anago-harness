@@ -8,8 +8,10 @@ const net = require('node:net')
 const dns = require('node:dns')
 const { syncBuiltinESMExports } = require('node:module')
 const { domainToASCII } = require('node:url')
-const { readFileSync, appendFileSync, writeSync } = require('node:fs')
+const { readFileSync, appendFileSync, writeSync, mkdtempSync, copyFileSync } = require('node:fs')
+const { tmpdir } = require('node:os')
 const { join } = require('node:path')
+const { isSea } = require('node:sea')
 
 const GUARD = Symbol.for('dsh-fork.egress-guard')
 if (!globalThis[GUARD]) install()
@@ -154,14 +156,33 @@ function install() {
 
   // Node children inherit the guard through NODE_OPTIONS. The test runner sets
   // VITEST; leaving its child options unchanged does not disable the denylist
-  // in the process that loaded this file.
-  const preload = `--require=${__filename}`
+  // in the process that loaded this file. A single-file executable stores this
+  // file in a snapshot path that a separate Node process cannot load, so that
+  // case copies the guard and denylist to a real temporary directory first.
+  const preloadFile = childPreloadPath()
+  const preload = preloadFile === undefined ? '' : `--require=${preloadFile}`
   const nodeOptions = process.env.NODE_OPTIONS ?? ''
-  if (process.env.VITEST === undefined && !nodeOptions.includes(__filename) && !nodeOptions.includes(preload)) {
+  if (process.env.VITEST === undefined && preloadFile !== undefined
+    && !nodeOptions.includes(preloadFile) && !nodeOptions.includes(preload)) {
     process.env.NODE_OPTIONS = `${nodeOptions} ${preload}`.trim()
   }
 
   Object.defineProperty(globalThis, GUARD, { value: Object.freeze({ verdict, normalize }), enumerable: false })
+}
+
+function childPreloadPath() {
+  if (!isSea()) return __filename
+  try {
+    const dir = mkdtempSync(join(tmpdir(), 'dsh-fork-guard-'))
+    const target = join(dir, 'egress-guard.cjs')
+    copyFileSync(__filename, target)
+    copyFileSync(join(__dirname, 'denylist.json'), join(dir, 'denylist.json'))
+    return target
+  } catch (error) {
+    // A failed copy must not point child processes at a snapshot path.
+    void error
+    return undefined
+  }
 }
 
 module.exports = { guard: globalThis[GUARD] }

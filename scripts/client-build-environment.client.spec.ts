@@ -29,9 +29,6 @@ const roots: string[] = []
 const dshBuildWorkflows = [
   'build-exe-for-python-sdk.yml',
   'ci.yml',
-  'e2e.yml',
-  'release.yml',
-  'release-publish.yml',
   'sandbox.yml',
 ]
 
