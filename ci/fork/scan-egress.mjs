@@ -50,10 +50,14 @@ for (const file of files) {
   }
 }
 const current = [...found].sort()
-if (write || !existsSync(baselinePath)) {
+if (write) {
   writeFileSync(baselinePath, JSON.stringify(current, null, 1) + '\n')
   console.log(`baseline written: ${current.length} pairs`)
   process.exit(0)
+}
+if (!existsSync(baselinePath)) {
+  console.error(`baseline missing: ${baselinePath}; run with --write-baseline to create it`)
+  process.exit(1)
 }
 const baseline = new Set(JSON.parse(readFileSync(baselinePath, 'utf8')))
 const added = current.filter(key => !baseline.has(key))

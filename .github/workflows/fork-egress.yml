@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+
 concurrency:
   group: fork-egress-${{ github.ref }}
   cancel-in-progress: true
