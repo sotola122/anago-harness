@@ -2,7 +2,7 @@
 
 ## Summary
 
-The `weighted-approval` workflow publishes an approval score for branch rules. Reviewers are chosen manually; an eligible delegation command requests review from its recipient.
+This fork does not run the `weighted-approval` workflow; upstream publishes an approval score for branch rules with it. Reviewers are chosen manually; an eligible delegation command requests review from its recipient.
 
 ## Table of Contents
 
