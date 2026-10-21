@@ -31,6 +31,7 @@ interface GuardModule {
 
 // A string keeps the file in the worker image. A computed URL is omitted, and
 // import.meta.url in that image is not a file URL.
+// oxlint-disable-next-line typescript/no-unsafe-assignment -- createRequire returns any; egress-guard.cjs exports the installed guard
 const guardModule: GuardModule = require('../egress-guard.cjs')
 
 /** Installed egress guard. Evaluating this binding installs the denylist. */
