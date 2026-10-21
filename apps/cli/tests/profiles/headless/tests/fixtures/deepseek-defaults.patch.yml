@@ -10,7 +10,9 @@
     baseURL: !!js process.env.DSH_SNAPSHOT_BASE_URL
     thinking: enabled
     reasoningEffort: low
-    streamIdleTimeoutMs: 150
+    # A parser that ignores heartbeat comments must still hit the watchdog, so
+    # the mock server's 12 comments every 60ms stay silent for 720ms.
+    streamIdleTimeoutMs: 600
 
 - id: agent-loop
   config:
