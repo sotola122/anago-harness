@@ -51,7 +51,7 @@ concurrency:
 
 jobs:
   package:
-    runs-on: [self-hosted, macOS, ARM64, dsh-mac-package-trial]
+    runs-on: macos-latest
     timeout-minutes: 180
     defaults:
       run:

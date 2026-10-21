@@ -15,7 +15,10 @@ function property(nodes: readonly SchemaNode[], index: number, name: string): nu
   return field.type
 }
 
-it('requires compatibility review before request headers can carry retired system text', { timeout: 60_000 }, () => {
+// The case builds one host TypeScript program. Alone that is seconds; the
+// 4-vCPU coverage lane runs three partitions at once and this case exceeded
+// its 60s budget there. 180s still fails a hang.
+it('requires compatibility review before request headers can carry retired system text', { timeout: 180_000 }, () => {
   const inventory = extractPersistenceSchema(resolve(import.meta.dirname, '..'))
   const before = inventory.roots.find(root => root.key === 'event:request/header')
   if (before === undefined) throw new Error('generated schema omits request/header')

@@ -123,9 +123,12 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
       '    shellDialect: pwsh',
       '    pollIntervalMs: 10',
       '    exactProbeAfterMs: 20',
-      // The silence tier keeps its product default; the case body records each
-      // send's wait reason, which pins the controlled-prompt fast path directly
-      // instead of relying on how long silence would take to settle.
+      // Prompt-settled commands must still report stdin_read. On a loaded
+      // 4-vCPU runner, pwsh exit can outlive the product 3s silence bound and
+      // settle inferred_idle before the process death is visible. 30s lets
+      // that send settle as session_exit. A send that never reaches the prompt
+      // still fails the expected wait-reason list.
+      '    idleSilenceMs: 30000',
       '    handoffGraceMs: 300',
       // promptTailGraceMs keeps its product default (0): the self-hosted Windows failures of
       // 2026-09-25..27 settled at the plain silence bound with the tolerance present and absent

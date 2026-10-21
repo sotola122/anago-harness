@@ -146,13 +146,4 @@ describe('master-only platform scheduling', () => {
     expect(process.env.npm_execpath).toBe(previous)
   })
 
-  it('retains the complete release matrix independently of CI scheduling', () => {
-    const release = workflow('python-release.yml')
-    const calls = Object.values(release.jobs).filter(job => job.uses === runtimeBuilder)
-    expect(calls).toHaveLength(1)
-    expect(calls[0]!.with).toMatchObject({
-      release: true,
-      targets: 'node24-linux-x64,node24-linux-arm64,node24-macos-arm64,node24-macos-x64,node24-win-x64',
-    })
-  })
 })

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
+import { forkDefaultPatches, forkLockPatches } from '@anago-harness/fork-policy' // anago: also installs the egress guard on import
 
 /** Application-owned package manager executable; environment applies only to package operations. */
 export interface ProfilePnpmInvocation {
@@ -65,15 +66,17 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
   return profile.layers.flatMap(layer => layer.patches)
 }
 
-/** Read current bundle and user layers with the launch-time overlays.
+/** Read current bundle and user layers with the launch-time overlays and the fork's default and lock layers.
  * @param binName Diagnostic prefix for malformed or missing configuration.
  * @param context Data supplied by the profile launcher.
  * @param initialProfile Already loaded startup profile; omitted reads the current files.
  * @returns Detached ordered patches; this function does not update the Loader.
  */
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
+  const bundlePatches = readBundlePatches(binName, context, initialProfile)
   const patches = structuredClone([
-    ...readBundlePatches(binName, context, initialProfile),
+    ...bundlePatches,
+    ...forkDefaultPatches(composeEntries([bundlePatches])), // anago: defaults
     ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
     ...context.overlays,
@@ -81,5 +84,6 @@ export function readProfilePatches(binName: string, context: ProfileContext, ini
   const telemetryPatch = resolveTelemetryPatch(context.telemetryDisabledEnv,
     composeEntries([patches]).some(row => row.id === TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) patches.push(telemetryPatch)
+  patches.push(...forkLockPatches(composeEntries([patches]))) // anago: final, non-overridable layer
   return patches
 }

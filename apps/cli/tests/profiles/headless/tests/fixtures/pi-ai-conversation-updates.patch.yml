@@ -14,7 +14,9 @@
       moonshotai:
         apiKeyEnv: MOONSHOT_API_KEY
         baseURL: !!js process.env.DSH_SNAPSHOT_BASE_URL
-        streamIdleTimeoutMs: 1000
+        # The mock server comments every 60ms; a hosted 4-vCPU runner delays the
+        # shared test process, so give the idle window room for a scheduling slip.
+        streamIdleTimeoutMs: 3000
 
 - id: agent-loop
   config:

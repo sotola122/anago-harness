@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The [preview workflow](../workflows/build-preview-cloudflare.yml) builds pull-request previews on standard GitHub-hosted `ubuntu-24.04`. Runner sizing compares complete job cost, not price per minute or core count alone.
+This fork does not run pull-request previews; the upstream preview workflow builds them on standard GitHub-hosted `ubuntu-24.04`. Runner sizing compares complete job cost, not price per minute or core count alone.
 
 ## Table of Contents
 

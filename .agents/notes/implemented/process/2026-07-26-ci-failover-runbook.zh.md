@@ -14,9 +14,9 @@ Status: implemented
 
 [被取代 CI 的取消策略](../../../../.github/workflows/ci.yml) 管理同一工作流/引用组内的 master 推送和手动运行，包括热备演练。master 快速更新可能让演练因反复被取消而始终无法得出结论。判断就绪状态时，使用最近一次已完成的热备结论，并核对其时间和提交；已取消或仅被调度的运行不构成就绪证据。
 
-### 发布演练共用 Linux 开关
+### 主 CI 使用 Linux 开关
 
-`DSH_CI_FAILOVER_LINUX=selfhosted` 还会将符合条件的同仓库 PR 和 master 推送中的无凭据依赖布局作业与 dsh/vendor 两个打包作业路由到 `vm-backup`。[发布演练说明](../../../../.github/workflows/release.yml) 负责更严格的事件准入规则及保留托管的手动触发。这种耦合是有意的：持续设置变量来节省发布分钟，也会让符合条件的主 CI Linux 作业持续使用自托管。清除变量会让两类负载的后续运行返回各自的托管目标；发布操作始终保留托管。
+`DSH_CI_FAILOVER_LINUX=selfhosted` 将符合条件的主 CI Linux 作业路由到自有热备。清除变量后，这些作业回到托管运行器。本仓库不再运行先前共用该开关的上游打包演练。
 
 ### 自有池是什么
 

@@ -61,10 +61,11 @@ const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 const pluginMarketGeneratorDirectory = 'apps/plugin-market-generator'
 /**
  * Ordinary directories whose packages this repository publishes: one release member each. The reference plugin
- * market generator is a private repository tool, not a published application.
+ * market generator is a private repository tool, not a published application. `packages/fork/` holds the
+ * private fork policy package and is not a release member.
  */
 const standardReleaseMemberDirectory = new RegExp(
-  `^(?:packages/(?!experimental/)[^/]+/[^/]+|apps/(?!desktop(?:-host)?$|${pluginMarketGeneratorDirectory.slice('apps/'.length)}$)[^/]+|vendor/[^/]+)$`,
+  `^(?:packages/(?!experimental/|fork/)[^/]+/[^/]+|apps/(?!desktop(?:-host)?$|${pluginMarketGeneratorDirectory.slice('apps/'.length)}$)[^/]+|vendor/[^/]+)$`,
   'u',
 )
 /** Installable application assembled by electron-builder rather than published to npm. */

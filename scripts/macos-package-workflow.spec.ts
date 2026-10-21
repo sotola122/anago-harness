@@ -8,7 +8,7 @@ const workflow = yaml.load(readFileSync(resolve(import.meta.dirname, '../.github
   permissions: Record<string, string>
   concurrency: { group: string; 'cancel-in-progress': boolean }
   jobs: Record<string, {
-    'runs-on': string[]
+    'runs-on': string
     steps: Array<{ id?: string; name?: string; if?: string; uses?: string; run?: string; with?: Record<string, unknown> }>
   }>
 }
@@ -20,7 +20,7 @@ it('confines signed Mac packaging to manual dispatch and a dedicated Apple Silic
   expect(workflow.on.workflow_dispatch).not.toHaveProperty('inputs.publish')
   expect(workflow.permissions).toEqual({ contents: 'read' })
   expect(workflow.concurrency).toEqual({ group: 'macos-desktop-package', 'cancel-in-progress': false })
-  expect(workflow.jobs.package!['runs-on']).toEqual(['self-hosted', 'macOS', 'ARM64', 'dsh-mac-package-trial'])
+  expect(workflow.jobs.package!['runs-on']).toBe('macos-latest')
   const steps = workflow.jobs.package!.steps
   expect(steps.find(step => step.id === 'checkout')?.with).toMatchObject({ 'persist-credentials': false, clean: true })
   for (const step of steps) expect(step.run ?? '').not.toContain('${{ inputs.')
