@@ -236,7 +236,9 @@ describe('the per-slot report budget', () => {
 })
 
 describe('the real workspace surface', () => {
-  it('collects every declared slot with a teachable contract', { timeout: 30_000 }, () => {
+  // The case builds the catalog through one TypeScript program; the hosted
+  // 4-vCPU Windows lane runs three coverage partitions beside it.
+  it('collects every declared slot with a teachable contract', { timeout: 120_000 }, () => {
     const entries = collectSlotEntries(process.cwd())
     expect(entries.length).toBeGreaterThan(30)
     for (const entry of entries) {
