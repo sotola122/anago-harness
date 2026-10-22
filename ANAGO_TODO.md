@@ -107,8 +107,18 @@
 | メモリ | headless で `memory` 追記 → `~/.dsh-anago-trial/memories/USER.md` に反映 |
 | サブエージェント | `subagent_pi` → 子の出力 `PI_OK` |
 | スナップショット | `anago-{memory,wiki,search}` 3/3 をキーなしで replay |
+| TUI（実 PTY） | `script` で PTY を割り当てて起動 → 2.6 KB の描画（ANSI・罫線・日本語フッター）を確認、クラッシュなし |
 
 残るのは**ブラウザでの見た目確認**（日本語表示・UDEV Gothic・xterm の全角幅）のみ。
+
+## 切り替え準備（完了）
+
+- 本番ホーム `~/.dsh` に新プロファイル `profiles/web-anago` を作成済み（`profiles/web` は無変更）。
+  - バンドル: `dsh-base` / `dsh-web-app` / `anago-core` / `anago-web` / `dsh-commandcode-provider`
+  - 設定: モデル `commandcode`、検索 Brave、`agentsHome`、`subagent-pi`（openai/gpt-6-astra）、セッションログ無効
+  - `--dump-config` で 203 行、`locale ja` / `anago-locale-ja` / `anago-fonts` / `subagent-pi` を確認
+- 起動コマンド: `node apps/cli/lib/bin.js --profile web-anago --host 100.110.252.31 --port 3080 --no-open`
+- ロールバック: `~/.local/bin/dsh --profile web --host 100.110.252.31 --no-open`
 
 ## 3080 切り替え（ユーザー確認待ち）
 
