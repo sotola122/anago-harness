@@ -33,7 +33,6 @@ fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` �
 | [`web-search-exa`](web-search-exa/README.zh.md) | 通过 `ctx.credentials` 解析密钥的 Exa 搜索提供方 | `web-search-exa` |
 | [`web-search-credentials`](web-search-credentials/README.zh.md) | 搜索提供方共享的 API 密钥查找顺序 | （库） |
 | [`client-ui-settings-web-search`](client-ui-settings-web-search/README.zh.md) | Plugins 页面上的 Exa 与 Brave 搜索设置卡片 | `ui-settings-web-search-providers` |
-| [`client-locale-ja`](client-locale-ja/README.zh.md) | 基于英文回退的日语 UI 语言包 | `anago-locale-ja` |
 | [`client-ui-fonts-anago`](client-ui-fonts-anago/README.zh.md) | 日语优先的 Web UI 字体 | `anago-fonts` |
 | [`tui`](tui/README.zh.md) | 基于 pi 终端 UI 库的终端应用插件 | `tui-startup`、`tui-app` |
 | [`anago-core`](anago-core/README.zh.md) | 配置捆绑包：上述主机行 | （捆绑包） |

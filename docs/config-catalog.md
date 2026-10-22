@@ -4969,7 +4969,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 <!-- BEGIN GENERATED config-catalog:no-config -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
-| `@anago-harness/client-locale-ja` | — | [`packages/fork/client-locale-ja/src/index.ts`](../packages/fork/client-locale-ja/src/index.ts) |
 | `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |

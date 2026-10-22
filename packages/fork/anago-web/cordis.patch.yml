@@ -11,18 +11,15 @@
   name: '@deepseek-ai/dsh-client-ui-settings-web-search'
   disabled: true
 
-# The fork ships a Japanese dictionary with English fallback. Pin Japanese so
-# the shell never lands on Chinese or on an English-defaulted surface.
+# The fork ships no Japanese dictionary; pin English so a browser that prefers
+# another language never lands on Chinese.
 - id: locale
   name: '@deepseek-ai/dsh-client-locale'
   config:
-    preference: ja
+    preference: en
 
-# Japanese language pack (partial dictionaries over the English fallback) and
-# Japanese-first typography (UDEV Gothic, Intel One Mono, Noto Sans JP). Both
-# are new rows, so they need an insert patch rather than an entry patch.
+# Japanese-first typography (UDEV Gothic, Intel One Mono, Noto Sans JP). The
+# row is new, so it needs an insert patch rather than an entry patch.
 - insert:
-    - id: anago-locale-ja
-      name: '@anago-harness/client-locale-ja'
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'

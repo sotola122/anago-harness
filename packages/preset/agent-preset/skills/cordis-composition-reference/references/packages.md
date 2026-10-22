@@ -237,7 +237,6 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
-| `@anago-harness/client-locale-ja` | no | Japanese language pack for the anago Web UI: registers the ja locale and partial ja dictionaries for the shared shell vocabulary, the settings and Plugins pages, and the fork web-search cards. |
 | `@anago-harness/client-ui-fonts-anago` | no | Japanese-first Web UI fonts: UDEV Gothic for kana, kanji and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP as the broad fallback. |
 | `@anago-harness/client-ui-settings-web-search` | no | Web-search provider settings cards for the anago Web UI: Exa and Brave keys, provider selection, and result bounds. |
 | `@anago-harness/llm-wiki` | yes | LLM wiki: project and global wiki stores with write, search, and lint tools plus a skill. |

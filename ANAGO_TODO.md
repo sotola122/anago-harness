@@ -34,7 +34,7 @@
 - 原因: クライアントは en / zh の 2 言語のみ。ブラウザの言語がどちらにも一致しない場合の挙動が環境依存で、中国語が選ばれる場合があった。
 - 対応: `anago-web` で `locale.preference: en` を既定に固定（ユーザーが明示的に選んだ場合はそちらが優先）。
 - 受入: `--dump-config`（web）で `locale.config.preference: en` を確認。
-- 未対応: **日本語 UI（ja ロケール）は未実装**。全パッケージの locale 辞書の翻訳が必要（項目 5）。
+- 方針変更（ユーザー指示）: **UI の日本語化は不要。英語 UI のままフォントだけ適用する**。`locale.preference: en` を既定に固定し、日本語辞書パックは追加しない。
 
 ## 確認済み（バグではない）
 
@@ -46,12 +46,12 @@
 
 ## 対応済み（このラウンド）
 
-### 5. 日本語 UI（ja ロケール）— 完了
+### 5. UI 言語 — 英語固定（日本語 UI は不要）
 
-- `@anago-harness/client-locale-ja` を追加し、`common`（41）、`settings`（41）、`settings.locale`（1）、`settings.shell`（14）、`settings.pluginInventory`（37）、`pluginManager`（220/221）、`settings.webSearchProviders`（35）の **389 キー**を日本語化。未訳キーは en へフォールバック。
-- `anago-web` で `locale.preference: ja` を既定に固定。
-- 追加翻訳（第 2 弾）で 49 名前空間 / **2032 キー**まで拡張。conversation（373）、workspace（119）、chat（191）、models（157）、schedule（258）、サイドバー/文書タブ（約 200）などを収録。
-- 検証: パッケージテスト 5 件、lint 0、tsc 成功、README ゲート通過。
+- ユーザー指示により、UI は英語のままとする（日本語ロケールは追加しない）。
+- `anago-web` で `locale.preference: en` を既定に固定し、ブラウザ言語が未対応でも中国語に落ちないようにした。
+- 一度追加した `@anago-harness/client-locale-ja`（49 名前空間 / 2032 キー）は、この指示に従って**削除**し、配線・lockfile・生成物も元に戻した。
+- 検証: ヘッドレス Chrome で `lang="en"`、本文が英語（Into the Unknown / Preview / Choose workspace）、フォントは UDEV Gothic 適用済みを確認。
 
 ### 6. 日本語フォント — 完了
 
@@ -101,7 +101,7 @@
 | 確認項目 | 結果 |
 |---|---|
 | 組成 | `--dump-config` に anago-core / anago-web / locale(ja) / anago-locale-ja / anago-fonts / subagent-pi / tool-subagent-pi |
-| ブートグラフ | `window.__DSH_BOOT__` に `@anago-harness/client-locale-ja`（34.5 KB）と `@anago-harness/client-ui-fonts-anago`（7.47 MB）を確認 |
+| ブートグラフ | `window.__DSH_BOOT__` に `@anago-harness/client-ui-fonts-anago`（7.47 MB）を確認 |
 | 日本語辞書 | 配信バンドルに「キャンセル」等の日本語キーを確認 |
 | フォント | 配信バンドルに `UDEV Gothic` と `data:font/woff2` 8 件、`Anago Gothic` 0 件 |
 | 検索 | headless で `web_search` → Brave 経由で実 URL を取得 |
@@ -109,10 +109,7 @@
 | サブエージェント | `subagent_pi` → 子の出力 `PI_OK` |
 | スナップショット | `anago-{memory,wiki,search}` 3/3 をキーなしで replay |
 | TUI（実 PTY） | `script` で PTY を割り当てて起動 → 2.6 KB の描画（ANSI・罫線・日本語フッター）を確認、クラッシュなし |
-| ブラウザ描画（ヘッドレス Chrome） | `lang="ja"`、本文が日本語（未知の世界へ / プレビュー / ワークスペースを選択 / 標準モード） |
-| Plugins ページ | 「プラグイン」「Exa 検索」「Brave 検索」「サブエージェント」など日本語 |
-| 設定ダイアログ | 「設定」「一般」「モデル」「権限」「外観」「言語: 日本語」を確認 |
-| モデルページ | 「モデルプロバイダーを追加」「API キーを入力してください」「編集」「削除」を確認 |
+| ブラウザ描画（ヘッドレス Chrome） | `lang="en"`、本文は英語（Into the Unknown / Preview / Choose workspace / Standard mode） |
 | フォント適用 | `getComputedStyle` = `"UDEV Gothic", "Noto Sans JP", ...`、`document.fonts.check('16px "UDEV Gothic"')` = true、スクリーンショットで日本語グリフを確認 |
 
 残るのは**ブラウザでの見た目確認**（日本語表示・UDEV Gothic・xterm の全角幅）のみ。
