@@ -32,6 +32,11 @@ describe('isPathWithin', () => {
       expect(isPathWithin(root, target)).toBe(expected)
     })
   }
+
+  it('treats the filesystem root as a prefix that already ends in a separator', () => {
+    expect(isPathWithin('/', '/anywhere/at/all.md')).toBe(true)
+    expect(isPathWithin('/', '/')).toBe(true)
+  })
 })
 
 describe('canonicalizeTargetPath', () => {
@@ -62,6 +67,14 @@ describe('canonicalizeTargetPath', () => {
     const root = await createTempDir()
     const resolved = await canonicalizeTargetPath('file.md', root)
     expect(resolved).toBe(path.join(await realpath(root), 'file.md'))
+  })
+
+  it('rethrows a resolution failure that is not a missing component', async () => {
+    const root = await createTempDir()
+    await symlink('loop', path.join(root, 'loop'))
+    await expect(canonicalizeTargetPath(path.join(root, 'loop'))).rejects.toMatchObject({
+      code: 'ELOOP',
+    })
   })
 })
 

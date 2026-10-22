@@ -33,6 +33,8 @@ interface HarnessOptions {
   readonly holdExit?: boolean
   readonly real?: boolean
   readonly noResolve?: boolean
+  readonly omitStdout?: boolean
+  readonly omitStderrReader?: boolean
 }
 
 interface ResolveCall {
@@ -56,7 +58,7 @@ interface Harness {
     waits: number
   }
   complete(exitCode: number | null, signal?: NodeJS.Signals | null): void
-  failDone(error: Error): void
+  failDone(error: unknown): void
   releaseExit(): void
 }
 
@@ -96,7 +98,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   }
 
   let settle!: (value: SubprocessOutcome) => void
-  let rejectDone!: (error: Error) => void
+  let rejectDone!: (error: unknown) => void
   const done = new Promise<SubprocessOutcome>((resolve, reject) => {
     settle = resolve
     rejectDone = reject
@@ -121,10 +123,10 @@ function createHarness(options: HarnessOptions = {}): Harness {
     }, { once: true })
     return {
       stdin: undefined,
-      stdout,
+      stdout: options.omitStdout === true ? undefined : stdout,
       stderr: undefined,
       control: undefined,
-      collected: { stderr: readerFor(stderr) },
+      collected: options.omitStderrReader === true ? {} : { stderr: readerFor(stderr) },
       done,
       terminate: () => {
         counts.explicitTerminations += 1
@@ -412,6 +414,15 @@ describe('start failures before publication', () => {
       .rejects.toThrow(/EINVAL/)
     expect(harness.counts.explicitTerminations).toBe(0)
   })
+
+  it('rejects when the child handle exposes no stdout stream', async () => {
+    const harness = createHarness({ omitStdout: true })
+    apply(harness.ctx, Config({}))
+    await expect(harness.providers[0]!.start!(makeRequest(new AbortController().signal)))
+      .rejects.toThrow(/did not expose the child's stdout stream/)
+    expect(harness.counts.explicitTerminations).toBe(1)
+    expect(harness.counts.waits).toBe(1)
+  })
 })
 
 describe('executable resolution', () => {
@@ -567,6 +578,16 @@ describe('published run lifecycle', () => {
     await run.dispose()
   })
 
+  it('names a non-Error process rejection as unknown instead of trusting its name', async () => {
+    const harness = createHarness()
+    const { run } = await startRun(harness)
+    harness.failDone('spawn EACCES')
+    const result = await run.result
+    expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('(unknown)')
+    await run.dispose()
+  })
+
   it('keeps raw stderr out of the diagnostic and masks it in the log line', async () => {
     const harness = createHarness()
     const { run } = await startRun(harness)
@@ -577,6 +598,17 @@ describe('published run lifecycle', () => {
     expect(result.diagnostic).not.toContain('sk-live-secret')
     expect(harness.logs.join('\n')).toContain('[redacted]')
     expect(harness.logs.join('\n')).not.toContain('sk-live-secret')
+    await run.dispose()
+  })
+
+  it('omits the stderr tail when the child handle keeps no reader', async () => {
+    const harness = createHarness({ omitStderrReader: true })
+    const { run } = await startRun(harness)
+    harness.complete(1)
+    const result = await run.result
+    expect(result.stopReason).toBe('error')
+    expect(harness.logs.join('\n')).toContain('child failed')
+    expect(harness.logs.join('\n')).not.toContain('stderr tail')
     await run.dispose()
   })
 

@@ -8,7 +8,7 @@ export type WebSearchProvidersLocaleKey =
   | 'titleExa' | 'titleBrave' | 'descriptionExa' | 'descriptionBrave'
   | 'enabledExa' | 'enabledBrave' | 'switchHint' | 'switchUnavailable'
   | 'apiKey' | 'apiKeyHintExa' | 'apiKeyHintBrave' | 'apiKeySet' | 'apiKeyUnset'
-  | 'searchType' | 'searchTypeHint' | 'invalidSearchType' | 'numResults' | 'numResultsHint' | 'invalidNumResults'
+  | 'searchType' | 'searchTypeHint' | 'invalidSearchType'
   | 'maxResults' | 'maxResultsHint' | 'invalidMaxResults'
   | 'safesearch' | 'safesearchHint' | 'invalidSafesearch'
   | 'searchTypeAuto' | 'searchTypeKeyword' | 'searchTypeNeural'
@@ -33,9 +33,6 @@ export const en: Record<WebSearchProvidersLocaleKey, string> = {
   searchType: 'Search type',
   searchTypeHint: 'The retrieval mode Exa uses for each query.',
   invalidSearchType: 'Choose auto, keyword, or neural.',
-  numResults: 'Results per search',
-  numResultsHint: 'How many results Exa requests per query: a positive integer. Leave blank to use the provider default.',
-  invalidNumResults: 'Enter a positive integer, or leave blank to use the default.',
   maxResults: 'Results per search',
   maxResultsHint: 'How many results Brave requests per query: an integer from 1 to 20. Leave blank to use the default.',
   invalidMaxResults: 'Enter an integer from 1 to 20, or leave blank to use the default.',
@@ -75,9 +72,6 @@ export const zh: Record<WebSearchProvidersLocaleKey, string> = {
   searchType: '检索类型',
   searchTypeHint: 'Exa 对每次查询使用的检索模式。',
   invalidSearchType: '请选择自动、关键词或神经网络。',
-  numResults: '每次搜索结果数',
-  numResultsHint: 'Exa 每次查询请求的结果数，须为正整数；留空表示使用提供方默认值。',
-  invalidNumResults: '请填正整数；留空表示使用默认值。',
   maxResults: '每次搜索结果数',
   maxResultsHint: 'Brave 每次查询请求的结果数，须为 1–20 的整数；留空表示使用默认值。',
   invalidMaxResults: '请填 1–20 的整数；留空表示使用默认值。',

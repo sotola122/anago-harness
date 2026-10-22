@@ -29,7 +29,7 @@ Mount `@anago-harness/anago-web` in a Web profile; it inserts the single row thi
 
 | Card | Switch writes | Key reference | Other fields |
 |---|---|---|---|
-| Exa search | `web.searchProvider = exa` | `EXA_API_KEY` | `searchType`, `numResults` |
+| Exa search | `web.searchProvider = exa` | `EXA_API_KEY` | `searchType` |
 | Brave Search | `web.searchProvider = brave` | `BRAVE_API_KEY` | `maxResults`, `safesearch` |
 
 A switch that matches the composed value (the shipped default is `exa`) stages a reset instead of storing a copy. An invalid result count blocks the save and keeps the draft. A key the current process environment supplies renders the control disabled, because the credentials domain cannot write over the environment.

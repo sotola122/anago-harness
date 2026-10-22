@@ -14,6 +14,8 @@ export interface AgentEventSink {
   event(event: ProjectableTranscriptEvent): void
   /** Streamed assistant text. */
   delta(text: string): void
+  /** Streamed reasoning text. */
+  reasoning(text: string): void
   /** Agent lifecycle transition. */
   status(status: 'idle' | 'running'): void
   /** A failure that has no in-turn durable record. */
@@ -58,28 +60,35 @@ export function projectableSessionEvent(event: SessionEvent): ProjectableTranscr
  * @param ctx - plugin context.
  * @param agent - the Agent this UI owns.
  * @param sink - transcript and status receiver.
+ * @returns a disposer that detaches every listener.
  */
-export function subscribeAgentEvents(ctx: Context, agent: Agent, sink: AgentEventSink): void {
-  ctx.on('session/event', (session, event) => {
-    if (session.id !== agent.session.id) return
-    const projectable = projectableSessionEvent(event)
-    if (projectable !== null) sink.event(projectable)
-  }, { global: true })
+export function subscribeAgentEvents(ctx: Context, agent: Agent, sink: AgentEventSink): () => void {
+  const disposers = [
+    ctx.on('session/event', (session, event) => {
+      if (session.id !== agent.session.id) return
+      const projectable = projectableSessionEvent(event)
+      if (projectable !== null) sink.event(projectable)
+    }, { global: true }),
 
-  ctx.on('agent/assistant-stream', (payload) => {
-    if (payload.agent.id !== agent.id) return
-    const frame = payload.frame
-    if (frame.type !== 'chunk' || frame.chunk.type !== 'text-delta') return
-    sink.delta(frame.chunk.text)
-  }, { global: true })
+    ctx.on('agent/assistant-stream', (payload) => {
+      if (payload.agent.id !== agent.id) return
+      const frame = payload.frame
+      if (frame.type !== 'chunk') return
+      if (frame.chunk.type === 'text-delta') sink.delta(frame.chunk.text)
+      else if (frame.chunk.type === 'reasoning-delta') sink.reasoning(frame.chunk.text)
+    }, { global: true }),
 
-  ctx.on('agent/status', (payload) => {
-    if (payload.agent.id !== agent.id) return
-    sink.status(payload.status)
-  }, { global: true })
+    ctx.on('agent/status', (payload) => {
+      if (payload.agent.id !== agent.id) return
+      sink.status(payload.status)
+    }, { global: true }),
 
-  ctx.on('agent/error', (payload) => {
-    if (payload.agent.id !== agent.id) return
-    sink.error(payload.error)
-  }, { global: true })
+    ctx.on('agent/error', (payload) => {
+      if (payload.agent.id !== agent.id) return
+      sink.error(payload.error)
+    }, { global: true }),
+  ]
+  return () => {
+    for (const dispose of disposers) dispose()
+  }
 }

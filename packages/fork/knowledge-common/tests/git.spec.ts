@@ -137,4 +137,64 @@ describe.skipIf(!gitAvailable)('listTrackedFiles', () => {
     const root = await createTempDir()
     expect(await listTrackedFiles(root, '.dsh/memory', { run: failingRunner })).toEqual([])
   })
+
+  it('lists everything when the caller supplies no pathspec', async () => {
+    const root = await createTempDir()
+    const run = async (args: readonly string[]): Promise<{ code: number; stdout: string; stderr: string }> => ({
+      code: args.join(' ') === 'ls-files -z' ? 0 : 128,
+      stdout: args.join(' ') === 'ls-files -z' ? 'a.md\0b.md\0' : '',
+      stderr: '',
+    })
+    expect(await listTrackedFiles(root, undefined, { run })).toEqual(['a.md', 'b.md'])
+  })
+})
+
+/** Answer one `rev-parse` invocation from a scripted map keyed by its argument text. */
+function scriptedRootsRunner(
+  answers: Readonly<Record<string, { code: number; stdout: string }>>,
+) {
+  return async (args: readonly string[]): Promise<{ code: number; stdout: string; stderr: string }> => {
+    const answer = answers[args.join(' ')] ?? { code: 128, stdout: '' }
+    return { ...answer, stderr: '' }
+  }
+}
+
+describe('resolveGitRoots with a scripted runner', () => {
+  it('reports no root when the checkout root is empty', async () => {
+    const run = scriptedRootsRunner({ 'rev-parse --show-toplevel': { code: 0, stdout: '  \n' } })
+    expect(await resolveGitRoots('/repo', { run })).toBeNull()
+  })
+
+  it('reports no root for a bare repository whose toplevel probe succeeds', async () => {
+    const run = scriptedRootsRunner({
+      'rev-parse --show-toplevel': { code: 0, stdout: '/repo\n' },
+      'rev-parse --is-bare-repository': { code: 0, stdout: 'true\n' },
+    })
+    expect(await resolveGitRoots('/repo', { run })).toBeNull()
+  })
+
+  it('keeps the checkout root when the common directory cannot be read', async () => {
+    const run = scriptedRootsRunner({
+      'rev-parse --show-toplevel': { code: 0, stdout: '/repo\n' },
+      'rev-parse --is-bare-repository': { code: 0, stdout: 'false\n' },
+    })
+    expect(await resolveGitRoots('/repo', { run })).toEqual({
+      checkoutRoot: '/repo',
+      root: '/repo',
+      worktree: false,
+    })
+  })
+
+  it('keeps the checkout root for a separate git directory', async () => {
+    const run = scriptedRootsRunner({
+      'rev-parse --show-toplevel': { code: 0, stdout: '/repo\n' },
+      'rev-parse --is-bare-repository': { code: 0, stdout: 'false\n' },
+      'rev-parse --path-format=absolute --git-common-dir': { code: 0, stdout: '/repo/.git/worktrees\n' },
+    })
+    expect(await resolveGitRoots('/repo', { run })).toEqual({
+      checkoutRoot: '/repo',
+      root: '/repo',
+      worktree: false,
+    })
+  })
 })

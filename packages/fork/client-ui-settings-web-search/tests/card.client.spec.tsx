@@ -36,7 +36,6 @@ function exaState(overrides: Partial<ExaState> = {}): ExaState {
     apiKeyConfigured: false,
     apiKeyWritable: true,
     searchType: field('auto'),
-    numResults: field(''),
     ...overrides,
   }
 }
@@ -80,6 +79,17 @@ describe('WebSearchProviderCard summary', () => {
     render(<WebSearchProviderCard {...props} />)
 
     expect(document.body.textContent).toBe(en.descriptionExa)
+    expect(screen.queryByLabelText(en.apiKey)).toBeNull()
+  })
+
+  it('renders the Brave one-liner from the same summary view', () => {
+    const store = createSnapshotStore<WebSearchProviderCardState>(braveState())
+    const props = {
+      ...cardActions(), view: 'summary', t, useWebSearchProviderCard: bindSnapshotSelector(store),
+    } as WebSearchProviderCardProps
+    render(<WebSearchProviderCard {...props} />)
+
+    expect(document.body.textContent).toBe(en.descriptionBrave)
     expect(screen.queryByLabelText(en.apiKey)).toBeNull()
   })
 })
@@ -140,46 +150,43 @@ describe('WebSearchProviderCard switch and key', () => {
     (state) => {
       renderCard(exaState(state))
       expect(screen.getByRole('switch', { name: en.enabledExa })).toHaveProperty('disabled', true)
-      expect(screen.getByLabelText(en.numResults)).toBeTruthy()
+      expect(screen.getByLabelText(en.searchType)).toBeTruthy()
     },
   )
 })
 
 describe('WebSearchProviderCard Exa fields', () => {
-  it('stages the retrieval mode and the result count with their resets', () => {
+  it('stages the retrieval mode with its reset', () => {
     const actions = renderCard(exaState({
       searchType: field('keyword', { overridden: true }),
-      numResults: field('5', { overridden: true }),
     }))
 
     const select = screen.getByLabelText(en.searchType)
     expect(select).toHaveProperty('value', 'keyword')
     expect(screen.getByRole('option', { name: en.searchTypeNeural })).toBeTruthy()
     fireEvent.change(select, { target: { value: 'neural' } })
-    fireEvent.change(screen.getByLabelText(en.numResults), { target: { value: '9' } })
 
     const resets = screen.getAllByRole('button', { name: en.reset })
-    expect(resets).toHaveLength(2)
-    for (const reset of resets) fireEvent.click(reset)
+    expect(resets).toHaveLength(1)
+    fireEvent.click(resets[0]!)
 
-    expect(actions.edit.mock.calls).toEqual([['searchType', 'neural'], ['numResults', '9']])
-    expect(actions.resetField.mock.calls).toEqual([['searchType'], ['numResults']])
+    expect(actions.edit.mock.calls).toEqual([['searchType', 'neural']])
+    expect(actions.resetField.mock.calls).toEqual([['searchType']])
   })
 
-  it('shows the provider defaults while nothing is stored', () => {
+  it('shows the provider default while nothing is stored', () => {
     renderCard(exaState())
 
     expect(screen.getByLabelText(en.searchType)).toHaveProperty('value', 'auto')
-    expect(screen.getByLabelText(en.numResults)).toHaveProperty('value', '')
     expect(screen.queryByRole('button', { name: en.reset })).toBeNull()
     expect(zh.searchTypeKeyword).toBe('关键词')
   })
 
-  it('explains the result bound and blocks saving an invalid draft', () => {
-    renderCard(exaState({ numResults: field('0', { invalid: true }), invalid: true, dirty: true }))
+  it('explains an invalid retrieval mode and blocks saving it', () => {
+    renderCard(exaState({ searchType: field('auto', { invalid: true }), invalid: true, dirty: true }))
 
-    expect(screen.getByText(en.invalidNumResults)).toBeTruthy()
-    expect(screen.getByLabelText(en.numResults).getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByText(en.invalidSearchType)).toBeTruthy()
+    expect(screen.getByLabelText(en.searchType).getAttribute('aria-invalid')).toBe('true')
     expect(screen.getByRole('button', { name: en.save })).toHaveProperty('disabled', true)
   })
 })
@@ -204,5 +211,18 @@ describe('WebSearchProviderCard Brave fields', () => {
     expect(screen.getByText(en.invalidMaxResults)).toBeTruthy()
     expect(screen.getByLabelText(en.maxResults).getAttribute('aria-invalid')).toBe('true')
     expect(screen.getByRole('button', { name: en.save })).toHaveProperty('disabled', true)
+  })
+
+  it('resets each overridden Brave field from its own control', () => {
+    const actions = renderCard(braveState({
+      maxResults: field('12', { overridden: true }),
+      safesearch: field('strict', { overridden: true }),
+    }))
+
+    const resets = screen.getAllByRole('button', { name: en.reset })
+    expect(resets).toHaveLength(2)
+    for (const reset of resets) fireEvent.click(reset)
+
+    expect(actions.resetField.mock.calls).toEqual([['maxResults'], ['safesearch']])
   })
 })

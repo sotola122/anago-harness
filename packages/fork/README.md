@@ -33,6 +33,8 @@ The fork group holds the packages this fork adds to the product: private policy,
 | [`web-search-exa`](web-search-exa/README.md) | Exa search provider that resolves its key through `ctx.credentials` | `web-search-exa` |
 | [`web-search-credentials`](web-search-credentials/README.md) | Shared API-key lookup order for the search providers | (library) |
 | [`client-ui-settings-web-search`](client-ui-settings-web-search/README.md) | Exa and Brave search settings cards on the Plugins page | `ui-settings-web-search-providers` |
+| [`client-locale-ja`](client-locale-ja/README.md) | Japanese UI language pack over the English fallback | `anago-locale-ja` |
+| [`client-ui-fonts-anago`](client-ui-fonts-anago/README.md) | Japanese-first Web UI fonts | `anago-fonts` |
 | [`tui`](tui/README.md) | Terminal UI application plugin built on the pi terminal UI library | `tui-startup`, `tui-app` |
 | [`anago-core`](anago-core/README.md) | Profile bundle: the host rows above | (bundle) |
 | [`anago-web`](anago-web/README.md) | Profile bundle: the browser rows above | (bundle) |

@@ -106,6 +106,25 @@ describe('WebSearchProviderCardController selection', () => {
     expect(b.state('exa')).toMatchObject({ enabled: false, dirty: true })
     expect(b.state('brave')).toMatchObject({ enabled: true, dirty: true })
     expect(b.web.mutate).not.toHaveBeenCalled()
+
+    // Turning Brave off again selects Exa, which is already the composed value.
+    b.face('brave').setEnabled(false)
+    expect(b.state('exa')).toMatchObject({ enabled: true, dirty: false })
+    expect(b.state('brave')).toMatchObject({ enabled: false, dirty: false })
+    b.controller.dispose()
+  })
+
+  it('starts a card once and resets one field through its injected face', () => {
+    const b = bench()
+    serve(b)
+    const face = b.face('exa')
+    expect(b.controller.inject('exa').hooks).toEqual(face.hooks)
+
+    face.edit('searchType', 'neural')
+    expect(b.state('exa')).toMatchObject({ dirty: true, searchType: { text: 'neural' } })
+
+    face.resetField('searchType')
+    expect(b.state('exa')).toMatchObject({ dirty: false, searchType: { text: 'auto', overridden: false } })
     b.controller.dispose()
   })
 
@@ -250,17 +269,15 @@ describe('WebSearchProviderCardController credential', () => {
 })
 
 describe('WebSearchProviderCardController fields', () => {
-  it('saves Exa search type and result count before the selection', async () => {
+  it('saves the Exa search type before the selection', async () => {
     const b = bench({ accept: true })
     serve(b)
     const exa = b.face('exa')
     exa.edit('searchType', 'neural')
-    exa.edit('numResults', '4')
     exa.save()
     await vi.waitFor(() => { expect(b.state('exa').dirty).toBe(false) })
     expect(b.exa.mutate).toHaveBeenCalledWith([
       { op: 'set', path: ['searchType'], value: 'neural' },
-      { op: 'set', path: ['numResults'], value: 4 },
     ], undefined)
     b.controller.dispose()
   })
@@ -292,9 +309,7 @@ describe('WebSearchProviderCardController fields', () => {
   })
 
   it.each([
-    ['exa', 'numResults', '0'],
-    ['exa', 'numResults', '1.5'],
-    ['exa', 'numResults', 'many'],
+    ['exa', 'searchType', 'semantic'],
     ['brave', 'maxResults', '0'],
     ['brave', 'maxResults', '21'],
     ['brave', 'maxResults', '1.5'],
@@ -311,8 +326,7 @@ describe('WebSearchProviderCardController fields', () => {
   })
 
   it.each([
-    ['exa', 'numResults', '1', 1],
-    ['exa', 'numResults', '   ', undefined],
+    ['exa', 'searchType', 'neural', 'neural'],
     ['brave', 'maxResults', '20', 20],
     ['brave', 'maxResults', '', undefined],
   ] as const)('saves or clears a supported %s.%s: %j', async (id, field, text, stored) => {
@@ -333,7 +347,7 @@ describe('WebSearchProviderCardController fields', () => {
     const b = bench()
     serve(b)
     const exa = b.face('exa')
-    exa.edit('numResults', 'many')
+    exa.edit('searchType', 'semantic')
     expect(b.state('exa')).toMatchObject({ invalid: true, switchBlocked: true })
     exa.discard()
     expect(b.state('exa')).toMatchObject({ invalid: false, switchBlocked: false, dirty: false })

@@ -80,6 +80,18 @@ describe('inspectGitignoreBlock', () => {
       'present',
     )
   })
+
+  it('accepts a marker carrying a tab or a parenthesized note', () => {
+    for (const suffix of ['\tlegacy', '(note)']) {
+      expect(
+        inspectGitignoreBlock(`# >>> dsh-memory${suffix}\ninner\n# <<< dsh-memory\n`).kind,
+      ).toBe('present')
+    }
+  })
+
+  it('does not treat a longer word that merely starts with a marker as one', () => {
+    expect(inspectGitignoreBlock('# >>> dsh-memoryX\ninner\n').kind).toBe('absent')
+  })
 })
 
 describe('planGitignoreUpdate', () => {
@@ -271,5 +283,88 @@ describe('ensureGitignoreBlock', () => {
       (error: unknown) => error,
     )
     expect(failure).toMatchObject({ code: 'LOCK_TIMEOUT' })
+  })
+
+  it.each(['EACCES', 'EPERM', 'EROFS', 'EISDIR', 'ENOTDIR'])(
+    'maps a %s failure from the write seam onto the documented refusal',
+    async (code) => {
+      const root = await createTempDir()
+      const api = {
+        async writeFileAtomic(): Promise<void> {},
+        async withFileLock(): Promise<never> {
+          throw Object.assign(new Error(`simulated ${code}`), { code })
+        },
+      }
+      const failure = await ensureGitignoreBlock(api, { root, lines: BASE_LINES }).catch(
+        (error: unknown) => error,
+      )
+      expect(failure).toBeInstanceOf(GitignoreEditError)
+      expect((failure as GitignoreEditError).code).toBe('GITIGNORE_UNWRITABLE')
+      expect((failure as Error).message).toContain(code)
+    },
+  )
+
+  it('rethrows a failure whose code it does not map', async () => {
+    const root = await createTempDir()
+    const api = {
+      async writeFileAtomic(): Promise<void> {},
+      async withFileLock(): Promise<never> {
+        throw Object.assign(new Error('simulated ENOSPC'), { code: 'ENOSPC' })
+      },
+    }
+    const failure = await ensureGitignoreBlock(api, { root, lines: BASE_LINES }).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).not.toBeInstanceOf(GitignoreEditError)
+    expect((failure as Error).message).toBe('simulated ENOSPC')
+  })
+
+  it('maps a permission failure from inspecting the target', async () => {
+    const root = await createTempDir()
+    await writeFile(path.join(root, '.gitignore'), 'dist/\n')
+    const api = {
+      async writeFileAtomic(): Promise<void> {},
+      async withFileLock<T>(_filename: string, operation: () => Promise<T>): Promise<T> {
+        return operation()
+      },
+    }
+    await chmod(root, 0o000)
+    try {
+      const failure = await ensureGitignoreBlock(api, { root, lines: BASE_LINES }).catch(
+        (error: unknown) => error,
+      )
+      expect(failure).toBeInstanceOf(GitignoreEditError)
+      expect((failure as GitignoreEditError).code).toBe('GITIGNORE_UNWRITABLE')
+    } finally {
+      await chmod(root, 0o755)
+    }
+  })
+
+  it('refuses a write that does not land the planned byte count', async () => {
+    const root = await createTempDir()
+    const api = {
+      async writeFileAtomic(filename: string, content: string): Promise<void> {
+        await writeFile(filename, content.slice(0, Math.max(0, content.length - 2)), { mode: 0o644 })
+      },
+      async withFileLock<T>(_filename: string, operation: () => Promise<T>): Promise<T> {
+        return operation()
+      },
+    }
+    const failure = await ensureGitignoreBlock(api, { root, lines: BASE_LINES }).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(GitignoreEditError)
+    expect((failure as GitignoreEditError).code).toBe('GITIGNORE_WRITE_MISMATCH')
+  })
+
+  it('forwards the caller signal into the locked update', async () => {
+    const root = await createTempDir()
+    const api = createTestAtomicWrite()
+    const result = await ensureGitignoreBlock(api, {
+      root,
+      lines: BASE_LINES,
+      signal: new AbortController().signal,
+    })
+    expect(result.changed).toBe(true)
   })
 })

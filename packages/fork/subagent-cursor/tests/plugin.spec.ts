@@ -42,7 +42,7 @@ interface Harness {
     waits: number
   }
   complete(exitCode: number | null, signal?: NodeJS.Signals | null): void
-  failDone(error: Error): void
+  failDone(error: unknown): void
 }
 
 function readerFor(state: StreamState): SubprocessOutputReader {
@@ -71,7 +71,7 @@ function createHarness(
     logs.push(String(format))
   }
   let settle!: (value: SubprocessOutcome) => void
-  let rejectDone!: (error: Error) => void
+  let rejectDone!: (error: unknown) => void
   const done = new Promise<SubprocessOutcome>((resolve, reject) => {
     settle = resolve
     rejectDone = reject
@@ -363,6 +363,20 @@ describe('executable resolution cancellation', () => {
 })
 
 describe('published run lifecycle', () => {
+  it('forwards a configured model into the child argv', async () => {
+    const harness = createHarness()
+    const { run } = await startRun(harness, { model: 'sonnet-4-thinking' })
+    expect(harness.specs[0]!.argv.slice(-4, -1)).toEqual([
+      '--model',
+      'sonnet-4-thinking',
+      'agent',
+    ])
+    harness.stdout.text = '{"result":"done"}'
+    harness.complete(0)
+    await run.result
+    await run.dispose()
+  })
+
   it('spawns one CLI child with the fixed stdio, env and grace, then completes', async () => {
     const harness = createHarness()
     const { run } = await startRun(harness, { env: { DSH_PLUGIN_TEST: '1' } })
@@ -461,6 +475,16 @@ describe('published run lifecycle', () => {
     const result = await run.result
     expect(result.stopReason).toBe('error')
     expect(result.diagnostic).toContain('category: process')
+    await run.dispose()
+  })
+
+  it('names a non-Error process rejection as unknown instead of trusting its name', async () => {
+    const harness = createHarness()
+    const { run } = await startRun(harness)
+    harness.failDone('spawn EACCES')
+    const result = await run.result
+    expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('(unknown)')
     await run.dispose()
   })
 

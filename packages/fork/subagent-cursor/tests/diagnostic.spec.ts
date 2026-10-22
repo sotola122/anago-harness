@@ -74,6 +74,11 @@ describe('truncateUtf8', () => {
     expect(truncateUtf8('あ', 3)).toBe('あ')
     expect(truncateUtf8('aあ', 2)).toBe('a')
   })
+
+  it('returns nothing for a non-positive budget', () => {
+    expect(truncateUtf8('abc', 0)).toBe('')
+    expect(truncateUtf8('abc', -1)).toBe('')
+  })
 })
 
 describe('formatDiagnostic', () => {

@@ -63,10 +63,9 @@ Every field is `Volatile`, so a settings change reaches the next search. `apiKey
 | `apiKeyEnv` | `EXA_API_KEY` | Credential reference name used by both the credentials service and the launch environment. |
 | `baseURL` | `https://api.exa.ai` | Endpoint base; `/search` is appended. An unparseable value makes `available()` false. |
 | `searchType` | `auto` | Retrieval mode sent as Exa's `type`: `auto`, `keyword`, or `neural`. |
-| `numResults` | (unset) | Default result count when a request carries no `maxResults`; must be a positive integer. |
 | `highlightsPerResult` | `1` | Highlight sentences requested per result (Exa's `highlightsPerUrl`); must be a positive integer. |
 
-A request's `maxResults` wins over the configured `numResults` and is sent to Exa as a cost and latency optimization; the web service enforces the final bound and sets `truncated`.
+A request's `maxResults` is sent to Exa as `numResults`, a cost and latency optimization; the web service enforces the final bound and sets `truncated`. A request that carries none sends no result bound, so Exa applies its own default.
 
 ### Error codes
 
@@ -97,7 +96,7 @@ The `anago-core` bundle owns the row and selects `exa` as the search provider; t
 | [`src/provider.ts`](src/provider.ts) | `ExaCredentialSearchProvider`: `available()`, per-search key resolution, query bounds, delegation to the upstream class, and the failure rewrite. |
 | [`tests/index.spec.ts`](tests/index.spec.ts) | Unit suite with an injected `fetch` supplied through `globalThis.fetch`. |
 
-`search()` checks cancellation and the query bound, snapshots the settings once, resolves the key, and then constructs exactly one `new ExaSearchProvider({ apiKey, baseURL, searchType, numResults, highlightsPerResult })` for that search. Nothing is retained between searches. Concurrent searches therefore cannot share a key or an option snapshot, and each one gets its own upstream instance. The wrapper does not call the upstream `available()`; the upstream `search()` validates the values it receives and maps its own failures.
+`search()` checks cancellation and the query bound, snapshots the settings once, resolves the key, and then constructs exactly one `new ExaSearchProvider({ apiKey, baseURL, searchType, highlightsPerResult })` for that search. Nothing is retained between searches. Concurrent searches therefore cannot share a key or an option snapshot, and each one gets its own upstream instance. The wrapper does not call the upstream `available()`; the upstream `search()` validates the values it receives and maps its own failures.
 
 `upstreamFailure` reads the upstream `code` without requiring the harness class, keeps `WEB_ABORTED` (also for a rejection named `AbortError`), and defaults an unknown code to `WEB_PROVIDER_ERROR`. It builds the message from the provider name, the reference, the code, and the redacted bounded detail, and never from the raw body or the key.
 

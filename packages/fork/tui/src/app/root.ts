@@ -26,22 +26,56 @@ import {
   addErrorBlock,
   addNoticeBlock,
   applyAssistantDelta,
+  applyReasoningDelta,
   applyTranscriptEvent,
   EMPTY_TRANSCRIPT,
+  resetTranscript as resetTranscriptState,
   setTranscriptStatus,
+  toggleLastExpandable,
   type ProjectableTranscriptEvent,
   type TranscriptState,
 } from '../projection/blocks.ts'
+import { commandByName, helpText, parseSlashInput, SlashCommandProvider, type ParsedSlashCommand } from './commands.ts'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import type { AskUserQuestionAnswer, AskUserQuestionRequest } from '@deepseek-ai/dsh-user-questions'
 import type { ApprovalPresenter, QuestionsPresenter } from '../host/waterfalls.ts'
 import { ChoiceDialog } from './dialogs.ts'
+import { PickerDialog } from './picker-dialog.ts'
+import {
+  modelPickerItems,
+  parseModelValue,
+  pickerStateOf,
+  sessionPickerItems,
+  type ModelOption,
+  type ModelRoute,
+  type PickerItem,
+  type SessionOption,
+} from './pickers.ts'
 import { StatusView, type StatusFields } from './status.ts'
+export type { ModelRoute } from './pickers.ts'
 import { TranscriptView } from './transcript.ts'
 import { themeFor, type Theme } from './theme.ts'
 
 /** How long the first Ctrl+C stays armed. */
 const EXIT_CONFIRM_MS = 3_000
+
+/**
+ * Host operations the screen needs beyond prompt submission.
+ *
+ * Enumeration and switching touch DSH services, so they live in the row
+ * (`src/index.ts`) and are injected as callbacks; tests omit the host to drive
+ * the screen without an Agent.
+ */
+export interface TuiHost {
+  /** List the registered provider/model routes. */
+  readonly listModels: () => Promise<readonly ModelOption[]>
+  /** Apply one route to the open Agent for its later turns. */
+  readonly selectModel: (route: ModelRoute) => Promise<void>
+  /** List the profile's stored Sessions, newest first. */
+  readonly listSessions: () => Promise<readonly SessionOption[]>
+  /** Open a stored Session, or a new one when the id is `null`. */
+  readonly openSession: (sessionId: string | null) => Promise<void>
+}
 
 /** Callbacks the DSH row supplies to the screen. */
 export interface TuiAppOptions {
@@ -57,6 +91,8 @@ export interface TuiAppOptions {
   readonly onAbort: () => void
   /** Exit after the screen was restored by the owner. */
   readonly onExit: () => void
+  /** DSH-backed operations; omitted by tests that only exercise rendering. */
+  readonly host?: TuiHost
 }
 
 /** Model, provider, and Session identity shown in the footer. */
@@ -75,12 +111,14 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
   private readonly transcript: TranscriptView
   private readonly status: StatusView
   private readonly editor: Editor
+  private readonly host: TuiHost | undefined
   private readonly removeInputListener: () => void
   private state: TranscriptState
   private identity: AgentIdentity = { model: '', provider: '', sessionId: '' }
   private hint = ''
   private exitArmedAt = 0
   private started = false
+  private modalPending = false
 
   /**
    * @param options - terminal, palette, and lifecycle callbacks.
@@ -88,6 +126,7 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
   constructor(options: TuiAppOptions) {
     this.options = options
     this.theme = themeFor(options.theme)
+    this.host = options.host
     this.state = EMPTY_TRANSCRIPT
     this.tui = options.inline
       ? new TuiMainScreen(options.terminal)
@@ -95,6 +134,7 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
     this.transcript = new TranscriptView(this.theme, this.state)
     this.status = new StatusView(this.theme, this.statusFields())
     this.editor = new Editor(this.tui, this.theme.editor, { paddingX: 1 })
+    this.editor.setAutocompleteProvider(new SlashCommandProvider())
     this.editor.onSubmit = (text) => { this.submit(text) }
     this.layout()
     this.tui.setFocus(this.editor)
@@ -187,6 +227,23 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
     const next = applyAssistantDelta(this.state, text)
     if (next === this.state) return
     this.state = next
+    this.paint()
+  }
+
+  /**
+   * Append streamed reasoning text.
+   * @param text - delta text.
+   */
+  applyReasoning(text: string): void {
+    const next = applyReasoningDelta(this.state, text)
+    if (next === this.state) return
+    this.state = next
+    this.paint()
+  }
+
+  /** Clear the displayed conversation before another Session's replay starts. */
+  resetTranscript(): void {
+    this.state = resetTranscriptState()
     this.paint()
   }
 
@@ -306,10 +363,25 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
     items: readonly SelectItem[]
     hint: string
   }): Promise<string | null> {
+    return this.openDialog((finish, cancel) => new ChoiceDialog({
+      ...options,
+      onChoose: finish,
+      onCancel: cancel,
+    }, this.theme))
+  }
+
+  /**
+   * Show one overlay and wait for its choice.
+   * @param build - creates the component from the settle callbacks.
+   * @returns the chosen value, or `null` on Escape.
+   */
+  private openDialog<T>(
+    build: (choose: (value: T) => void, cancel: () => void) => Component,
+  ): Promise<T | null> {
     return new Promise((resolve, reject) => {
       let settled = false
       let handle: OverlayHandle | undefined
-      const finish = (value: string | null): void => {
+      const finish = (value: T | null): void => {
         if (settled) return
         settled = true
         handle?.hide()
@@ -317,11 +389,7 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
         resolve(value)
       }
       try {
-        const dialog = new ChoiceDialog({
-          ...options,
-          onChoose: finish,
-          onCancel: () => { finish(null) },
-        }, this.theme)
+        const dialog = build((value) => { finish(value) }, () => { finish(null) })
         handle = this.tui.showOverlay(dialog, {
           width: Math.max(12, Math.min(76, this.tui.terminal.columns - 2)),
           maxHeight: '70%',
@@ -331,6 +399,177 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
         reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
+  }
+
+  /**
+   * Open the model selector and apply the chosen route.
+   *
+   * The Agent keeps running; the new route applies to its next prompt assembly
+   * or step, so no restart is needed.
+   * @returns fulfillment after the dialog closes or the choice is applied.
+   */
+  async openModelPicker(): Promise<void> {
+    try {
+      await this.withModal(() => this.pickModel())
+    } catch (error) {
+      this.addError(error)
+    }
+  }
+
+  /**
+   * Open the stored-Session selector and resume the chosen Session.
+   * @returns fulfillment after the dialog closes or the switch requests an open.
+   */
+  async openSessionPicker(): Promise<void> {
+    try {
+      await this.withModal(() => this.pickSession())
+    } catch (error) {
+      this.addError(error)
+    }
+  }
+
+  /**
+   * Run one modal operation unless another dialog is already opening or open.
+   * @param task - operation that shows and settles the dialog.
+   * @returns fulfillment after the operation settles.
+   */
+  private async withModal(task: () => Promise<void>): Promise<void> {
+    if (this.modalPending || this.tui.hasOverlay()) return
+    this.modalPending = true
+    try {
+      await task()
+    } finally {
+      this.modalPending = false
+    }
+  }
+
+  /**
+   * Enumerate routes and apply the chosen model.
+   * @returns fulfillment after the dialog closes or the choice is applied.
+   */
+  private async pickModel(): Promise<void> {
+    const host = this.host
+    if (host === undefined) {
+      this.addNotice('model selection is unavailable in this build')
+      return
+    }
+    let options: readonly ModelOption[]
+    try {
+      options = await host.listModels()
+    } catch (error) {
+      this.addError(error)
+      return
+    }
+    if (options.length === 0) {
+      this.addNotice('no registered model routes')
+      return
+    }
+    const selected = await this.openDialog<PickerItem>((finish, cancel) => new PickerDialog({
+      title: 'Model',
+      detail: 'Registered provider routes from the Host LLM service.',
+      hint: '↑↓ move · Enter select · Esc close · type to filter',
+      state: pickerStateOf(modelPickerItems(options)),
+      onChoose: finish,
+      onCancel: cancel,
+    }, this.theme))
+    if (selected === null) return
+    const route = parseModelValue(selected.value)
+    if (route === undefined) {
+      this.addError(new Error('the model picker produced an unknown route'))
+      return
+    }
+    try {
+      await host.selectModel(route)
+      this.addNotice(`model → ${route.provider} · ${route.model}`)
+    } catch (error) {
+      this.addError(error)
+    }
+  }
+
+  /**
+   * Enumerate Sessions and resume the chosen one.
+   * @returns fulfillment after the dialog closes or the switch requests an open.
+   */
+  private async pickSession(): Promise<void> {
+    const host = this.host
+    if (host === undefined) {
+      this.addNotice('Session switching is unavailable in this build')
+      return
+    }
+    let options: readonly SessionOption[]
+    try {
+      options = await host.listSessions()
+    } catch (error) {
+      this.addError(error)
+      return
+    }
+    if (options.length === 0) {
+      this.addNotice('no stored Sessions')
+      return
+    }
+    const selected = await this.openDialog<PickerItem>((finish, cancel) => new PickerDialog({
+      title: 'Resume a Session',
+      detail: `${String(options.length)} stored Session${options.length === 1 ? '' : 's'} in this profile.`,
+      hint: '↑↓ move · Enter open · Esc close · type to filter',
+      state: pickerStateOf(sessionPickerItems(options, Date.now())),
+      onChoose: finish,
+      onCancel: cancel,
+    }, this.theme))
+    if (selected === null) return
+    try {
+      await host.openSession(selected.value)
+      this.addNotice(`resumed Session ${selected.value.slice(0, 8)}`)
+    } catch (error) {
+      this.addError(error)
+    }
+  }
+
+  /**
+   * Start a new Session, or clear the view when no host is attached.
+   */
+  private async clearSession(): Promise<void> {
+    const host = this.host
+    if (host === undefined) {
+      this.resetTranscript()
+      this.addNotice('cleared the transcript')
+      return
+    }
+    try {
+      await host.openSession(null)
+      this.addNotice('started a new Session')
+    } catch (error) {
+      this.addError(error)
+    }
+  }
+
+  /**
+   * Run one parsed slash command.
+   * @param command - parsed command and its arguments.
+   */
+  private runCommand(command: ParsedSlashCommand): void {
+    if (commandByName(command.name) === undefined) {
+      this.addNotice(`unknown command /${command.name} · type /help for the command list`)
+      return
+    }
+    switch (command.name) {
+      case 'help':
+        this.addNotice(helpText())
+        return
+      case 'model':
+        void this.openModelPicker()
+        return
+      case 'clear':
+        void this.clearSession()
+        return
+      case 'resume':
+        void this.openSessionPicker()
+        return
+      case 'quit':
+        this.options.onExit()
+        return
+      default:
+        this.addNotice(`unknown command /${command.name} · type /help for the command list`)
+    }
   }
 
   /**
@@ -352,8 +591,23 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
       this.requestFrame()
       return { consume: true }
     }
-    if (!matchesKey(data, 'escape')) return undefined
     if (this.tui.hasOverlay()) return undefined
+    if (matchesKey(data, 'ctrl+p')) {
+      void this.openModelPicker()
+      return { consume: true }
+    }
+    if (matchesKey(data, 'ctrl+r')) {
+      void this.openSessionPicker()
+      return { consume: true }
+    }
+    if (matchesKey(data, 'ctrl+o')) {
+      const next = toggleLastExpandable(this.state)
+      if (next === this.state) return undefined
+      this.state = next
+      this.paint()
+      return { consume: true }
+    }
+    if (!matchesKey(data, 'escape')) return undefined
     if (this.exitArmedAt !== 0) {
       this.exitArmedAt = 0
       this.hint = ''
@@ -372,15 +626,24 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
   }
 
   /**
-   * Submit trimmed editor text.
-   * @param text - editor text; the editor has already trimmed it.
+   * Submit editor text: run a slash command, or send an ordinary prompt.
+   * @param text - editor text.
    */
   private submit(text: string): void {
     const trimmed = text.trim()
     if (trimmed === '') return
     this.editor.addToHistory(text)
+    const command = parseSlashInput(trimmed)
+    if (command !== undefined) {
+      this.runCommand(command)
+      return
+    }
     this.setStatus('running')
-    this.options.onSubmit(text)
+    try {
+      this.options.onSubmit(text)
+    } catch (error) {
+      this.addError(error)
+    }
   }
 
   /** Push the current state into the child components and request a frame. */
@@ -408,6 +671,7 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
       sessionId: this.identity.sessionId,
       status: this.state.status,
       hint: this.hint,
+      usage: this.state.usage,
     }
   }
 }

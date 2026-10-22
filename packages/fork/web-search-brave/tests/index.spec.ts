@@ -154,4 +154,14 @@ describe('registered provider wiring', () => {
     expect(failure).toMatchObject({ code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
     expect((failure as Error).message).toContain('BRAVE_API_KEY')
   })
+
+  it('sends a literal config key ahead of every other source', async () => {
+    const recorder = recordingFetch(() => jsonResponse(bravePayload([])))
+    vi.stubGlobal('fetch', recorder.fetch)
+    const provider = register({ apiKey: 'literal-key' }, { environment: { BRAVE_API_KEY: 'env-key' } })
+
+    await provider.search({ query: 'deepseek' })
+
+    expect(headerOf(recorder.calls[0]?.init ?? {}, 'X-Subscription-Token')).toBe('literal-key')
+  })
 })

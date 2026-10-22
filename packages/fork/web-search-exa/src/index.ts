@@ -46,8 +46,6 @@ export interface Config {
   baseURL: Volatile<string>
   /** Retrieval mode sent as Exa's `type`; defaults to `auto`. */
   searchType: Volatile<ExaSearchType>
-  /** Default result count when a request carries no `maxResults`; unset sends none. */
-  numResults: Volatile<number | undefined>
   /** Highlight sentences requested per result; defaults to one. */
   highlightsPerResult: Volatile<number>
 }
@@ -58,7 +56,6 @@ export const Config = z.object({
   apiKeyEnv: z.string().role('credential-ref').default(EXA_DEFAULT_API_KEY_ENV).volatile(),
   baseURL: z.string().default(EXA_DEFAULT_BASE_URL).volatile(),
   searchType: z.union(['auto', 'keyword', 'neural'] as const).default(EXA_DEFAULT_SEARCH_TYPE).volatile(),
-  numResults: z.number().step(1).min(1).volatile(),
   highlightsPerResult: z.number().step(1).min(1).default(EXA_DEFAULT_HIGHLIGHTS_PER_RESULT).volatile(),
 })
 
@@ -75,7 +72,6 @@ export function apply(ctx: Context, config: Config): void {
         options: () => exaProviderOptions(ctx, config.apiKeyEnv.get(), config.apiKey.get(), {
           baseURL: config.baseURL.get(),
           searchType: config.searchType.get(),
-          numResults: config.numResults.get(),
           highlightsPerResult: config.highlightsPerResult.get(),
         }),
       }),

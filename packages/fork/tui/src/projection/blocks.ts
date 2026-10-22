@@ -6,7 +6,9 @@
  * @module @anago-harness/tui/projection/blocks
  */
 
-import type { ContentBlock, MessageSource } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, MessageSource, TokenUsage } from '@deepseek-ai/dsh-llm'
+import { describeToolInvocation, summarizeToolResult } from './tools.ts'
+import { addUsage, EMPTY_USAGE, type TurnUsage } from './usage.ts'
 
 /** One user turn as displayed. */
 export interface UserBlock {
@@ -24,16 +26,39 @@ export interface AssistantBlock {
   readonly streaming: boolean
 }
 
-/** One tool invocation and, once settled, its result. */
+/** One reasoning summary attached to an assistant step. */
+export interface ReasoningBlock {
+  readonly kind: 'reasoning'
+  readonly id: string
+  readonly text: string
+  /** Whether the full text is shown instead of the preview. */
+  readonly expanded: boolean
+}
+
+/** One tool invocation and, once settled, its result card. */
 export interface ToolBlock {
   readonly kind: 'tool'
   readonly id: string
+  /** Tool call identity pairing the call with its result. */
+  readonly callId: string
   readonly name: string
   /** Short human-readable description of the invocation arguments. */
   readonly summary: string
+  /** Identifying command or path shown beneath the summary. */
+  readonly detail?: string
   readonly status: 'running' | 'ok' | 'error'
-  /** First line of the result, when one arrived. */
+  /** Collapsed preview of the result, when one arrived. */
   readonly result?: string
+  /** Bounded full result text for the expanded view. */
+  readonly output?: string
+  /** Additional facts extracted from the tool's presentation metadata. */
+  readonly facts: readonly string[]
+  /** Milliseconds between the call and its result, once settled. */
+  readonly durationMs?: number
+  /** Session time of the call, used to measure the duration. */
+  readonly startedAt: number
+  /** Whether the expanded result view is shown. */
+  readonly expanded: boolean
 }
 
 /** One error row. */
@@ -51,19 +76,23 @@ export interface NoticeBlock {
 }
 
 /** A renderable transcript row. */
-export type DisplayBlock = UserBlock | AssistantBlock | ToolBlock | ErrorBlock | NoticeBlock
+export type DisplayBlock = UserBlock | AssistantBlock | ReasoningBlock | ToolBlock | ErrorBlock | NoticeBlock
 
 /** Mutable-free projection state consumed by the transcript component. */
 export interface TranscriptState {
   readonly blocks: readonly DisplayBlock[]
   /** Text streamed for the in-progress assistant message, before it commits. */
   readonly liveAssistant: string
+  /** Reasoning streamed for the in-progress assistant message, before it commits. */
+  readonly liveReasoning: string
   /** Highest Session sequence folded so far; later replays skip duplicates. */
   readonly lastSeq: number
   /** Session title from `session/title`, when one was recorded. */
   readonly title: string | null
   /** Whether the Agent is currently driving a turn. */
   readonly status: 'idle' | 'running'
+  /** Token totals for the current or most recent turn. */
+  readonly usage: TurnUsage
 }
 
 /** The event envelope fields the projection needs. */
@@ -88,6 +117,8 @@ export interface ProjectableAssistantMessageEvent extends ProjectableEnvelope {
     readonly message: {
       readonly content: readonly ContentBlock[]
     }
+    /** Token accounting for this step, when the adapter reported it. */
+    readonly usage?: TokenUsage
   }
 }
 
@@ -112,6 +143,8 @@ export interface ProjectableToolResultEvent extends ProjectableEnvelope {
       readonly isError?: boolean
     }
     readonly error?: { readonly name: string; readonly code: string; readonly reason?: string }
+    /** Tool-owned presentation payload recorded with the result. */
+    readonly meta?: unknown
   }
 }
 
@@ -154,9 +187,11 @@ export type ProjectableTranscriptEvent =
 export const EMPTY_TRANSCRIPT: TranscriptState = Object.freeze({
   blocks: [],
   liveAssistant: '',
+  liveReasoning: '',
   lastSeq: -1,
   title: null,
   status: 'idle',
+  usage: EMPTY_USAGE,
 })
 
 /**
@@ -172,45 +207,20 @@ export function contentText(content: readonly ContentBlock[]): string {
 }
 
 /**
- * Collapse arbitrary text to one bounded display line.
- * @param text - source text.
- * @param limit - maximum characters to keep.
- * @returns the collapsed and bounded line.
+ * Join the reasoning blocks of one assistant message.
+ * @param content - message content blocks.
+ * @returns the reasoning text, or an empty string.
  */
-export function summarizeText(text: string, limit = 160): string {
-  const collapsed = text.replace(/\s+/g, ' ').trim()
-  return collapsed.length <= limit ? collapsed : `${collapsed.slice(0, limit - 1)}…`
+export function contentReasoning(content: readonly ContentBlock[]): string {
+  return content
+    .filter((block): block is Extract<ContentBlock, { type: 'reasoning' }> => block.type === 'reasoning')
+    .map(block => block.text)
+    .join('\n')
+    .trim()
 }
 
-/**
- * Describe one tool invocation from its raw argument JSON.
- * @param name - tool name.
- * @param rawArguments - JSON string supplied by the model.
- * @returns a short description suitable for a transcript row.
- */
-export function summarizeToolCall(name: string, rawArguments: string): string {
-  let parsed: Record<string, unknown> | null = null
-  try {
-    const value: unknown = JSON.parse(rawArguments)
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      parsed = value as Record<string, unknown>
-    }
-  } catch (error) {
-    // Tool arguments may be truncated while streaming; the raw text is still useful.
-    if (!(error instanceof SyntaxError)) throw error
-  }
-  if (parsed !== null) {
-    for (const key of ['command', 'cmd', 'path', 'file_path', 'filePath', 'query', 'q', 'pattern', 'url', 'description']) {
-      const value = parsed[key]
-      if (typeof value === 'string' && value.trim() !== '') return summarizeText(value)
-      if (Array.isArray(value) && value.every(item => typeof item === 'string')) {
-        return summarizeText(value.join(' '))
-      }
-    }
-  }
-  const fallback = rawArguments.trim() === '' ? '' : rawArguments
-  return fallback === '' ? name : summarizeText(fallback, 80)
-}
+/** Re-exported tool summarizers keep the projection module the single import site. */
+export { summarizeText, summarizeToolCall } from './tools.ts'
 
 /**
  * Fold one durable event into the transcript.
@@ -234,41 +244,70 @@ export function applyTranscriptEvent(state: TranscriptState, event: ProjectableT
     }
     case 'assistant/message': {
       const text = contentText(event.data.message.content)
+      const reasoning = contentReasoning(event.data.message.content)
+      const blocks = [...state.blocks]
+      if (reasoning !== '') {
+        blocks.push({ kind: 'reasoning', id: `reasoning-${seq}`, text: reasoning, expanded: false })
+      }
+      if (text !== '') {
+        blocks.push({ kind: 'assistant', id: `assistant-${seq}`, text, streaming: false })
+      }
       return {
         ...state,
         lastSeq: seq,
         liveAssistant: '',
-        blocks: text === ''
-          ? state.blocks
-          : [...state.blocks, { kind: 'assistant', id: `assistant-${seq}`, text, streaming: false }],
+        liveReasoning: '',
+        usage: event.data.usage === undefined ? state.usage : addUsage(state.usage, event.data.usage),
+        blocks: blocks.length === state.blocks.length ? state.blocks : blocks,
       }
     }
-    case 'tool/call':
+    case 'tool/call': {
+      const invocation = describeToolInvocation(event.data.name, event.data.arguments)
       return {
         ...state,
         lastSeq: seq,
         blocks: [...state.blocks, {
           kind: 'tool',
           id: `tool-${event.data.callId}`,
+          callId: event.data.callId,
           name: event.data.name,
-          summary: summarizeToolCall(event.data.name, event.data.arguments),
+          summary: invocation.summary,
+          ...invocation.detail === undefined ? {} : { detail: invocation.detail },
           status: 'running',
+          facts: [],
+          startedAt: event.time,
+          expanded: false,
         }],
       }
+    }
     case 'tool/result': {
       const callId = event.data.message.source.callId
-      const result = summarizeText(contentText(event.data.message.content)) || undefined
+      const text = contentText(event.data.message.content)
       const failed = event.data.error !== undefined || event.data.message.isError === true
       const index = findLastIndex(state.blocks, block => block.kind === 'tool' && block.id === `tool-${callId}`)
       if (index === -1) return { ...state, lastSeq: seq }
       const blocks = [...state.blocks]
       const existing = state.blocks[index]
       if (existing?.kind !== 'tool') return { ...state, lastSeq: seq }
-      blocks[index] = { ...existing, status: failed ? 'error' : 'ok', ...result === undefined ? {} : { result } }
+      const summary = summarizeToolResult({
+        name: existing.name,
+        text,
+        meta: event.data.meta,
+        failed,
+        errorReason: event.data.error?.reason,
+      })
+      blocks[index] = {
+        ...existing,
+        status: failed ? 'error' : 'ok',
+        result: summary.preview,
+        output: summary.output,
+        facts: summary.facts,
+        durationMs: Math.max(0, event.time - existing.startedAt),
+      }
       return { ...state, lastSeq: seq, blocks }
     }
     case 'turn/start':
-      return { ...state, lastSeq: seq, status: 'running' }
+      return { ...state, lastSeq: seq, status: 'running', usage: EMPTY_USAGE, liveAssistant: '', liveReasoning: '' }
     case 'turn/end': {
       const reason = event.data.reason
       let blocks = state.blocks
@@ -282,7 +321,7 @@ export function applyTranscriptEvent(state: TranscriptState, event: ProjectableT
       } else if (reason.kind === 'aborted') {
         blocks = [...state.blocks, { kind: 'notice', id: `notice-${seq}`, text: 'turn aborted' }]
       }
-      return { ...state, lastSeq: seq, status: 'idle', liveAssistant: '', blocks }
+      return { ...state, lastSeq: seq, status: 'idle', liveAssistant: '', liveReasoning: '', blocks }
     }
     case 'session/title':
       return { ...state, lastSeq: seq, title: event.data.title }
@@ -309,6 +348,57 @@ export function projectTranscript(events: Iterable<ProjectableTranscriptEvent>):
 export function applyAssistantDelta(state: TranscriptState, text: string): TranscriptState {
   if (text === '') return state
   return { ...state, liveAssistant: state.liveAssistant + text }
+}
+
+/**
+ * Append streamed reasoning text to the live row.
+ * @param state - current projection state.
+ * @param text - delta text.
+ * @returns the next state.
+ */
+export function applyReasoningDelta(state: TranscriptState, text: string): TranscriptState {
+  if (text === '') return state
+  return { ...state, liveReasoning: state.liveReasoning + text }
+}
+
+/**
+ * Clear the conversation while keeping the projection usable for a new Session.
+ * @returns the empty projection state.
+ */
+export function resetTranscript(): TranscriptState {
+  return EMPTY_TRANSCRIPT
+}
+
+/** Blocks that own a collapsed detail view. */
+export type ExpandableBlock = ToolBlock | ReasoningBlock
+
+/**
+ * Whether a block carries detail the expanded view would add.
+ * @param block - candidate block.
+ * @returns true when {@link toggleLastExpandable} can act on it.
+ */
+export function isExpandable(block: DisplayBlock): block is ExpandableBlock {
+  if (block.kind === 'reasoning') return block.text.trim() !== ''
+  if (block.kind !== 'tool') return false
+  return block.detail !== undefined || (block.output !== undefined && block.output !== '') || block.facts.length > 0
+}
+
+/**
+ * Toggle the most recent expandable card.
+ *
+ * The terminal has one expand key rather than per-card focus, so the newest
+ * tool or reasoning card is the target; an empty transcript is left unchanged.
+ * @param state - current projection state.
+ * @returns the next state, or the same state when nothing is expandable.
+ */
+export function toggleLastExpandable(state: TranscriptState): TranscriptState {
+  const index = findLastIndex(state.blocks, isExpandable)
+  if (index === -1) return state
+  const block = state.blocks[index]
+  if (block === undefined || !isExpandable(block)) return state
+  const blocks = [...state.blocks]
+  blocks[index] = { ...block, expanded: !block.expanded }
+  return { ...state, blocks }
 }
 
 /**

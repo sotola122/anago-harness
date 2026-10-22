@@ -59,8 +59,6 @@ export interface ExaSearchSettings {
   apiKeyEnv?: string
   /** Retrieval mode sent to Exa. */
   searchType?: ExaSearchType
-  /** Default result count. */
-  numResults?: number
 }
 
 /** The Brave fields these cards edit. */
@@ -131,8 +129,6 @@ export type WebSearchProviderCardState = ProviderCardCommon & (
     provider: 'exa'
     /** Exa's retrieval mode. */
     searchType: SettingsFieldState
-    /** Exa's default result count. */
-    numResults: SettingsFieldState
   }
   | {
     provider: 'brave'
@@ -244,7 +240,6 @@ export class WebSearchProviderCardController {
     this.panes = {
       exa: this.createPane('exa', [
         selectField('searchType', EXA_SEARCH_TYPES, 'auto'),
-        integerField('numResults', 1),
       ]),
       brave: this.createPane('brave', [
         integerField('maxResults', 1, 20),
@@ -355,7 +350,7 @@ export class WebSearchProviderCardController {
       apiKeyWritable: pane.credential.writable,
     }
     return id === 'exa'
-      ? { ...common, provider: 'exa', searchType: pane.form.field('searchType'), numResults: pane.form.field('numResults') }
+      ? { ...common, provider: 'exa', searchType: pane.form.field('searchType') }
       : { ...common, provider: 'brave', maxResults: pane.form.field('maxResults'), safesearch: pane.form.field('safesearch') }
   }
 

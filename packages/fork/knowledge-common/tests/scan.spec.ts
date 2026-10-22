@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   escapeFrameTagClosers,
+  frameTagNames,
   NON_ASCII_WARN_RATIO,
   nonAsciiRatio,
   normalizeForMatch,
@@ -200,7 +201,31 @@ describe('escapeFrameTagClosers', () => {
     )
   })
 
+  it('escapes an opening tag as an entity with no slash', () => {
+    expect(escapeFrameTagClosers('before <memory-snapshot> after')).toBe(
+      'before &lt;memory-snapshot&gt; after',
+    )
+  })
+
   it('leaves an unrelated tag alone', () => {
     expect(escapeFrameTagClosers('<summary>text</summary>')).toBe('<summary>text</summary>')
+  })
+})
+
+describe('frameTagNames', () => {
+  it('lists the tag names the module refuses and escapes', () => {
+    const names = frameTagNames()
+    expect(names).toContain('memory-snapshot')
+    expect(names).toContain('system-reminder')
+    expect(new Set(names).size).toBe(names.length)
+    expect(frameTagNames()).toBe(names)
+  })
+})
+
+describe('private key headers without a footer', () => {
+  it('redacts a header that no footer closes', () => {
+    const result = redactSecrets('-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA')
+    expect(result.text).toBe('[REDACTED:private-key]\nMIIEowIBAAKCAQEA')
+    expect(result.redacted).toEqual(['private-key'])
   })
 })

@@ -82,6 +82,10 @@ describe('extractErrorDetail', () => {
   it('caps a long provider message', () => {
     expect(extractErrorDetail({ message: 'y'.repeat(1_000) })?.length).toBe(MAX_BODY_SUMMARY_CHARS)
   })
+
+  it('skips a blank candidate and reads the next message', () => {
+    expect(extractErrorDetail({ error: { detail: '  ', message: 'Useful message' } })).toBe('Useful message')
+  })
 })
 
 describe('httpFailure', () => {
@@ -132,6 +136,19 @@ describe('httpFailure', () => {
     expect(error.message).toContain('HTTP 404')
     expect(error.message).toContain('baseURL')
     expect(error.message).toContain(ENDPOINT)
+  })
+
+  it('omits the status text when the response carried none', () => {
+    const error = httpFailure({
+      status: 404,
+      statusText: '',
+      endpoint: ENDPOINT,
+      apiKeyEnv: 'BRAVE_API_KEY',
+      secret: SECRET,
+      sentSettings: 'count=8',
+    })
+    expect(error.message).toContain('HTTP 404')
+    expect(error.message).not.toContain('HTTP 404  ')
   })
 
   it('never echoes the token header or a credential value', () => {
@@ -241,6 +258,11 @@ describe('transport faults', () => {
     expect(bodyParseFailure(ENDPOINT, '  ', SECRET).message).toContain('body was empty')
   })
 
+  it('carries the parse failure as cause when one is available', () => {
+    const cause = new SyntaxError('bad json')
+    expect(bodyParseFailure(ENDPOINT, 'nope', SECRET, cause).cause).toBe(cause)
+  })
+
   it('states the timeout and the endpoint', () => {
     const error = timeoutFailure(10_000, ENDPOINT)
     expect(error.code).toBe(WEB_PROVIDER_ERROR)
@@ -260,6 +282,18 @@ describe('cancellation', () => {
     expect(error.cause).toBe(reason)
   })
 
+  it('reports cancellation without a cause when no signal was passed', () => {
+    const error = aborted()
+    expect(error.code).toBe(WEB_ABORTED)
+    expect(error.cause).toBeUndefined()
+  })
+
+  it('reports cancellation without a cause while its signal is not aborted', () => {
+    const error = aborted(new AbortController().signal)
+    expect(error.code).toBe(WEB_ABORTED)
+    expect(error.cause).toBeUndefined()
+  })
+
   it('throws before dispatch when the caller already aborted', () => {
     const controller = new AbortController()
     controller.abort()
@@ -270,6 +304,7 @@ describe('cancellation', () => {
   it('recognizes abort and timeout rejections by name', () => {
     expect(isAbortError(new DOMException('aborted', 'AbortError'))).toBe(true)
     expect(isAbortError(new Error('other'))).toBe(false)
+    expect(isAbortError({ name: 42 })).toBe(false)
     expect(isTimeoutError(new DOMException('timed out', 'TimeoutError'))).toBe(true)
     expect(isTimeoutError(undefined)).toBe(false)
   })
@@ -307,6 +342,13 @@ describe('dispatchFailure', () => {
     const error = dispatchFailure(cause, { timeoutSignal, timeoutMs: 10_000, endpoint: ENDPOINT, secret: SECRET })
     expect(error.code).toBe(WEB_PROVIDER_ERROR)
     expect(error.cause).toBe(cause)
+  })
+
+  it('treats an AbortError as cancellation even when the caller passed no signal', () => {
+    const cause = new DOMException('aborted', 'AbortError')
+    const error = dispatchFailure(cause, { timeoutSignal, timeoutMs: 10_000, endpoint: ENDPOINT, secret: SECRET })
+    expect(error.code).toBe(WEB_ABORTED)
+    expect(error.cause).toBeUndefined()
   })
 })
 

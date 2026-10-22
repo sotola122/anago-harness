@@ -10074,12 +10074,36 @@ importers:
 
   packages/fork/anago-web:
     dependencies:
+      '@anago-harness/client-locale-ja':
+        specifier: workspace:*
+        version: link:../client-locale-ja
+      '@anago-harness/client-ui-fonts-anago':
+        specifier: workspace:*
+        version: link:../client-ui-fonts-anago
       '@anago-harness/client-ui-settings-web-search':
         specifier: workspace:*
         version: link:../client-ui-settings-web-search
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../../client/locale
       '@deepseek-ai/dsh-client-ui-settings-web-search':
         specifier: workspace:*
         version: link:../../client/ui-settings-web-search
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/fork/client-locale-ja:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../../client/locale
+
+  packages/fork/client-ui-fonts-anago:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~

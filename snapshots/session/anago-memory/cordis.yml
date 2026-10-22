@@ -1,0 +1,24 @@
+# Live-recording composition for the fork-owned anago scenarios.
+#
+# The shipped `headless` profile template already lists
+# `@anago-harness/anago-core`, so the memory, wiki, response-language, Cursor/pi
+# subagent, and Exa/Brave search rows are composed here. Only the model route
+# below is recording-specific: replay replaces it with `llm-replay`.
+#
+# `llm-pi-ai` reaches the Command Code API through its OpenAI-compatible
+# protocol and records the same `commandcode` / `deepseek/deepseek-v4.1-flash`
+# route the provider bundle uses. Recording needs COMMANDCODE_API_KEY in the
+# environment; replay needs no key at all.
+
+- id: llm-pi-ai
+  config:
+    providers:
+      commandcode:
+        displayName: Command Code
+        api: openai-completions
+        baseURL: https://api.commandcode.ai/provider/v1
+        apiKeyEnv: COMMANDCODE_API_KEY
+        models:
+          - id: deepseek/deepseek-v4.1-flash
+            contextWindow: 200000
+            maxTokens: 8192

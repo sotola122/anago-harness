@@ -154,6 +154,59 @@ describe('updateFileLocked', () => {
     expect(await readFile(file, 'utf8')).toBe('line\nline\n')
     expect(api.events.filter(event => event.kind === 'write')).toHaveLength(2)
   })
+
+  it('forwards a cancellation that arrives while the update runs', async () => {
+    const root = await createTempDir()
+    const api = createTestAtomicWrite()
+    const file = path.join(root, 'MEMORY.md')
+    const controller = new AbortController()
+    const reason = new Error('cancelled during the update')
+    await expect(
+      updateFileLocked(
+        api,
+        file,
+        async () => {
+          controller.abort(reason)
+          throw new Error('refused after cancellation')
+        },
+        { mode: 0o600, signal: controller.signal },
+      ),
+    ).rejects.toBe(reason)
+    expect(await readTextFileIfExists(file)).toBeNull()
+  })
+
+  it('maps a lock timeout the injected API reports before the caller deadline', async () => {
+    const root = await createTempDir()
+    const api = {
+      async writeFileAtomic(): Promise<void> {},
+      async withFileLock(): Promise<never> {
+        throw new Error('atomic-write: timed out waiting for the writer lock at /tmp/MEMORY.md.lock')
+      },
+    }
+    const failure = await updateFileLocked(
+      api,
+      path.join(root, 'MEMORY.md'),
+      () => ({ content: null, result: null }),
+      { mode: 0o600, lockWaitMs: 10_000 },
+    ).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(FileLockTimeoutError)
+  })
+
+  it('rethrows a rejection that carries no message instead of assuming a lock timeout', async () => {
+    const root = await createTempDir()
+    const api = {
+      async writeFileAtomic(): Promise<void> {},
+      async withFileLock(): Promise<never> {
+        throw 'opaque refusal'
+      },
+    }
+    await expect(
+      updateFileLocked(api, path.join(root, 'MEMORY.md'), () => ({ content: null, result: null }), {
+        mode: 0o600,
+        lockWaitMs: 10_000,
+      }),
+    ).rejects.toBe('opaque refusal')
+  })
 })
 
 describe('readTextFileIfExists', () => {

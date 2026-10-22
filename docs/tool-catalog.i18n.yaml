@@ -6,11 +6,11 @@
   en: 0be8ffbf23193557
   zh: ce2c69aa86875171
 /tool-schema-catalog:
-  en: 6cc2cd9ced70bb09
-  zh: 1c0e6cb4ba2ed637
+  en: 718849b7c4fc5355
+  zh: ec9f78fc1e3fa3d5
 /tool-schema-catalog/tool-package-map:
-  en: e72ad7af437fa362
-  zh: d8f3683a4efe01b0
+  en: 2a9c8d8d7d56164a
+  zh: 76bf8bc8d09dd3da
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -327,5 +327,23 @@
   en: 8673f203aea9bdf2
   zh: 4e17783ffdf34c83
 /tool-schema-catalog/deepseek-ai-dsh-tool-web/web-search:
-  en: cc1ad38bf0006710
-  zh: 324eacb827a09e93
+  en: dd8e810465b6a9d8
+  zh: 0c3ecaa1914c1bd0
+/tool-schema-catalog/anago-harness-memory:
+  en: 93ca90cab1a1d543
+  zh: 93ca90cab1a1d543
+/tool-schema-catalog/anago-harness-memory/memory:
+  en: 76d5d3d8e5abe174
+  zh: a5b7f55eed9c90af
+/tool-schema-catalog/anago-harness-llm-wiki:
+  en: 2a37e6408908c789
+  zh: 2a37e6408908c789
+/tool-schema-catalog/anago-harness-llm-wiki/wiki-lint:
+  en: 0eea1d5ecf5c0e1b
+  zh: c5f936dc314bfb82
+/tool-schema-catalog/anago-harness-llm-wiki/wiki-search:
+  en: 240a5d0d8e21680e
+  zh: 1d2c6d4a51f79872
+/tool-schema-catalog/anago-harness-llm-wiki/wiki-write:
+  en: 240bf364b0e56f46
+  zh: 56fd5186d3872238

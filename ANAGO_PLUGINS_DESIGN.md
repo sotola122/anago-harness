@@ -662,7 +662,7 @@ Additional constraints when the client half lives under `packages/fork` (verifie
   - The web side composes patches the same way in `apps/web/tests/*.snapshot.ts`; phase 4 starts by confirming the base patch location and adding the same line.
   - `acp` and `sdk` use `launcher.profileArgs` with a fixed `[base, selected]` pair. Their profiles do not change, so they need no compatibility layer.
 - Fork-owned scenarios (memory injection, a wiki notice, and search-provider selection; three to start) record in their own composition with `disabled: false`.
-- Maintenance: an upstream sync that renames a row id turns the compatibility entry into a **warn + skip** (`patch: entry %C not found`), silently losing compatibility. The upstream-sync checklist gains an item that greps for each compatibility target id and confirms it exists.
+- Maintenance: an upstream sync that renames a row id turns the compatibility entry into a **warn + skip** (`patch insert: entry %C not found`), silently losing compatibility. Verified against `applyEntryPatches` in `vendor/include`: an unmatched non-insert patch logs through the loader logger and leaves the entry list unchanged, so the boot survives. The upstream-sync checklist gains an item that greps for each compatibility target id and confirms it exists.
 
 ### 8.5 Tool catalog
 
@@ -798,7 +798,7 @@ Remaining:
 
 - **Workspace install.** The lockfile now carries every fork importer, the CLI bundle dependencies, and `@earendil-works/pi-tui` 1.3.0 with `commander`. A full `pnpm install` here still wants to purge `node_modules` (the local store differs), so runtime verification used manual symlinks; CI and the source-install script run the real install.
 - **Tool catalog.** `memory`, `wiki_*`, and `subagent_cursor` are not in `docs/tool-catalog.md`; §8.5's manifest entries with a `mount` recipe are the next step.
-- **Fork-owned snapshots.** The three scenarios (memory injection, a wiki notice, search-provider selection) are not recorded yet; recording needs a model key.
+- **Fork-owned snapshots.** `anago-memory`, `anago-wiki`, and `anago-search` record the fork composition (`composition: anago`, no compatibility layer) and replay keylessly (`./node_modules/.bin/vitest run --config vitest.snapshot.config.ts -t 'anago-'`): the memory snapshot and `memory` tool, the wiki existence notice, and the Brave-over-Exa search selection each come from the recorded Session.
 - **Coverage.** Only the ported tests exist, and no `coverage.exclude` entries were added yet. The §8.2 phased plan remains.
 - **TUI extensions.** Tool cards, model and session pickers, slash commands, reasoning blocks, usage, alt-screen scrolling, images, and a real-PTY check remain (listed in the README's Known Limitations).
 - **Real-profile launch.** Browser confirmation of `dsh web` needs `apps/web/dist` built and the dependencies installed; a real-terminal check of `dsh --profile tui` needs the same.
@@ -826,5 +826,4 @@ Still open from that review (P1/P2, not fixed in this pass):
 
 - The client-half manifest contract test promised in §8.1 (`tests/manifest.spec.ts` pinning `dsh.client.platform`, `exports['./client']`, no CSS Modules, and the inject list) is still missing.
 - Exa's `numResults` setting is inert through the normal `web_search` path because the tool always passes `maxResults`; either wire the setting into the request bound or drop the field from the card.
-- Fork-owned integration scenarios (memory injection, a wiki notice, search-provider selection) are still unrecorded, so the fork composition is verified only by unit tests and the compatibility-layer replay.
-- Two design clarifications: the compatibility patch's "warn + skip" needs checking against the boot-side `applyEntryPatches` behavior, and the persistence record's "optional message source" wording should say "unknown producer discriminator" (the `source` field itself is required).
+- Fork-owned integration scenarios (memory injection, a wiki notice, search-provider selection) are recorded under `snapshots/session/anago-*` and replay keylessly, so the fork composition is also verified from recorded Sessions; the upstream recordings still replay only through the compatibility layer.

@@ -16,6 +16,8 @@ Package names (`@deepseek-ai/dsh-*`), the `dsh` command, `DSH_*` environment var
 
 The fork ships its own capabilities as private packages under `packages/fork/` and mounts them through three bundles: `@anago-harness/anago-core` (memory, the LLM wiki, the Japanese-response instruction, the Cursor subagent, and the Exa and Brave search providers), `@anago-harness/anago-web` (the Exa and Brave search settings cards), and `@anago-harness/anago-tui` (the terminal UI built on the pi terminal UI library). The `web` and `headless` profile templates select the core bundle, `web` also selects the browser bundle, and a new `tui` template selects the core and terminal bundles.
 
+The fork composition is recorded in keyless snapshots under `snapshots/session/`: `anago-memory`, `anago-wiki`, and `anago-search` replay the injected memory snapshot and `memory` tool, the wiki existence notice, and the Brave-over-Exa search selection from committed Sessions, so those rows are verified without a model key.
+
 ## What comes next
 
 [PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) plans the remaining fork work: product branding, Japanese fonts, the `ash` command, and desktop installers. [ANAGO_PLUGINS_DESIGN.md](../ANAGO_PLUGINS_DESIGN.md) records the package split and the settings-card design.

@@ -208,3 +208,47 @@ describe('PiJsonlStream failure mapping', () => {
     expect(Buffer.byteLength(diagnostic, 'utf8')).toBeLessThanOrEqual(MAX_DIAGNOSTIC_BYTES)
   })
 })
+
+describe('PiJsonlStream tolerant framing', () => {
+  it('skips blank and whitespace-only lines between events', () => {
+    const stream = new PiJsonlStream()
+    stream.push('\n\r\n   \n')
+    stream.push(`${assistantEnd({ content: [{ type: 'text', text: 'answer' }], stopReason: 'stop' })}\n`)
+    stream.end()
+    expect(stream.output()).toEqual([{ type: 'text', text: 'answer' }])
+    expect(stream.outcome(EXIT_OK).stopReason).toBe('completed')
+  })
+
+  it.each([
+    ['a JSON null', 'null'],
+    ['a JSON array', '[1]'],
+    ['a record without a type', '{"kind":"message_end"}'],
+    ['a record whose type is not a string', '{"type":1}'],
+  ])('counts %s as a malformed line', (_title, line) => {
+    const stream = streamOf([line, assistantEnd({ content: [{ type: 'text', text: 'ok' }] })])
+    const result = stream.outcome(EXIT_OK)
+    expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('1 unparseable JSONL line(s)')
+  })
+
+  it.each([
+    ['no message', '{"type":"message_end"}'],
+    ['a non-record message', '{"type":"message_end","message":"text"}'],
+    ['a message without a role', '{"type":"message_end","message":{"content":[]}}'],
+    ['a message whose role is not a string', '{"type":"message_end","message":{"role":1,"content":[]}}'],
+  ])('counts a message_end with %s as malformed', (_title, line) => {
+    const stream = streamOf([line, assistantEnd({ content: [{ type: 'text', text: 'ok' }] })])
+    const result = stream.outcome(EXIT_OK)
+    expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('category: protocol')
+  })
+
+  it('ignores the message_end of a non-assistant role', () => {
+    const stream = streamOf([
+      '{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"prompt"}]}}',
+      assistantEnd({ content: [{ type: 'text', text: 'answer' }], stopReason: 'stop' }),
+    ])
+    expect(stream.output()).toEqual([{ type: 'text', text: 'answer' }])
+    expect(stream.outcome(EXIT_OK).stopReason).toBe('completed')
+  })
+})

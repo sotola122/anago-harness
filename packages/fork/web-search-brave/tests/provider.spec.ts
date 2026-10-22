@@ -327,6 +327,20 @@ describe('HTTP classification', () => {
     expect(error.message).toContain(ENDPOINT)
   })
 
+  it('maps a body-read failure as a transport failure', async () => {
+    const cause = new TypeError('body stream lost')
+    const response = jsonResponse(bravePayload([]))
+    Object.defineProperty(response, 'text', {
+      value: async () => {
+        throw cause
+      },
+    })
+    const provider = providerWith(providerOptions({ apiKey: SECRET }), recordingFetch(() => response).fetch)
+    const error = await rejectionOf(provider.search({ query: 'q' }))
+    expect(error.code).toBe('WEB_PROVIDER_ERROR')
+    expect(error.cause).toBe(cause)
+  })
+
   it('maps a non-JSON success body without dumping it', async () => {
     const { fetch } = recordingFetch(() => textResponse(`<html>${'x'.repeat(5_000)}</html>`, 200))
     const provider = providerWith(providerOptions({ apiKey: SECRET }), fetch)

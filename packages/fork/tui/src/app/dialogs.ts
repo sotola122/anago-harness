@@ -36,7 +36,7 @@ export interface ChoiceDialogOptions {
  * @param theme - active theme.
  * @returns panel lines, each exactly `width` columns.
  */
-function frame(content: readonly string[], width: number, theme: Theme): string[] {
+export function renderFrame(content: readonly string[], width: number, theme: Theme): string[] {
   const total = Math.max(12, width)
   const inner = Math.max(1, total - 4)
   const top = `┌${'─'.repeat(total - 2)}┐`
@@ -47,6 +47,44 @@ function frame(content: readonly string[], width: number, theme: Theme): string[
     return `${theme.border('│')} ${clipped}${padding} ${theme.border('│')}`
   })
   return [theme.border(top), ...rows, theme.border(bottom)]
+}
+
+/**
+ * Resolve the outer and inner widths of a dialog.
+ * @param width - requested overlay width.
+ * @returns the panel width and its content width.
+ */
+export function dialogWidths(width: number): { total: number; inner: number } {
+  const total = Math.max(12, width)
+  return { total, inner: Math.max(1, total - 4) }
+}
+
+/**
+ * Render a dialog title and optional supporting text.
+ * @param title - dialog title.
+ * @param detail - optional supporting text.
+ * @param inner - content width.
+ * @param theme - active theme.
+ * @returns title lines followed by a blank separator.
+ */
+export function dialogHeader(title: string, detail: string | undefined, inner: number, theme: Theme): string[] {
+  const content: string[] = [theme.bold(title), '']
+  if (detail !== undefined && detail.trim() !== '') {
+    for (const line of wrapTextWithAnsi(detail, inner)) content.push(theme.dim(line))
+    content.push('')
+  }
+  return content
+}
+
+/**
+ * Render the hint line shown under a dialog's content.
+ * @param hint - operation hint.
+ * @param inner - content width.
+ * @param theme - active theme.
+ * @returns the bounded hint line.
+ */
+export function dialogHint(hint: string, inner: number, theme: Theme): string {
+  return truncateToWidth(theme.dim(` ${hint}`), inner)
 }
 
 /** A selectable list inside a bordered panel, focused by the overlay itself. */
@@ -86,16 +124,11 @@ export class ChoiceDialog implements Component {
    * @returns panel lines, each at most `width` columns.
    */
   render(width: number): string[] {
-    const total = Math.max(12, width)
-    const inner = Math.max(1, total - 4)
-    const content: string[] = [this.theme.bold(this.options.title), '']
-    if (this.options.detail !== undefined && this.options.detail.trim() !== '') {
-      for (const line of wrapTextWithAnsi(this.options.detail, inner)) content.push(this.theme.dim(line))
-      content.push('')
-    }
+    const { total, inner } = dialogWidths(width)
+    const content = dialogHeader(this.options.title, this.options.detail, inner, this.theme)
     content.push(...this.list.render(inner))
     content.push('')
-    content.push(truncateToWidth(this.theme.dim(` ${this.options.hint}`), inner))
-    return frame(content, total, this.theme)
+    content.push(dialogHint(this.options.hint, inner, this.theme))
+    return renderFrame(content, total, this.theme)
   }
 }

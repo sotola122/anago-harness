@@ -3,8 +3,8 @@
  * Brave Search. Each card selects its provider through the `web` service's
  * single `searchProvider` field and stores its API key through the credentials
  * domain, addressed by `EXA_API_KEY` or `BRAVE_API_KEY`. The Exa card also
- * edits `web-search-exa`'s retrieval mode and result count; the Brave card
- * edits `web-search-brave`'s result bound and content filter.
+ * edits `web-search-exa`'s retrieval mode; the Brave card edits
+ * `web-search-brave`'s result bound and content filter.
  *
  * A card registers into the Plugins page's `plugins.item` slot while the Host
  * serves that provider's namespace, so a deployment without the provider shows

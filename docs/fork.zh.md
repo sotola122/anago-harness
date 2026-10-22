@@ -16,6 +16,8 @@ Anago Harness 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-har
 
 fork 以 `packages/fork/` 下的私有包提供自己的能力，并通过三个捆绑包挂载：`@anago-harness/anago-core`（记忆、LLM wiki、日语响应指令、Cursor 子代理，以及 Exa 与 Brave 搜索提供方）、`@anago-harness/anago-web`（Exa 与 Brave 搜索设置卡片）、`@anago-harness/anago-tui`（基于 pi 终端 UI 库的终端界面）。`web` 与 `headless` 配置模板选择核心捆绑包，`web` 还选择浏览器捆绑包，新增的 `tui` 模板选择核心与终端捆绑包。
 
+fork 组合由 `snapshots/session/` 下的无密钥快照记录：`anago-memory`、`anago-wiki` 与 `anago-search` 从已提交的 Session 回放注入的记忆快照与 `memory` 工具、wiki 存在性通知，以及 Brave 优先于 Exa 的搜索选择，因此无需模型密钥即可验证这些行。
+
 ## 接下来
 
 [PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) 规划剩余的 fork 工作：产品品牌、日语字体、`ash` 命令与桌面安装包。[ANAGO_PLUGINS_DESIGN.md](../ANAGO_PLUGINS_DESIGN.md) 记录包划分与设置卡片设计。

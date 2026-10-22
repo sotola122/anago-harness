@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fork/client-locale-ja/README.md
+/:
+  en: d72cca1f750e4625
+  zh: 5b4a064dc03ba4ee
+/anago-harness-client-locale-ja:
+  en: 1000f0cc6dead2f1
+  zh: bfcca181df2df7b9
+/anago-harness-client-locale-ja/summary:
+  en: fc22c4ea7d92a5c3
+  zh: c38938ea0171f5bd
+/anago-harness-client-locale-ja/table-of-contents:
+  en: 818c056b3f3672f5
+  zh: 09388d293f9be9cb
+/anago-harness-client-locale-ja/use-this-package:
+  en: 2a71bd138643a92d
+  zh: 30d7ad71143aecdb
+/anago-harness-client-locale-ja/understand-the-implementation:
+  en: b0fdfe5da47a9bff
+  zh: 92d987ceedc5e446
+/anago-harness-client-locale-ja/further-exploration:
+  en: 0b57ffbdeef3c061
+  zh: 938c66e074299c4f
+/anago-harness-client-locale-ja/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/anago-harness-client-locale-ja/model-experience/browser-only-locale-dictionaries:
+  en: 46bfe012e137138e
+  zh: d848cb9f50507d1c
+/anago-harness-client-locale-ja/model-experience/browser-only-locale-dictionaries/what-the-model-sees:
+  en: 57a52337ac7ec874
+  zh: 0b0623efe143bc82
+/anago-harness-client-locale-ja/model-experience/browser-only-locale-dictionaries/token-effect:
+  en: 2ad36ed27df81b55
+  zh: 9184d975ae56ff96
+/anago-harness-client-locale-ja/model-experience/browser-only-locale-dictionaries/kv-cache-effect:
+  en: 0a01421d40b77e83
+  zh: 47e8697f40a65eaa
+/anago-harness-client-locale-ja/known-limitations-and-deferred-work:
+  en: bb1d88915b1bf379
+  zh: 48bc372c0e502ad6
+/anago-harness-client-locale-ja/known-limitations-and-deferred-work/dev-note:
+  en: 229d3fe14e7ef061
+  zh: efae36e3cfe05fab

@@ -73,6 +73,10 @@ describe('boundedProviderDetail', () => {
     expect(boundedProviderDetail('anything', -1)).toBe('')
   })
 
+  it('keeps one character of content for a one-character limit', () => {
+    expect(boundedProviderDetail('anything', 1)).toBe('…')
+  })
+
   it('backs up instead of splitting a redaction marker at the cut', () => {
     const text = `${'x'.repeat(195)}${REDACTED}${'y'.repeat(100)}`
     const bounded = boundedProviderDetail(text, 200)

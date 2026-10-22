@@ -82,6 +82,9 @@ import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflo
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
 import * as ToolWorkspaceDependencies from '@deepseek-ai/dsh-tool-workspace-dependencies'
+import CommandRuntime from '@deepseek-ai/dsh-commands'
+import * as MemoryPlugin from '@anago-harness/memory'
+import * as LlmWikiPlugin from '@anago-harness/llm-wiki'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -688,6 +691,78 @@ const TOOL_PACKAGES: ToolPackage[] = [
     note:
       'web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.',
   },
+  // The fork's own model-facing tool packages live under `packages/fork/`, so
+  // the `packages/*/tool-*` completeness glob below cannot see them; they are
+  // listed explicitly here.
+  {
+    pkg: '@anago-harness/memory',
+    dir: 'memory',
+    source: 'packages/fork/memory/src/tool.ts',
+    requires: [
+      'ctx.tools',
+      'ctx.commands',
+      'ctx.approval (optional, read per call)',
+      'ctx.llm (optional, turn-end review)',
+      'an owning Agent session at execution time',
+    ],
+    writes: [
+      'tool/call',
+      'tool/result',
+      '$DSH_HOME/memories/MEMORY.md or $DSH_HOME/memories/USER.md',
+      '<projectRoot>/.dsh/memory/MEMORY.md and its managed .gitignore block',
+      '$DSH_HOME/memories/pending/ for a staged batch',
+      'user/message carrying the frozen snapshot (agent/pre-step)',
+    ],
+    async mount(ctx) {
+      // Registration only: the harvest never runs the tool or a listener, so
+      // the real command registry is enough and no approval, model, or agent
+      // service is mounted. Every config key has a default, so the schema
+      // harvested here is the shipped one.
+      await ctx.plugin(CommandRuntime)
+      await ctx.plugin(MemoryPlugin)
+    },
+    note:
+      'Booted with the shipped defaults (`writeApproval: none`, the turn-end review enabled, the workspace store enabled); none of them changes the schema. '
+      + '`writeApproval: ask` stages a batch under `$DSH_HOME/memories/pending/` only where the session cannot be prompted, and `/memory approve` applies it; otherwise the tool writes. '
+      + 'A child agent sees the workspace store read-only, and every write becomes model-visible with the next pre-step snapshot rather than mid-turn.',
+  },
+  {
+    pkg: '@anago-harness/llm-wiki',
+    dir: 'llm-wiki',
+    source: {
+      wiki_lint: 'packages/fork/llm-wiki/src/tool.ts',
+      wiki_search: 'packages/fork/llm-wiki/src/search-tool.ts',
+      wiki_write: 'packages/fork/llm-wiki/src/write.ts',
+    },
+    requires: [
+      'ctx.tools',
+      'ctx.skills',
+      'ctx.commands',
+      'ctx.workingDirectory (raw and global-wiki guards)',
+      'ctx.approval (optional, read per call)',
+      'a registered global wiki at execution time for global-scope calls',
+      'an owning Agent session at execution time',
+    ],
+    writes: [
+      'tool/call',
+      'tool/result',
+      'the global wiki repository (wiki_write)',
+      'user/message carrying the existence notice (agent/pre-step)',
+      'the in-process search index',
+    ],
+    async mount(ctx) {
+      // The skill body is read from the package at load, which is deterministic
+      // and local. Registration touches neither wiki root, and the harvest never
+      // searches, lints, or writes.
+      await ctx.plugin(SkillRegistry)
+      await ctx.plugin(CommandRuntime)
+      await ctx.plugin(LlmWikiPlugin)
+    },
+    note:
+      'Booted with the shipped defaults: no global wiki (`global.repo: \'\'`), `pages/` as its page directory, and all three lint checks as the configured set. '
+      + 'The schemas do not depend on those values; the `global` scope reports an unconfigured wiki rather than changing the schema. '
+      + '`writeApproval: ask` refuses `wiki_write` with `WIKI_APPROVAL_UNAVAILABLE` where the session cannot be prompted, and nothing is staged.',
+  },
 ]
 
 /** One package's contribution to the catalog: its schemas plus attribution. */
@@ -833,7 +908,7 @@ export function render(catalog: ToolCatalog): string {
     '',
     'This file is GENERATED and verified fresh by `pnpm run verify-tool-catalog` (part of `doc-sync`) — do not edit it by hand. Unlike the cordis catalog (a pure source-AST pass), this generator BOOTS each tool plugin on a real context and reads `ctx.tools.schemas()`, because a tool schema is not statically knowable (runtime-spread enums, concatenated descriptions, config-driven names, raw-JSON-Schema MCP tools). A completeness guard globs `packages/*/tool-*` and fails if any package is missing from the generator\'s boot manifest, so a new tool cannot be silently undocumented.',
     '',
-    'Scope: shipped product tools under `packages/*/tool-*`, each booted with its DEFAULT config, except where a Config field is REQUIRED with no default — there the generator must choose, and the per-package note records which branch this page shows. The registered tool NAME can be a load-time config (e.g. `tool-subagent`\'s `toolName`), so a deployment may expose a package under a different or additional name — a per-package note records those shipped aliases where they exist. The `examples/` demo tools (e.g. `echo`) are excluded, matching the cordis catalog\'s packages-only scope.',
+    'Scope: shipped product tools under `packages/*/tool-*`, plus the fork\'s own model-facing tool packages under `packages/fork/` (`memory`, `llm-wiki`), each booted with its DEFAULT config, except where a Config field is REQUIRED with no default — there the generator must choose, and the per-package note records which branch this page shows. The registered tool NAME can be a load-time config (e.g. `tool-subagent`\'s `toolName`), so a deployment may expose a package under a different or additional name — a per-package note records those shipped aliases where they exist. The `examples/` demo tools (e.g. `echo`) are excluded, matching the cordis catalog\'s packages-only scope.',
     '',
     '## Tool Package Map',
     '',

@@ -174,8 +174,8 @@ export function WebSearchProviderCard(props: WebSearchProviderCardProps) {
 }
 
 /**
- * Render one provider's own fields: Exa's retrieval mode and result count, or
- * Brave's result count and content filter.
+ * Render one provider's own fields: Exa's retrieval mode, or Brave's result
+ * bound and content filter.
  * @param state - the provider-narrowed card state.
  * @param props - the card's injected actions.
  * @param t - the card's locale reader.
@@ -190,32 +190,17 @@ function panelFields(
   const shared = { overriddenLabel: t('overridden'), resetLabel: t('reset'), disabled }
   if (state.provider === 'exa') {
     return (
-      <>
-        <SelectField
-          id="plugin-config-web-search-exa-type"
-          copy={{ label: t('searchType'), hint: t('searchTypeHint'), invalid: t('invalidSearchType') }}
-          value={state.searchType.text}
-          choices={choicesOf(EXA_SEARCH_TYPES, EXA_SEARCH_TYPE_LABELS, t)}
-          overridden={state.searchType.overridden}
-          invalid={state.searchType.invalid}
-          {...shared}
-          onEdit={(value) => { props.edit('searchType', value) }}
-          onReset={() => { props.resetField('searchType') }}
-        />
-        <SettingsValueField
-          id="plugin-config-web-search-exa-num-results"
-          label={t('numResults')}
-          hint={t('numResultsHint')}
-          overriddenLabel={t('overridden')}
-          resetLabel={t('reset')}
-          invalidLabel={t('invalidNumResults')}
-          numeric
-          disabled={disabled}
-          {...state.numResults}
-          onEdit={(text) => { props.edit('numResults', text) }}
-          onReset={() => { props.resetField('numResults') }}
-        />
-      </>
+      <SelectField
+        id="plugin-config-web-search-exa-type"
+        copy={{ label: t('searchType'), hint: t('searchTypeHint'), invalid: t('invalidSearchType') }}
+        value={state.searchType.text}
+        choices={choicesOf(EXA_SEARCH_TYPES, EXA_SEARCH_TYPE_LABELS, t)}
+        overridden={state.searchType.overridden}
+        invalid={state.searchType.invalid}
+        {...shared}
+        onEdit={(value) => { props.edit('searchType', value) }}
+        onReset={() => { props.resetField('searchType') }}
+      />
     )
   }
   return (

@@ -1,0 +1,10 @@
+version: 1
+scenario: anago-memory
+profile: headless
+composition: anago
+recording: live
+# One pin owns the fork composition's system prompt and tool schemas for all
+# three anago scenarios; `anago-wiki` and `anago-search` reference this owner.
+header:
+  class: anago
+  pin: true

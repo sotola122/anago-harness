@@ -135,6 +135,8 @@
     { "path": "./packages/client/ui-settings-subagent" },
     { "path": "./packages/client/ui-settings-web-search" },
     { "path": "./packages/fork/client-ui-settings-web-search" },
+    { "path": "./packages/fork/client-locale-ja" },
+    { "path": "./packages/fork/client-ui-fonts-anago" },
     { "path": "./packages/client/ui-user-questions" },
     { "path": "./packages/client/ui-trajectory" },
     { "path": "./packages/session-query/session-log-export/tsconfig.client.json" },

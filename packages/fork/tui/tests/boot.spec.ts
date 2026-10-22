@@ -37,8 +37,10 @@ function harness(selection: { provider: string; model: string } | undefined): Bo
   const exitCodes: number[] = []
   const dispose = vi.fn(async () => {})
   const listenersBefore = new Set(process.listeners('SIGINT'))
+  const agentCtx = new Context()
   const agent = {
     id: 'agent-1',
+    ctx: agentCtx,
     session: { id: SessionId('session-1') },
     options: { provider: 'deepseek', model: 'deepseek-flash' },
     status: 'idle',

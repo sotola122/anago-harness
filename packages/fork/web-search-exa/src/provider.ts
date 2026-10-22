@@ -55,8 +55,6 @@ export interface ExaCredentialProviderOptions {
   readonly baseURL: string
   /** Retrieval mode sent as Exa's `type`. */
   readonly searchType: ExaSearchType
-  /** Default result count when a request carries no `maxResults`. */
-  readonly numResults?: number | undefined
   /** Highlight sentences requested per result (Exa's `highlightsPerUrl`). */
   readonly highlightsPerResult: number
 }
@@ -262,7 +260,6 @@ export class ExaCredentialSearchProvider implements WebSearchProvider {
       baseURL: options.baseURL,
       searchType: options.searchType,
       highlightsPerResult: options.highlightsPerResult,
-      ...options.numResults === undefined ? {} : { numResults: options.numResults },
     })
     try {
       return await provider.search(request, signal)
@@ -290,7 +287,6 @@ export function exaProviderOptions(
   settings: {
     readonly baseURL: string
     readonly searchType: ExaSearchType
-    readonly numResults?: number | undefined
     readonly highlightsPerResult: number
   },
 ): ExaCredentialProviderOptions {
@@ -302,7 +298,6 @@ export function exaProviderOptions(
     readEnvironment: readers.readEnvironment,
     baseURL: settings.baseURL,
     searchType: settings.searchType,
-    ...settings.numResults === undefined ? {} : { numResults: settings.numResults },
     highlightsPerResult: settings.highlightsPerResult,
   }
 }

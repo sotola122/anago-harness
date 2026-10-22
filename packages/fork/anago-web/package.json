@@ -31,7 +31,10 @@
     }
   },
   "dependencies": {
+    "@anago-harness/client-locale-ja": "workspace:*",
+    "@anago-harness/client-ui-fonts-anago": "workspace:*",
     "@anago-harness/client-ui-settings-web-search": "workspace:*",
+    "@deepseek-ai/dsh-client-locale": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-web-search": "workspace:*"
   },
   "peerDependencies": {

@@ -29,7 +29,7 @@ kind: "package-reference"
 
 | 卡片 | 开关写入 | 密钥引用 | 其他字段 |
 |---|---|---|---|
-| Exa search | `web.searchProvider = exa` | `EXA_API_KEY` | `searchType`、`numResults` |
+| Exa search | `web.searchProvider = exa` | `EXA_API_KEY` | `searchType` |
 | Brave Search | `web.searchProvider = brave` | `BRAVE_API_KEY` | `maxResults`、`safesearch` |
 
 开关位置与组合值相同（随附默认值为 `exa`）时，暂存的是重置而不是写入副本。无效的结果数量会阻止保存并保留草稿。由当前进程环境提供的密钥会将控件显示为禁用，因为凭据域无法覆盖环境变量。

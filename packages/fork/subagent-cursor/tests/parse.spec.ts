@@ -141,6 +141,31 @@ describe('parseOutcome with --output-format json', () => {
   })
 })
 
+describe('parseOutcome tolerance for unusual JSON payloads', () => {
+  it('completes with the raw stdout when the JSON payload is not an object', () => {
+    expect(parseOutcome(outputs({ stdout: 'null' }))).toEqual({
+      output: [{ type: 'text', text: 'null' }],
+      stopReason: 'completed',
+    })
+    expect(parseOutcome(outputs({ stdout: '42' }))).toEqual({
+      output: [{ type: 'text', text: '42' }],
+      stopReason: 'completed',
+    })
+  })
+
+  it('reports the product-error fallback when is_error carries no result', () => {
+    const result = parseOutcome(outputs({ stdout: '{"is_error":true}' }))
+    expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('without a result message')
+  })
+
+  it('treats a whitespace-only result as no product message', () => {
+    const result = parseOutcome(outputs({ stdout: '{"is_error":true,"result":"   "}' }))
+    expect(result.stopReason).toBe('error')
+    expect(result.diagnostic).toContain('without a result message')
+  })
+})
+
 describe('parseOutcome with --output-format text', () => {
   it('completes with the raw stdout on exit code 0, even when it looks like JSON', () => {
     expect(parseOutcome(outputs({ outputFormat: 'text', stdout: '{"is_error":true}' }))).toEqual({

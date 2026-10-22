@@ -6642,10 +6642,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReadResultView {\n    card: \'read\';\n    title?: string;\n    path: string;\n    offset: number;\n    lines: ReadFileLine[];\n    totalLines: number;\n    lang?: string;\n    content?: ContentBlock[];\n}',
   },
   {
-    name: 'ReasoningBlock',
-    declaration: 'export interface ReasoningBlock {\n    type: \'reasoning\';\n    text: string;\n}',
-  },
-  {
     name: 'ReasoningEffortId',
     declaration: 'export type ReasoningEffortId = Branded<\'ReasoningEffortId\'>;',
   },
@@ -8376,10 +8372,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TurnStartResult',
     declaration: 'export interface TurnStartResult {\n    turnId: string;\n}',
-  },
-  {
-    name: 'TurnUsage',
-    declaration: 'export interface TurnUsage {\n    input_tokens: number;\n    output_tokens: number;\n    cache_read_input_tokens: number;\n    cache_creation_input_tokens: number;\n    model: string;\n}',
   },
   {
     name: 'TypertCodec',

@@ -10,7 +10,8 @@ import {
   wrapTextWithAnsi,
   type Component,
 } from '../term/pi-tui.ts'
-import type { DisplayBlock, TranscriptState } from '../projection/blocks.ts'
+import type { DisplayBlock, ReasoningBlock, ToolBlock, TranscriptState } from '../projection/blocks.ts'
+import { formatDuration, summarizeText } from '../projection/tools.ts'
 import type { Theme } from './theme.ts'
 
 /** Left gutter used for every block. */
@@ -55,6 +56,105 @@ function renderAssistant(text: string, streaming: boolean, width: number, theme:
 }
 
 /**
+ * Expand a multi-line body under the gutter.
+ * @param text - body text.
+ * @param width - available terminal width.
+ * @param style - body style.
+ * @returns one bounded line per source line.
+ */
+function renderBody(text: string, width: number, style: (line: string) => string): string[] {
+  const contentWidth = Math.max(1, width - visibleWidth(GUTTER))
+  const lines: string[] = []
+  for (const source of text.split('\n')) {
+    for (const line of wrapTextWithAnsi(source, contentWidth)) lines.push(`${GUTTER}${style(line)}`)
+  }
+  return lines
+}
+
+/**
+ * Render the collapsed or expanded detail of a tool card.
+ * @param block - tool block.
+ * @param width - available terminal width.
+ * @param theme - active theme.
+ * @returns detail lines.
+ */
+function renderToolDetail(block: ToolBlock, width: number, theme: Theme): string[] {
+  const lines: string[] = []
+  if (block.detail !== undefined) {
+    lines.push(truncateToWidth(`${GUTTER}${theme.dim(`  ${block.detail}`)}`, width))
+  }
+  if (block.expanded) {
+    if (block.output !== undefined && block.output !== '') {
+      lines.push(...renderBody(block.output, width, theme.tool))
+    }
+    if (block.facts.length > 0) {
+      lines.push(truncateToWidth(`${GUTTER}${theme.dim(block.facts.join(' · '))}`, width))
+    }
+    return lines
+  }
+  if (block.result !== undefined && block.result !== '') {
+    lines.push(truncateToWidth(`${GUTTER}${theme.dim(`└ ${block.result}`)}`, width))
+  }
+  return lines
+}
+
+/**
+ * Render a tool card compactly: heading, identifying detail, and a preview or
+ * the expanded result.
+ * @param block - tool block.
+ * @param width - available terminal width.
+ * @param theme - active theme.
+ * @returns rendered lines.
+ */
+function renderTool(block: ToolBlock, width: number, theme: Theme): string[] {
+  const icon = block.status === 'running' ? '…' : block.status === 'ok' ? '✓' : '✗'
+  const color = block.status === 'error' ? theme.error : theme.tool
+  const caret = block.detail !== undefined || block.output !== undefined || block.facts.length > 0
+    ? `${block.expanded ? '▾' : '▸'} `
+    : ''
+  const parts = [`${caret}${icon} ${block.name}`]
+  if (block.summary !== '' && block.summary !== block.name) parts.push(block.summary)
+  for (const fact of block.facts) parts.push(fact)
+  if (block.durationMs !== undefined) parts.push(formatDuration(block.durationMs))
+  const heading = color(parts[0] ?? '')
+    + (parts.length === 1 ? '' : theme.dim(` · ${parts.slice(1).join(' · ')}`))
+  return [truncateToWidth(heading, width), ...renderToolDetail(block, width, theme)]
+}
+
+/**
+ * Render a reasoning summary, collapsed to its first line unless expanded.
+ * @param block - reasoning block.
+ * @param width - available terminal width.
+ * @param theme - active theme.
+ * @returns rendered lines.
+ */
+function renderReasoning(block: ReasoningBlock, width: number, theme: Theme): string[] {
+  const caret = block.expanded ? '▾' : '▸'
+  const chars = `${String(block.text.length)} chars`
+  const heading = theme.dim(`${caret} ◇ reasoning · ${chars}`)
+  const lines = [truncateToWidth(heading, width)]
+  if (block.expanded) {
+    lines.push(...renderBody(block.text, width, theme.dim))
+    return lines
+  }
+  const preview = summarizeText(block.text.split('\n')[0] ?? '')
+  if (preview !== '') lines.push(truncateToWidth(`${GUTTER}${theme.dim(`└ ${preview}`)}`, width))
+  return lines
+}
+
+/**
+ * Render the streaming reasoning row.
+ * @param text - reasoning accumulated for the in-progress message.
+ * @param width - available terminal width.
+ * @param theme - active theme.
+ * @returns rendered lines.
+ */
+function renderLiveReasoning(text: string, width: number, theme: Theme): string[] {
+  const heading = theme.dim(`◇ thinking… · ${String(text.length)} chars`)
+  return [truncateToWidth(heading, width)]
+}
+
+/**
  * Render one display block.
  * @param block - block model.
  * @param width - available terminal width.
@@ -67,20 +167,19 @@ function renderBlockRow(block: DisplayBlock, width: number, theme: Theme): strin
       return renderBlock(theme.user('❯ you'), block.text, width, theme.user)
     case 'assistant':
       return renderAssistant(block.text, block.streaming, width, theme)
-    case 'tool': {
-      const icon = block.status === 'running' ? '…' : block.status === 'ok' ? '✓' : '✗'
-      const color = block.status === 'error' ? theme.error : theme.tool
-      const heading = `${color(`${icon} ${block.name}`)}${block.summary === '' ? '' : theme.dim(` · ${block.summary}`)}`
-      const lines = [truncateToWidth(heading, width)]
-      if (block.result !== undefined && block.result !== '') {
-        lines.push(truncateToWidth(`${GUTTER}${theme.dim(`└ ${block.result}`)}`, width))
-      }
-      return lines
-    }
+    case 'reasoning':
+      return renderReasoning(block, width, theme)
+    case 'tool':
+      return renderTool(block, width, theme)
     case 'error':
       return renderBlock(theme.error('✗ error'), block.text, width, theme.error)
-    case 'notice':
-      return [truncateToWidth(theme.notice(`· ${block.text}`), width)]
+    case 'notice': {
+      const lines = block.text.split('\n')
+      return lines.map((line, index) => truncateToWidth(
+        index === 0 ? theme.notice(`· ${line}`) : theme.notice(`  ${line}`),
+        width,
+      ))
+    }
   }
 }
 
@@ -133,12 +232,20 @@ export class TranscriptView implements Component {
       if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push('')
       lines.push(...renderBlockRow(block, limit, this.theme))
     }
-    if (this.state.liveAssistant !== '') {
+    if (this.state.liveReasoning !== '' || this.state.liveAssistant !== '') {
       if (lines.length > 0) lines.push('')
-      lines.push(...renderAssistant(this.state.liveAssistant, true, limit, this.theme))
+      if (this.state.liveReasoning !== '') {
+        lines.push(...renderLiveReasoning(this.state.liveReasoning, limit, this.theme))
+      }
+      if (this.state.liveAssistant !== '') {
+        lines.push(...renderAssistant(this.state.liveAssistant, true, limit, this.theme))
+      }
     }
     if (lines.length === 0) {
-      lines.push(truncateToWidth(this.theme.notice('No messages yet. Type below and press Enter.'), limit))
+      lines.push(truncateToWidth(
+        this.theme.notice('No messages yet. Type below and press Enter, or /help for commands.'),
+        limit,
+      ))
     }
     return lines
   }

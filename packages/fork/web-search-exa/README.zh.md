@@ -63,10 +63,9 @@ kind: "package-reference"
 | `apiKeyEnv` | `EXA_API_KEY` | 凭据引用名；credentials 服务和启动环境都使用该名称。 |
 | `baseURL` | `https://api.exa.ai` | 端点基础 URL；会追加 `/search`。无法解析时 `available()` 为 false。 |
 | `searchType` | `auto` | 作为 Exa `type` 发送的检索模式：`auto`、`keyword` 或 `neural`。 |
-| `numResults` | （未设置） | 请求未带 `maxResults` 时的默认结果数；必须是正整数。 |
 | `highlightsPerResult` | `1` | 每个结果请求的 highlight 句数（Exa 的 `highlightsPerUrl`）；必须是正整数。 |
 
-请求的 `maxResults` 优先于配置的 `numResults`，并作为成本和延迟优化发送给 Exa；最终上限由 web 服务执行并设置 `truncated`。
+请求的 `maxResults` 作为 `numResults` 发送给 Exa，属于成本和延迟优化；最终上限由 web 服务执行并设置 `truncated`。请求未带该值时不会发送结果上限，由 Exa 使用自身默认值。
 
 ### 错误代码
 
@@ -97,7 +96,7 @@ kind: "package-reference"
 | [`src/provider.ts`](src/provider.ts) | `ExaCredentialSearchProvider`：`available()`、每次搜索的密钥解析、查询上限、委托给上游类，以及失败重写。 |
 | [`tests/index.spec.ts`](tests/index.spec.ts) | 通过 `globalThis.fetch` 注入 `fetch` 的单元套件。 |
 
-`search()` 先检查取消和查询上限，只快照一次配置，解析密钥，然后为本次搜索构造且仅构造一个 `new ExaSearchProvider({ apiKey, baseURL, searchType, numResults, highlightsPerResult })`。搜索之间不保留任何状态。因此并发搜索不会共享密钥或选项快照，每次都会得到自己的上游实例。封装层不调用上游的 `available()`；上游 `search()` 会校验收到的值并映射自己的失败。
+`search()` 先检查取消和查询上限，只快照一次配置，解析密钥，然后为本次搜索构造且仅构造一个 `new ExaSearchProvider({ apiKey, baseURL, searchType, highlightsPerResult })`。搜索之间不保留任何状态。因此并发搜索不会共享密钥或选项快照，每次都会得到自己的上游实例。封装层不调用上游的 `available()`；上游 `search()` 会校验收到的值并映射自己的失败。
 
 `upstreamFailure` 读取上游 `code` 而不要求它是 harness 类，保留 `WEB_ABORTED`（名为 `AbortError` 的拒绝也一样），未知代码回落为 `WEB_PROVIDER_ERROR`。消息由提供方名、引用名、错误码与已替换、已限长的细节构成，绝不取自原始正文或密钥。
 

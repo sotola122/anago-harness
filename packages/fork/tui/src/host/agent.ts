@@ -32,9 +32,19 @@ export interface SessionOpenOptions {
 }
 
 /** The complete provider/model pair every Agent request needs. */
-interface AgentRoute {
+export interface AgentRoute {
+  /** Registered provider route. */
   readonly provider: string
+  /** Provider-owned model id. */
   readonly model: string
+}
+
+/** One opened Agent and the route resolved for it. */
+export interface OpenedAgent {
+  /** The owned handle; the caller disposes it before exiting. */
+  readonly handle: AgentHandle
+  /** The route the Agent requests start from. */
+  readonly route: AgentRoute
 }
 
 /**
@@ -86,23 +96,24 @@ async function openWithFactoryRetry(open: () => Promise<AgentHandle>): Promise<A
  * Create a fresh Agent or resume the persisted Session the invocation named.
  * @param ctx - plugin context carrying `ctx.agents` and optionally the default model.
  * @param options - resume and model overrides.
- * @returns the owned Agent handle; the caller disposes it before exiting.
+ * @returns the owned Agent handle and the resolved route; the caller disposes the handle before exiting.
  */
-export async function openAgentSession(ctx: Context, options: SessionOpenOptions): Promise<AgentHandle> {
-  const agentOptions = agentRouteOf(ctx, options)
-  return openWithFactoryRetry(async () => {
+export async function openAgentSession(ctx: Context, options: SessionOpenOptions): Promise<OpenedAgent> {
+  const route = agentRouteOf(ctx, options)
+  const handle = await openWithFactoryRetry(async () => {
     if (options.resume === undefined || options.resume === '') {
       return ctx.agents.create({
         sessionId: SessionId(randomUUID()),
         meta: { cwd: process.cwd() },
-        agentOptions,
+        agentOptions: route,
       })
     }
     return ctx.agents.resume({
       resumeSessionId: SessionId(options.resume),
-      agentOptions,
+      agentOptions: route,
     })
   })
+  return { handle, route }
 }
 
 /**

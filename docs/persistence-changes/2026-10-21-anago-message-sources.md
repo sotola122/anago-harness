@@ -47,7 +47,7 @@ changes:
 <a id="compatibility"></a>
 ## Compatibility
 
-Each new kind is an additional discriminator on an optional message source, not a change to an existing one. The message content and its role in the request are unchanged for every current kind. A reader that does not know a kind keeps the record opaque and preserves it on rewrite, which is the behaviour the existing reader contract requires for unknown optional features; nothing requires interpretation of these values to resume, compact, or export a Session. The Session format version therefore stays at V4, and the new kinds remain ignorable additions.
+Each new kind is an additional discriminator on the message source, not a change to an existing one. The `source` field is required; the unknown-producer discriminator is the ignorable part. The message content and its role in the request are unchanged for every current kind. A reader that does not know a kind keeps the record opaque and preserves it on rewrite, which is the behaviour the existing reader contract requires for unknown optional features; nothing requires interpretation of these values to resume, compact, or export a Session. The Session format version therefore stays at V4, and the new kinds remain ignorable additions.
 
 <a id="verification"></a>
 ## Verification

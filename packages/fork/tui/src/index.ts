@@ -3,19 +3,29 @@
  *
  * The row starts the pi-based UI only after the launcher commits startup, owns
  * stdin through pi-tui's ProcessTerminal, projects durable Session events into
- * the transcript, and answers the approval and user-question waterfalls for the
- * Agent it opened.
+ * the transcript, answers the approval and user-question waterfalls for the
+ * Agent it opened, and serves the screen's model and Session pickers from the
+ * Host services.
  * @module @anago-harness/tui
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
+import { installModelSelection, type Agent, type AgentHandle, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-query'
 import z from '@deepseek-ai/schemastery'
-import { TuiApp, describeError } from './app/root.ts'
-import { abortAgent, openAgentSession, sendPrompt, type SessionOpenOptions } from './host/agent.ts'
+import { TuiApp, describeError, type AgentIdentity, type ModelRoute, type TuiHost } from './app/root.ts'
+import type { ModelOption, SessionOption } from './app/pickers.ts'
+import {
+  abortAgent,
+  openAgentSession,
+  sendPrompt,
+  type AgentRoute,
+  type SessionOpenOptions,
+} from './host/agent.ts'
 import { projectableSessionEvent, subscribeAgentEvents } from './host/events.ts'
+import { listModelOptions, resolveModelRoute } from './host/models.ts'
+import { listSessionOptions } from './host/sessions.ts'
 import { registerApprovalWaterfall, registerQuestionsWaterfall } from './host/waterfalls.ts'
 import { ProcessTerminal } from './term/pi-tui.ts'
 import type { TuiStartupValues } from './startup.ts'
@@ -44,11 +54,13 @@ export const Config: z<Config> = z.object({
 const NON_TTY_GUIDANCE = 'tui: stdout is not a TTY; the terminal UI needs an interactive terminal. '
   + 'Run `dsh --profile tui` from a terminal, or use `dsh --profile headless "task"` for a non-interactive run.'
 
-/** Mutable facts shared by the boot sequence and the waterfall handlers. */
+/** Mutable facts shared by the boot sequence, the pickers, and the waterfall handlers. */
 interface Runtime {
   ui: TuiApp | null
   agent: Agent | null
   handle: AgentHandle | undefined
+  selection: ModelSelectionRef | null
+  removeEvents: () => void
   removeSignals: () => void
 }
 
@@ -71,6 +83,8 @@ export function apply(ctx: Context, config: Config): void {
     ui: null,
     agent: null,
     handle: undefined,
+    selection: null,
+    removeEvents: () => {},
     removeSignals: () => {},
   }
   let booted = false
@@ -102,8 +116,11 @@ export function apply(ctx: Context, config: Config): void {
     terminated = true
     runtime.removeSignals()
     runtime.removeSignals = () => {}
+    runtime.removeEvents()
+    runtime.removeEvents = () => {}
     stopUi()
     runtime.agent = null
+    runtime.selection = null
     const handle = runtime.handle
     runtime.handle = undefined
     try {
@@ -166,18 +183,22 @@ async function boot(
     process.off('SIGTERM', onSignal)
   }
 
+  /** Serialize Session switches so a second pick cannot interleave disposal. */
+  let sessionTail: Promise<void> = Promise.resolve()
+  const queueSession = (task: () => Promise<void>): Promise<void> => {
+    const run = sessionTail.then(task, task)
+    sessionTail = run.then(() => undefined, () => undefined)
+    return run
+  }
+
   const ui = new TuiApp({
     terminal: new ProcessTerminal(),
     inline: startup.inline || config.inline,
     theme: startup.theme ?? config.theme,
     onSubmit: (text) => {
       const agent = runtime.agent
-      if (agent === null) return
-      try {
-        sendPrompt(agent, text)
-      } catch (error) {
-        runtime.ui?.addError(error)
-      }
+      if (agent === null) throw new Error('no Agent is open yet')
+      sendPrompt(agent, text)
     },
     onAbort: () => {
       const agent = runtime.agent
@@ -186,25 +207,12 @@ async function boot(
     onExit: () => {
       void shutdown(0)
     },
+    host: hostFor(ctx, runtime, queueSession, isTerminated, startup),
   })
   runtime.ui = ui
 
   try {
-    const opened = await openAgentSession(ctx, openOptionsOf(startup))
-    if (isTerminated()) {
-      await opened.dispose()
-      return
-    }
-    runtime.handle = opened
-    runtime.agent = opened.agent
-    ui.setIdentity(identityOf(opened.agent, startup))
-    subscribeAgentEvents(ctx, opened.agent, {
-      event: (event) => { runtime.ui?.applyEvent(event) },
-      delta: (text) => { runtime.ui?.applyDelta(text) },
-      status: (status) => { runtime.ui?.setStatus(status) },
-      error: (error) => { runtime.ui?.addError(error) },
-    })
-    if (startup.resume !== null) await replayTranscript(ctx, opened.agent.session.id, ui)
+    await openInto(ctx, runtime, ui, openOptionsOf(startup), isTerminated)
     if (isTerminated()) return
     ui.start()
   } catch (error) {
@@ -212,6 +220,123 @@ async function boot(
     process.stderr.write(`tui: ${describeError(error)}\n`)
     await shutdown(1)
   }
+}
+
+/**
+ * Build the screen's DSH-backed operations.
+ *
+ * Model routes come from the Host LLM catalog and are installed on the live
+ * Agent through its model-selection listeners, so a switch applies to later
+ * turns without recreating the Agent. Session pages are opened by disposing the
+ * current Agent and resuming or creating another in the same terminal.
+ * @param ctx - plugin context.
+ * @param runtime - shared UI, Agent, and selection facts.
+ * @param queueSession - serializes Session switches.
+ * @param isTerminated - reads the shared termination state.
+ * @param startup - invocation flags supplying the initial route.
+ * @returns the host callbacks.
+ */
+function hostFor(
+  ctx: Context,
+  runtime: Runtime,
+  queueSession: (task: () => Promise<void>) => Promise<void>,
+  isTerminated: () => boolean,
+  startup: TuiStartupValues,
+): TuiHost {
+  const screen = (): TuiApp => {
+    const app = runtime.ui
+    if (app === null) throw new Error('the terminal UI is not ready')
+    return app
+  }
+  const currentRoute = (): ModelRoute | undefined => {
+    const route = runtime.selection?.current
+    if (route !== undefined) return { provider: route.provider, model: route.model }
+    if (startup.provider !== null && startup.model !== null) {
+      return { provider: startup.provider, model: startup.model }
+    }
+    return undefined
+  }
+
+  return {
+    listModels: (): Promise<readonly ModelOption[]> => listModelOptions(ctx, currentRoute()),
+    selectModel: async (route) => {
+      const agent = runtime.agent
+      const selection = runtime.selection
+      if (agent === null || selection === null) throw new Error('no Agent is open yet')
+      const resolved = await resolveModelRoute(ctx, route)
+      selection.current = resolved
+      screen().setIdentity(identityOf(agent, resolved))
+    },
+    listSessions: (): Promise<readonly SessionOption[]> => listSessionOptions(
+      ctx,
+      runtime.agent === null ? undefined : String(runtime.agent.session.id),
+    ),
+    openSession: async (sessionId) => {
+      const route = currentRoute()
+      const options: SessionOpenOptions = {
+        ...sessionId === null ? {} : { resume: sessionId },
+        ...route === undefined ? {} : { provider: route.provider, model: route.model },
+      }
+      await queueSession(() => openInto(ctx, runtime, screen(), options, isTerminated))
+    },
+  }
+}
+
+/**
+ * Detach the current Agent and attach the requested Session.
+ *
+ * The previous handle is disposed before the new one is opened, and the
+ * termination state is re-checked after every await so a shutdown during an
+ * open leaves no Agent behind.
+ * @param ctx - plugin context.
+ * @param runtime - shared UI, Agent, and selection facts.
+ * @param ui - the screen to repaint.
+ * @param options - resume and model overrides for the new Session.
+ * @param isTerminated - reads the shared termination state.
+ */
+async function openInto(
+  ctx: Context,
+  runtime: Runtime,
+  ui: TuiApp,
+  options: SessionOpenOptions,
+  isTerminated: () => boolean,
+): Promise<void> {
+  runtime.removeEvents()
+  runtime.removeEvents = () => {}
+  const previous = runtime.handle
+  runtime.handle = undefined
+  runtime.agent = null
+  runtime.selection = null
+  try {
+    await previous?.dispose()
+  } catch (error) {
+    process.stderr.write(`tui: failed to close the previous Session: ${describeError(error)}\n`)
+  }
+  if (isTerminated()) return
+
+  const opened = await openAgentSession(ctx, options)
+  if (isTerminated()) {
+    await opened.handle.dispose()
+    return
+  }
+  const selection: ModelSelectionRef = { current: opened.route, assembled: undefined }
+  installModelSelection(opened.handle.agent.ctx, selection)
+  runtime.handle = opened.handle
+  runtime.agent = opened.handle.agent
+  runtime.selection = selection
+  runtime.removeEvents = subscribeAgentEvents(ctx, opened.handle.agent, {
+    event: (event) => { runtime.ui?.applyEvent(event) },
+    delta: (text) => { runtime.ui?.applyDelta(text) },
+    reasoning: (text) => { runtime.ui?.applyReasoning(text) },
+    status: (status) => { runtime.ui?.setStatus(status) },
+    error: (error) => { runtime.ui?.addError(error) },
+  })
+  ui.resetTranscript()
+  if (options.resume !== undefined && options.resume !== '') {
+    await replayTranscript(ctx, opened.handle.agent.session.id, ui)
+  }
+  ui.setIdentity(identityOf(opened.handle.agent, opened.route))
+  ui.setStatus('idle')
 }
 
 /**
@@ -250,15 +375,15 @@ function openOptionsOf(startup: TuiStartupValues): SessionOpenOptions {
 }
 
 /**
- * Read the footer identity from the opened Agent.
+ * Read the footer identity from the opened Agent and its selection.
  * @param agent - the Agent this UI owns.
- * @param startup - invocation overrides, used before the Agent reports them.
+ * @param route - the route the Agent uses, when one is resolved.
  * @returns model, provider, and Session id.
  */
-function identityOf(agent: Agent, startup: TuiStartupValues): { model: string; provider: string; sessionId: string } {
+function identityOf(agent: Agent, route: AgentRoute | undefined): AgentIdentity {
   return {
-    model: agent.options.model ?? startup.model ?? '',
-    provider: agent.options.provider ?? startup.provider ?? '',
+    model: route?.model ?? agent.options.model ?? '',
+    provider: route?.provider ?? agent.options.provider ?? '',
     sessionId: String(agent.session.id),
   }
 }

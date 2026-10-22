@@ -5,6 +5,7 @@
  */
 
 import { truncateToWidth, type Component } from '../term/pi-tui.ts'
+import { formatUsage, hasUsage, type TurnUsage } from '../projection/usage.ts'
 import type { Theme } from './theme.ts'
 
 /** Display facts rendered by {@link StatusView}. */
@@ -19,6 +20,8 @@ export interface StatusFields {
   status: 'idle' | 'running'
   /** Transient hint such as the Ctrl+C confirmation. */
   hint: string
+  /** Token totals for the current or most recent turn. */
+  usage: TurnUsage
 }
 
 /** One-line footer component. */
@@ -60,10 +63,11 @@ export class StatusView implements Component {
    * @returns exactly one bounded line.
    */
   render(width: number): string[] {
-    const { provider, model, sessionId, status, hint } = this.fields
+    const { provider, model, sessionId, status, hint, usage } = this.fields
     const route = [provider, model].filter(value => value !== '').join(' · ') || 'model pending'
     const state = status === 'running' ? this.theme.accent('running') : this.theme.success('idle')
     const parts = [route, state]
+    if (hasUsage(usage)) parts.push(this.theme.dim(formatUsage(usage)))
     if (sessionId !== '') parts.push(this.theme.dim(`session ${sessionId.slice(0, 8)}`))
     if (hint !== '') parts.push(this.theme.dim(hint))
     return [truncateToWidth(parts.join(this.theme.dim(' · ')), Math.max(1, width))]

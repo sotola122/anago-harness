@@ -155,13 +155,12 @@ describe('Config schema', () => {
     expect(config.apiKeyEnv.get()).toBe(EXA_DEFAULT_API_KEY_ENV)
     expect(config.baseURL.get()).toBe('https://api.exa.ai')
     expect(config.searchType.get()).toBe('auto')
-    expect(config.numResults.get()).toBeUndefined()
     expect(config.highlightsPerResult.get()).toBe(1)
   })
 
   it('rejects an unsupported search type and non-positive counts', () => {
     expect(() => Config({ searchType: 'semantic' } as never)).toThrow(/expected/u)
-    expect(() => Config({ numResults: 0 })).toThrow(/>= 1/u)
+    expect(() => Config({ highlightsPerResult: 0 })).toThrow(/>= 1/u)
     expect(() => Config({ highlightsPerResult: 1.5 })).toThrow(/multiple of 1/u)
   })
 })
@@ -269,7 +268,7 @@ describe('request mapping', () => {
       }),
     )
     const stub = register(
-      { searchType: 'neural', highlightsPerResult: 3, numResults: 7 },
+      { searchType: 'neural', highlightsPerResult: 3 },
       { credential: CREDENTIAL },
     )
     const result = await stub.provider.search({ query: 'hello', maxResults: 5 })
@@ -295,14 +294,7 @@ describe('request mapping', () => {
     })
   })
 
-  it('uses the configured numResults when the request carries no bound', async () => {
-    const fetchMock = stubFetch(() => jsonResponse({ results: [] }))
-    const stub = register({ numResults: 9 }, { credential: CREDENTIAL })
-    await stub.provider.search({ query: 'q' })
-    expect(requestBody(fetchMock.calls[0]!.init)).toMatchObject({ numResults: 9 })
-  })
-
-  it('omits numResults when neither the request nor the config sets one', async () => {
+  it('sends no result bound and leaves the default to Exa when the request carries none', async () => {
     const fetchMock = stubFetch(() => jsonResponse({ results: [] }))
     const stub = register({}, { credential: CREDENTIAL })
     await stub.provider.search({ query: 'q' })

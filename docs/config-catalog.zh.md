@@ -185,7 +185,7 @@ export interface ReviewConfig {
 
 - `inject`: `systemPrompt`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fork/response-language/src/index.ts:47`](../packages/fork/response-language/src/index.ts)
+- `source`: [`packages/fork/response-language/src/index.ts:48`](../packages/fork/response-language/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: one live switch, so the row can be turned off in place. */
@@ -262,7 +262,7 @@ export type ExecutionMode = 'agent' | 'ask' | 'plan'
 ## `@anago-harness/subagent-pi`
 
 - `inject`: `subagents` · `subprocess`
-- `source`: [`packages/fork/subagent-pi/src/index.ts:52`](../packages/fork/subagent-pi/src/index.ts)
+- `source`: [`packages/fork/subagent-pi/src/index.ts:53`](../packages/fork/subagent-pi/src/index.ts)
 
 ```ts config-catalog
 /**
@@ -309,7 +309,7 @@ export type PiThinkingLevel = (typeof PI_THINKING_LEVELS)[number]
 ## `@anago-harness/tui`
 
 - `inject`: `agents` · `tuiStartup` · `appReady` · `appExit`
-- `source`: [`packages/fork/tui/src/index.ts:30`](../packages/fork/tui/src/index.ts)
+- `source`: [`packages/fork/tui/src/index.ts:40`](../packages/fork/tui/src/index.ts)
 
 ```ts config-catalog
 /** Row config; command-line flags override both fields. */
@@ -381,8 +381,6 @@ export interface Config {
   baseURL: Volatile<string>
   /** Retrieval mode sent as Exa's `type`; defaults to `auto`. */
   searchType: Volatile<ExaSearchType>
-  /** Default result count when a request carries no `maxResults`; unset sends none. */
-  numResults: Volatile<number | undefined>
   /** Highlight sentences requested per result; defaults to one. */
   highlightsPerResult: Volatile<number>
 }
@@ -4973,6 +4971,8 @@ export interface Config {
 <!-- BEGIN GENERATED config-catalog:no-config -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
+| `@anago-harness/client-locale-ja` | — | [`packages/fork/client-locale-ja/src/index.ts`](../packages/fork/client-locale-ja/src/index.ts) |
+| `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | — | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
