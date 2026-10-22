@@ -1,0 +1,48 @@
+/**
+ * `job` dictionary for the background-job roster and record panels in
+ * `packages/client/ui-jobs`.
+ */
+
+/** Japanese dictionary for the `job` namespace. */
+export const jobJa = {
+  'count.live.one': 'バックグラウンドジョブ {count} 件が実行中',
+  'count.live.other': 'バックグラウンドジョブ {count} 件が実行中',
+  'count.idle.one': 'バックグラウンドジョブ {count} 件',
+  'count.idle.other': 'バックグラウンドジョブ {count} 件',
+  'list.aria': 'バックグラウンドジョブ',
+  'section.live': '実行中',
+  'section.settledCount': '完了 {count}',
+  'section.clear': 'クリア',
+  'row.expandAria': '{label} のライブ出力を表示',
+  'row.collapseAria': '{label} のライブ出力を隠す',
+  'kill.stop': 'タスク {label} を停止',
+  'kill.confirm': 'もう一度クリックして確定',
+  'kill.confirmAction': '停止を確定',
+  'kill.failed': '停止に失敗しました',
+  'status.running': '実行中',
+  'status.stopping': '停止中',
+  'status.completed': '完了',
+  'status.killed': 'キャンセル済み',
+  'status.failed': '失敗',
+  'duration.seconds': '{seconds} 秒',
+  'duration.minutes': '{minutes} 分 {seconds} 秒',
+  'duration.hours': '{hours} 時間 {minutes} 分',
+  'duration.title.live': '{duration} 実行中',
+  'duration.title.done': '所要時間 {duration}',
+  'output.gap': '…以前の出力は破棄されました…',
+  'output.error': 'ライブ出力のストリームが中断されました：{error}',
+  'terminal.signal': 'シグナル {signal}',
+  'terminal.exitCode': '終了コード {code}',
+  'terminal.noExitCode': '終了コードなし',
+  'terminal.commandLine': 'コマンドライン {n}',
+  'terminal.running': '実行中',
+  'terminal.failed': '失敗',
+  'terminal.done': '完了',
+  'terminal.copy': 'コピー',
+  'terminal.copied': 'コピーしました',
+  'terminal.noOutput': '（出力なし）',
+  'terminal.collapse': '折りたたむ',
+  'terminal.collapseAria': '出力を折りたたむ',
+  'terminal.expand': '残り {n} 行を表示',
+  'terminal.expandAria': '折りたたまれた {n} 行の出力を展開',
+}

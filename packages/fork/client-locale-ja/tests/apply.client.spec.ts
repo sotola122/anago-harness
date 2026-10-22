@@ -7,11 +7,40 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { agentPresetJa } from '../src/client/agent-preset.ts'
 import { approvalJa } from '../src/client/approval.ts'
 import { chatJa } from '../src/client/chat.ts'
+import { commandJa } from '../src/client/commands.ts'
 import { conversationJa } from '../src/client/conversation.ts'
+import { directoryBrowserJa } from '../src/client/directory-browser.ts'
+import { feedbackJa } from '../src/client/feedback.ts'
+import { goalJa } from '../src/client/goal.ts'
 import { apply, inject, name } from '../src/client/index.ts'
+import { jobJa } from '../src/client/jobs.ts'
 import { layoutJa } from '../src/client/layout.ts'
+import { modelLabelJa } from '../src/client/model-label.ts'
+import { modelSelectionJa, modelsJa } from '../src/client/models.ts'
+import { permissionAccessJa, permissionSettingsJa } from '../src/client/permission.ts'
+import { planJa } from '../src/client/plan.ts'
 import { questionJa } from '../src/client/question.ts'
+import { referenceJa } from '../src/client/reference.ts'
+import { scheduleCatalogJa, scheduleManagerJa } from '../src/client/schedule.ts'
+import { secretMaskJa } from '../src/client/secret-mask.ts'
+import { agentLoopJa, pluginsSettingsJa, sessionLogJa, subagentSettingsJa, themeJa } from '../src/client/settings-pages.ts'
+import {
+  documentHtmlJa,
+  documentMarkdownJa,
+  sidebarCodePreviewJa,
+  sidebarDocumentPreviewJa,
+  sidebarExcelJa,
+  sidebarFilesJa,
+  sidebarImageJa,
+  sidebarOfficeJa,
+  sidebarPdfJa,
+  sidebarRightJa,
+  sidebarTerminalJa,
+} from '../src/client/sidebar-panels.ts'
 import { sidebarJa } from '../src/client/sidebar.ts'
+import { skillJa } from '../src/client/skill.ts'
+import { slashMenuJa } from '../src/client/slash-menu.ts'
+import { workflowRunJa } from '../src/client/workflow-run.ts'
 import { workspaceJa } from '../src/client/workspace.ts'
 import { apply as applyHost } from '../src/index.ts'
 
@@ -35,6 +64,40 @@ const MIRRORED: ReadonlyArray<readonly [string, Record<string, string>]> = [
   ['workspace', workspaceJa],
   ['sidebar', sidebarJa],
   ['shortcuts.layout', layoutJa],
+  ['settings.models', modelsJa],
+  ['model', modelSelectionJa],
+  ['permission.access', permissionAccessJa],
+  ['settings.permission', permissionSettingsJa],
+  ['command', commandJa],
+  ['feedback', feedbackJa],
+  ['skill', skillJa],
+  ['job', jobJa],
+  ['goal', goalJa],
+  ['schedule.catalog', scheduleCatalogJa],
+  ['schedule.manager', scheduleManagerJa],
+  ['settings.theme', themeJa],
+  ['settings.plugins', pluginsSettingsJa],
+  ['settings.agentLoop', agentLoopJa],
+  ['settings.subagent', subagentSettingsJa],
+  ['session-log-deepseek', sessionLogJa],
+  ['reference', referenceJa],
+  ['secretMask', secretMaskJa],
+  ['workflowRun', workflowRunJa],
+  ['plan', planJa],
+  ['slash.menu', slashMenuJa],
+  ['deepseek-model-label-1017', modelLabelJa],
+  ['directory-browser', directoryBrowserJa],
+  ['sidebarRight', sidebarRightJa],
+  ['sidebarTerminal', sidebarTerminalJa],
+  ['sidebarFiles', sidebarFilesJa],
+  ['sidebarDocumentPreview', sidebarDocumentPreviewJa],
+  ['sidebarCodePreview', sidebarCodePreviewJa],
+  ['sidebarExcel', sidebarExcelJa],
+  ['documentHtml', documentHtmlJa],
+  ['sidebarImage', sidebarImageJa],
+  ['documentMarkdown', documentMarkdownJa],
+  ['sidebarOffice', sidebarOfficeJa],
+  ['sidebarPdf', sidebarPdfJa],
 ]
 
 /**
@@ -101,6 +164,18 @@ describe('client-locale-ja', () => {
     expect(locale.bind('settings.agentPreset')('presetStandardName')).toBe('標準モード')
     expect(locale.bind('settings.agentPreset')('presetCordisName')).toBe('クリエイターモード')
     expect(locale.bind('settings.agentPreset')('presetStandardDescription')).toContain('ほとんどのタスク')
+  })
+
+  it('resolves the Models page and its model selector in Japanese', async () => {
+    const { ctx, locale } = bench()
+    await activate(ctx)
+    locale.setLocale('ja')
+
+    expect(locale.bind('settings.models')('title')).toBe('モデル')
+    expect(locale.bind('settings.models')('deleteTitle', { provider: 'OpenAI' })).toBe('OpenAI を削除しますか？')
+    expect(locale.bind('settings.models')('keyPlaceholderFallback', { hint: 'DEEPSEEK_API_KEY' }))
+      .toBe('空欄のままにすると環境変数を認証に使います（DEEPSEEK_API_KEY）')
+    expect(locale.bind('model')('trigger.fallback')).toBe('モデルを選択')
   })
 
   it('mirrors every English key of the namespaces it translates', () => {

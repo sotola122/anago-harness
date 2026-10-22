@@ -50,6 +50,7 @@
 
 - `@anago-harness/client-locale-ja` を追加し、`common`（41）、`settings`（41）、`settings.locale`（1）、`settings.shell`（14）、`settings.pluginInventory`（37）、`pluginManager`（220/221）、`settings.webSearchProviders`（35）の **389 キー**を日本語化。未訳キーは en へフォールバック。
 - `anago-web` で `locale.preference: ja` を既定に固定。
+- 追加翻訳（第 2 弾）で 49 名前空間 / **2032 キー**まで拡張。conversation（373）、workspace（119）、chat（191）、models（157）、schedule（258）、サイドバー/文書タブ（約 200）などを収録。
 - 検証: パッケージテスト 5 件、lint 0、tsc 成功、README ゲート通過。
 
 ### 6. 日本語フォント — 完了
@@ -108,7 +109,10 @@
 | サブエージェント | `subagent_pi` → 子の出力 `PI_OK` |
 | スナップショット | `anago-{memory,wiki,search}` 3/3 をキーなしで replay |
 | TUI（実 PTY） | `script` で PTY を割り当てて起動 → 2.6 KB の描画（ANSI・罫線・日本語フッター）を確認、クラッシュなし |
-| ブラウザ描画（ヘッドレス Chrome） | `lang="ja"`、本文が日本語（未知の世界へ / プレビュー / ワークスペースを選択 / 標準モード）、Plugins ページも日本語 |
+| ブラウザ描画（ヘッドレス Chrome） | `lang="ja"`、本文が日本語（未知の世界へ / プレビュー / ワークスペースを選択 / 標準モード） |
+| Plugins ページ | 「プラグイン」「Exa 検索」「Brave 検索」「サブエージェント」など日本語 |
+| 設定ダイアログ | 「設定」「一般」「モデル」「権限」「外観」「言語: 日本語」を確認 |
+| モデルページ | 「モデルプロバイダーを追加」「API キーを入力してください」「編集」「削除」を確認 |
 | フォント適用 | `getComputedStyle` = `"UDEV Gothic", "Noto Sans JP", ...`、`document.fonts.check('16px "UDEV Gothic"')` = true、スクリーンショットで日本語グリフを確認 |
 
 残るのは**ブラウザでの見た目確認**（日本語表示・UDEV Gothic・xterm の全角幅）のみ。

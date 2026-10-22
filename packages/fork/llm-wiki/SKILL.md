@@ -46,7 +46,7 @@ Which repository is the global wiki is the **user's** decision, and the record i
 A wiki repository may carry its own rules, and they take precedence over this skill. Read these first, in this order:
 
 1. **The charter.** `/wiki status` prints which file this repository uses: `AGENTS.md` when it exists, otherwise `WIKI.md`. Read it. If the repository has neither, the skeleton creates `WIKI.md` when the repository is designated — do not create the missing one yourself.
-2. **`SCHEMA.md`**, when the repository has one. It owns that repository's layer boundaries, naming, page format, provenance, and curation rules.
+2. **`SCHEMA.md`**, when the repository has one. It owns that repository's layer boundaries, naming, page format, source, and curation rules.
 3. **`index.md`**, the catalogue: it says which pages already exist and what they cover.
 4. The pages the question touches.
 

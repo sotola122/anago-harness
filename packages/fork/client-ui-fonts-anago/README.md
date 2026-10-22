@@ -57,7 +57,7 @@ The font bytes arrive as data URLs because the client bundle has no font route: 
 
 The token override uses `:root:root` so it beats ui-theme's `:root` defaults without depending on stylesheet order. The stylesheet also sets `font-family: var(--dsw-font-family)` on `body` and `#root`, so components that declare no family inherit the text stack; code blocks keep `--ds-font-family-code`, which resolves the overridden code default.
 
-Font provenance, glyph counts, advances, and file hashes live in `src/fonts/fonts.json`; the licenses sit beside them as `UDEV-Gothic-OFL.txt`, `Noto-Sans-JP-OFL.txt`, and `Intel-One-Mono-OFL.txt`. Noto Sans JP was subset per range with `pyftsubset --flavor=woff2` and Intel One Mono ships unchanged. UDEV Gothic keeps its upstream name and glyphs; only the container changed (TTF to WOFF2), and the CSS `unicode-range` restricts where the browser applies it.
+Font sources, glyph counts, advances, and file hashes live in `src/fonts/fonts.json`; the licenses sit beside them as `UDEV-Gothic-OFL.txt`, `Noto-Sans-JP-OFL.txt`, and `Intel-One-Mono-OFL.txt`. Noto Sans JP was subset per range with `pyftsubset --flavor=woff2` and Intel One Mono ships unchanged. UDEV Gothic keeps its upstream name and glyphs; only the container changed (TTF to WOFF2), and the CSS `unicode-range` restricts where the browser applies it.
 
 </details>
 

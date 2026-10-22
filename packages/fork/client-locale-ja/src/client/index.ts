@@ -11,14 +11,43 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { agentPresetJa } from './agent-preset.ts'
 import { approvalJa } from './approval.ts'
 import { chatJa } from './chat.ts'
+import { commandJa } from './commands.ts'
 import { commonJa } from './common.ts'
 import { conversationJa } from './conversation.ts'
+import { directoryBrowserJa } from './directory-browser.ts'
+import { feedbackJa } from './feedback.ts'
+import { goalJa } from './goal.ts'
+import { jobJa } from './jobs.ts'
 import { layoutJa } from './layout.ts'
+import { modelLabelJa } from './model-label.ts'
+import { modelSelectionJa, modelsJa } from './models.ts'
+import { permissionAccessJa, permissionSettingsJa } from './permission.ts'
+import { planJa } from './plan.ts'
 import { pluginInventoryJa, pluginManagerJa } from './plugins.ts'
 import { questionJa } from './question.ts'
+import { referenceJa } from './reference.ts'
+import { scheduleCatalogJa, scheduleManagerJa } from './schedule.ts'
+import { secretMaskJa } from './secret-mask.ts'
+import { agentLoopJa, pluginsSettingsJa, sessionLogJa, subagentSettingsJa, themeJa } from './settings-pages.ts'
 import { localeJa, settingsJa, shellJa } from './settings.ts'
+import {
+  documentHtmlJa,
+  documentMarkdownJa,
+  sidebarCodePreviewJa,
+  sidebarDocumentPreviewJa,
+  sidebarExcelJa,
+  sidebarFilesJa,
+  sidebarImageJa,
+  sidebarOfficeJa,
+  sidebarPdfJa,
+  sidebarRightJa,
+  sidebarTerminalJa,
+} from './sidebar-panels.ts'
 import { sidebarJa } from './sidebar.ts'
+import { skillJa } from './skill.ts'
+import { slashMenuJa } from './slash-menu.ts'
 import { webSearchProvidersJa } from './web-search.ts'
+import { workflowRunJa } from './workflow-run.ts'
 import { workspaceJa } from './workspace.ts'
 
 /** Cordis plugin name. */
@@ -47,6 +76,40 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Record<string, string>]> = [
   ['workspace', workspaceJa],
   ['sidebar', sidebarJa],
   ['shortcuts.layout', layoutJa],
+  ['settings.models', modelsJa],
+  ['model', modelSelectionJa],
+  ['permission.access', permissionAccessJa],
+  ['settings.permission', permissionSettingsJa],
+  ['command', commandJa],
+  ['skill', skillJa],
+  ['job', jobJa],
+  ['goal', goalJa],
+  ['schedule.catalog', scheduleCatalogJa],
+  ['schedule.manager', scheduleManagerJa],
+  ['feedback', feedbackJa],
+  ['settings.theme', themeJa],
+  ['settings.plugins', pluginsSettingsJa],
+  ['settings.agentLoop', agentLoopJa],
+  ['settings.subagent', subagentSettingsJa],
+  ['session-log-deepseek', sessionLogJa],
+  ['reference', referenceJa],
+  ['secretMask', secretMaskJa],
+  ['workflowRun', workflowRunJa],
+  ['plan', planJa],
+  ['slash.menu', slashMenuJa],
+  ['deepseek-model-label-1017', modelLabelJa],
+  ['directory-browser', directoryBrowserJa],
+  ['sidebarRight', sidebarRightJa],
+  ['sidebarTerminal', sidebarTerminalJa],
+  ['sidebarFiles', sidebarFilesJa],
+  ['sidebarDocumentPreview', sidebarDocumentPreviewJa],
+  ['sidebarCodePreview', sidebarCodePreviewJa],
+  ['sidebarExcel', sidebarExcelJa],
+  ['documentHtml', documentHtmlJa],
+  ['sidebarImage', sidebarImageJa],
+  ['documentMarkdown', documentMarkdownJa],
+  ['sidebarOffice', sidebarOfficeJa],
+  ['sidebarPdf', sidebarPdfJa],
 ]
 
 /**
