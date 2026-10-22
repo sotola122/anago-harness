@@ -12,6 +12,7 @@
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Context } from '@deepseek-ai/cordis'
+import type { AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import {
   assertUsableCwd,
@@ -26,8 +27,8 @@ import type {
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessHandle, SubprocessOutcome } from '@deepseek-ai/dsh-subprocess'
 import { deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
-import { buildArgv, flattenPrompt } from './args.ts'
-import type { PiArgvOptions } from './args.ts'
+import { buildArgv, flattenPrompt, PI_THINKING_LEVELS } from './args.ts'
+import type { PiArgvOptions, PiThinkingLevel } from './args.ts'
 import { failureDiagnostic, maskSecrets, truncateUtf8 } from './diagnostic.ts'
 import { PiJsonlStream } from './parse.ts'
 
@@ -98,6 +99,55 @@ async function resolveExecutable(
   }
 }
 
+/** The route this run resolves to: provider, model, and thinking level. */
+export interface PiResolvedRoute {
+  readonly provider?: string | undefined
+  readonly model?: string | undefined
+  readonly thinking?: PiThinkingLevel | undefined
+}
+
+/**
+ * Merge the request's per-call route over the provider's configured route.
+ *
+ * The seam's `agentOptions` may also carry `maxTokens`, which the Pi CLI has no
+ * flag for; accepting it silently would lie about the request, so it is
+ * rejected. A `reasoningEffort` outside Pi's own vocabulary is rejected for the
+ * same reason.
+ * @param settings - provider-owned route defaults.
+ * @param requested - the start request's Agent options, when a caller selected one.
+ * @returns the route this run uses.
+ * @throws when a requested field cannot be honored, or a provider has no model.
+ */
+export function resolvePiRoute(
+  settings: PiRunSettings,
+  requested: AgentOptions | undefined,
+): PiResolvedRoute {
+  if (requested?.maxTokens !== undefined) {
+    throw new Error(
+      `${PREFIX}: the Pi CLI has no max-tokens flag, so a requested agentOptions.maxTokens cannot be honored; `
+      + 'set the cap through the Pi model configuration instead',
+    )
+  }
+  const provider = requested?.provider ?? settings.provider
+  const model = requested?.model ?? settings.model
+  if (provider !== undefined && model === undefined) {
+    throw new Error(
+      `${PREFIX}: provider "${provider}" was requested without a model; the Pi CLI uses --provider only to search for --model`,
+    )
+  }
+  let thinking = settings.thinking
+  if (requested?.reasoningEffort !== undefined) {
+    const effort = requested.reasoningEffort as string
+    if (!(PI_THINKING_LEVELS as readonly string[]).includes(effort)) {
+      throw new Error(
+        `${PREFIX}: reasoning effort "${effort}" is not a Pi thinking level; use one of ${PI_THINKING_LEVELS.join(', ')}`,
+      )
+    }
+    thinking = effort as PiThinkingLevel
+  }
+  return { provider, model, thinking }
+}
+
 /**
  * Start one Pi CLI child and publish its run handle.
  * @param ctx - context carrying the subagent and subprocess services.
@@ -115,7 +165,8 @@ export async function startPiRun(
   const cwd = assertUsableCwd(PREFIX, 'child cwd', request.cwd)
   const task = flattenPrompt(request.prompt)
   const executable = await resolveExecutable(ctx, settings.executable, request.signal)
-  const argv = buildArgv(settings, task)
+  const route = resolvePiRoute(settings, request.agentOptions)
+  const argv = buildArgv({ ...settings, ...route }, task)
   if (request.signal.aborted) {
     throw new Error(`${PREFIX}: the request was aborted before the child process started`)
   }

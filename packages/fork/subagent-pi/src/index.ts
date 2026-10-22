@@ -21,6 +21,7 @@ import z from '@deepseek-ai/schemastery'
 import { assertPositiveFinite, NO_START_CAPABILITIES } from '@deepseek-ai/dsh-subagent'
 import type {
   ResolvedSubagentStartRequest,
+  SubagentCapabilities,
   SubagentProvider,
   SubagentRun,
 } from '@deepseek-ai/dsh-subagent'
@@ -124,17 +125,32 @@ function assertTimerBound(fieldName: string, value: number): void {
   }
 }
 
+/**
+ * The Pi child is a separate process, so parent-enforced start features stay
+ * unsupported except the Agent route fields this provider maps onto Pi flags:
+ * `provider`, `model`, and `reasoningEffort`.
+ */
+const PI_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
+  ...NO_START_CAPABILITIES,
+  agentOptions: true,
+})
+
 /** One-shot Pi CLI backend. */
 class PiProvider implements SubagentProvider {
   readonly name: string
-  readonly capabilities = NO_START_CAPABILITIES
+  readonly capabilities = PI_START_CAPABILITIES
   readonly inheritsParentContext = false
+  /** Present only when the row pins both halves of a complete Pi route. */
+  readonly agentRouteDefaults?: Readonly<{ provider: string; model: string }>
 
   constructor(
     private readonly ctx: Context,
     private readonly settings: PiRunSettings,
   ) {
     this.name = settings.providerName
+    if (settings.provider !== undefined && settings.model !== undefined) {
+      this.agentRouteDefaults = Object.freeze({ provider: settings.provider, model: settings.model })
+    }
   }
 
   /**

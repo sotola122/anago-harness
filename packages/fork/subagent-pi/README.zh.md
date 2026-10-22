@@ -63,6 +63,8 @@ kind: "package-reference"
 
 argv 顺序为 `--print --mode json [--provider <p> --model <m>] [--thinking <level>] [--tools <csv> | --no-tools] [--exclude-tools <csv>] [--approve | --no-approve] [--session-dir <dir> | --no-session] -- <task>`。任务位于 `--` 之后，因此以 `-` 开头的文本仍会作为 prompt 传递。
 
+行的 `provider` 与 `model` 设置本提供方的默认路由，且必须成对设置（Pi 只用 `--provider` 查找 `--model`）。当 Host 启用 `subagent-model-selection` 并列出该精确路由时，调用方可以为单次委派选择其他路由；提供方把请求中的 `agentOptions.provider`、`agentOptions.model`、`agentOptions.reasoningEffort` 映射为 `--provider`、`--model`、`--thinking`。请求中的 `agentOptions.maxTokens` 会被拒绝，因为 Pi CLI 没有该选项；不在 Pi 级别内的推理强度也会被拒绝，而不是被忽略。
+
 ### 安全姿态
 
 子进程作为宿主进程运行在 DSH 文件沙箱之外；Pi 需要 `$HOME` 保存自身状态。`approve` 默认为 `true`，会传递 Pi 的 `--approve`，在本次运行中信任项目本地文件（扩展、skill 和提示模板）；在不可信工作区中应设为 `false`。提供方从不通过 `env` 传递凭据；未用 `provider`、`model`、`thinking` 覆盖时，Pi 自己的提供方、模型和认证设置生效。

@@ -576,7 +576,7 @@ No PTY dependency is introduced. A real-terminal check is a manual acceptance st
 
 ### 7.4 response-language
 
-- No settings beyond the new switch: a fixed string in a `systemPrompt.section` placed at the last system-prompt position, after the deployment persona suffix (`interpolate: false`). The text outranks an explicit request for another language (a translation request is the one exception), because a buried instruction loses to the persona and to the user's request.
+- No settings beyond the new switch: a fixed string in a `systemPrompt.section` placed at the last system-prompt position, after the deployment persona suffix (`interpolate: false`). The text answers in Japanese by default but yields to an explicit request for another language, because the person's direct instruction wins over the deployment default.
 - Forcing Japanese replies as the fork default is a product decision. Add `enabled: Volatile<boolean>` (default true) so the row can be turned off without removing it (decided). The text needs no externalization.
 - Tests pin the current behavior: an empty string for sessions with `delegationDepth > 0` and for an assembly with no agent.
 

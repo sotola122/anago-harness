@@ -288,12 +288,22 @@ describe('plugin registration', () => {
     expect(provider.name).toBe('pi')
     expect(provider.inheritsParentContext).toBe(false)
     expect(provider.capabilities).toEqual({
-      agentOptions: false,
+      agentOptions: true,
       agentPreset: false,
       outputSchema: false,
       depthLimit: false,
     })
     expect('prepareContinuable' in provider).toBe(false)
+  })
+
+  it('exposes a route default only when the row pins both halves', () => {
+    const pinned = createHarness()
+    apply(pinned.ctx, Config({ provider: 'openai', model: 'gpt-6-astra' }))
+    expect(pinned.providers[0]!.agentRouteDefaults).toEqual({ provider: 'openai', model: 'gpt-6-astra' })
+
+    const half = createHarness()
+    apply(half.ctx, Config({ model: 'gpt-6-astra' }))
+    expect(half.providers[0]!.agentRouteDefaults).toBeUndefined()
   })
 
   it('registers the configured provider name', () => {

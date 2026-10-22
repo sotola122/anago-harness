@@ -63,6 +63,8 @@ Set `config` on the `subagent-pi` row. Every field is validated at plugin load w
 
 The argv order is `--print --mode json [--provider <p> --model <m>] [--thinking <level>] [--tools <csv> | --no-tools] [--exclude-tools <csv>] [--approve | --no-approve] [--session-dir <dir> | --no-session] -- <task>`. The task follows `--`, so text that begins with `-` is still delivered as the prompt.
 
+The row's `provider` and `model` set this provider's default route, and both must be set together (Pi uses `--provider` only to look up `--model`). A caller can select another route per delegation when the Host enables `subagent-model-selection` and lists that exact route; the provider maps the request's `agentOptions.provider`, `agentOptions.model`, and `agentOptions.reasoningEffort` onto `--provider`, `--model`, and `--thinking`. A requested `agentOptions.maxTokens` is rejected, because the Pi CLI has no such flag, and a reasoning effort outside Pi's levels is rejected instead of ignored.
+
 ### Security posture
 
 The child runs as a host process outside the DSH file sandbox; Pi needs `$HOME` for its own state. `approve` defaults to `true`, which passes Pi's `--approve` and trusts project-local files (extensions, skills, and prompt templates) for the run; set it to `false` in untrusted workspaces. The provider never places credentials in `env`, and Pi's own provider, model, and auth settings apply unless `provider`, `model`, or `thinking` override them.

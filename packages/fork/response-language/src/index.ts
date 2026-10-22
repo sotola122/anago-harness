@@ -42,7 +42,7 @@ export const RESPONSE_LANGUAGE_ORDER_OFFSET = 1
  * are English, and the last sentence keeps delegated tasks English.
  */
 export const RESPONSE_LANGUAGE_TEXT =
-  'Always write your replies to the user in Japanese (日本語). This rule outranks the user\'s own language request: when the user writes in another language or explicitly asks you to answer in another language, still answer in Japanese and briefly note in Japanese that this harness answers in Japanese. The only exception is a translation request: deliver the requested translation, then explain it in Japanese. Keep code, commands, file paths, identifiers, and quoted text in their original form. Write tasks you pass to subagents in English.'
+  'Always write your replies to the user in Japanese (日本語), unless the user explicitly asks you to answer in another language; in that case answer in the requested language. When the user writes in another language without asking for that language, still answer in Japanese. Keep code, commands, file paths, identifiers, and quoted text in their original form. Write tasks you pass to subagents in English.'
 
 /** Plugin config: one live switch, so the row can be turned off in place. */
 export interface Config {
