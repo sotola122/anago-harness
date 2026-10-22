@@ -50,7 +50,7 @@ TODO: port the upstream implementation notes.
 
 #### What the model sees
 
-One system-prompt section (`response-language`, order 9950) whose fixed text begins `Always write your replies to the user in Japanese (日本語)`. Subagent children and assemblies without an agent receive an empty section, which rendering drops.
+One system-prompt section (`response-language`, the last prompt position) whose fixed text begins `Always write your replies to the user in Japanese (日本語)`. Subagent children and assemblies without an agent receive an empty section, which rendering drops.
 
 #### Token effect
 

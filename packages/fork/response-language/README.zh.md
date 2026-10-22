@@ -50,7 +50,7 @@ TODO：移植上游实现说明。
 
 #### 模型看到什么
 
-一个系统提示段落（`response-language`，order 9950），固定文本以 `Always write your replies to the user in Japanese (日本語)` 开头。子代理与没有 agent 的组装得到空段落，渲染时被丢弃。
+一个系统提示段落（`response-language`，系统提示的最后位置），固定文本以 `Always write your replies to the user in Japanese (日本語)` 开头。子代理与没有 agent 的组装得到空段落，渲染时被丢弃。
 
 #### Token 影响
 

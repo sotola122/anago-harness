@@ -2,8 +2,8 @@
  * One fixed Japanese-response instruction, injected as a global system-prompt
  * section.
  *
- * The section is static text, registered with `interpolate: false`, at order
- * `9950` (between `STRUCTURED_OUTPUT` and `HARNESS_SOURCE`). It reaches the
+ * The section is static text, registered with `interpolate: false`, at the last
+ * system-prompt position, after the deployment persona suffix. It reaches the
  * main agents of the standard, ptc, and cordis presets only:
  *
  * - a subagent child (`session.header.delegationDepth > 0`) gets `''`, so the
@@ -29,10 +29,11 @@ export const inject = ['systemPrompt']
 export const RESPONSE_LANGUAGE_SECTION = 'response-language'
 
 /**
- * Section order: after `STRUCTURED_OUTPUT` (9900) and before `HARNESS_SOURCE`
- * (10000), whose text varies with the environment.
+ * Offset after the deployment persona suffix: the section is the last system
+ * instruction, so a reply-language rule is not buried under tool guidance or a
+ * deployment persona that a model may treat as the dominant instruction.
  */
-export const RESPONSE_LANGUAGE_ORDER = 9950
+export const RESPONSE_LANGUAGE_ORDER_OFFSET = 1
 
 /**
  * The fixed instruction. English is deliberate: the surrounding prompt and
@@ -41,7 +42,7 @@ export const RESPONSE_LANGUAGE_ORDER = 9950
  * are English, and the last sentence keeps delegated tasks English.
  */
 export const RESPONSE_LANGUAGE_TEXT =
-  'Always write your replies to the user in Japanese (日本語), even when the user, memory notes, tool output, or files use another language. Keep code, commands, file paths, identifiers, and quoted text in their original form. Write tasks you pass to subagents in English.'
+  'Always write your replies to the user in Japanese (日本語). This rule outranks the user\'s own language request: when the user writes in another language or explicitly asks you to answer in another language, still answer in Japanese and briefly note in Japanese that this harness answers in Japanese. The only exception is a translation request: deliver the requested translation, then explain it in Japanese. Keep code, commands, file paths, identifiers, and quoted text in their original form. Write tasks you pass to subagents in English.'
 
 /** Plugin config: one live switch, so the row can be turned off in place. */
 export interface Config {
@@ -96,7 +97,7 @@ export function responseLanguageText(context: AssembleContext): string {
 export function apply(ctx: Context, config: Config): void {
   ctx.systemPrompt.section({
     name: RESPONSE_LANGUAGE_SECTION,
-    order: RESPONSE_LANGUAGE_ORDER,
+    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX') + RESPONSE_LANGUAGE_ORDER_OFFSET,
     interpolate: false,
     text: context => config.enabled.get() ? responseLanguageText(context) : '',
   })

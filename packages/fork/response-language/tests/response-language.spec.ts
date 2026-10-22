@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type { AssembleContext } from '@deepseek-ai/dsh-system-prompt'
 import {
-  apply, Config, name, RESPONSE_LANGUAGE_ORDER, RESPONSE_LANGUAGE_SECTION, RESPONSE_LANGUAGE_TEXT,
+  apply, Config, name, RESPONSE_LANGUAGE_ORDER_OFFSET, RESPONSE_LANGUAGE_SECTION, RESPONSE_LANGUAGE_TEXT,
   responseLanguageText,
 } from '../src/index.ts'
 
@@ -15,7 +15,10 @@ interface PromptSection {
 
 function fakeContext(sections: PromptSection[]): Context {
   return {
-    systemPrompt: { section: (section: PromptSection) => { sections.push(section); return () => {} } },
+    systemPrompt: {
+      section: (section: PromptSection) => { sections.push(section); return () => {} },
+      getSectionOrder: (order: string) => order === 'DEPLOYMENT_PERSONA_SUFFIX' ? 10_200 : 0,
+    },
   } as unknown as Context
 }
 
@@ -33,7 +36,7 @@ describe('response-language', () => {
   it('declares a stable row name and prompt position', () => {
     expect(name).toBe('response-language')
     expect(RESPONSE_LANGUAGE_SECTION).toBe('response-language')
-    expect(RESPONSE_LANGUAGE_ORDER).toBe(9950)
+    expect(RESPONSE_LANGUAGE_ORDER_OFFSET).toBe(1)
   })
 
   it('contributes the instruction to main agents only', () => {
@@ -50,7 +53,7 @@ describe('response-language', () => {
     apply(fakeContext(sections), { enabled })
     const section = sections[1] as PromptSection
     expect(section.name).toBe(RESPONSE_LANGUAGE_SECTION)
-    expect(section.order).toBe(RESPONSE_LANGUAGE_ORDER)
+    expect(section.order).toBe(10_201)
     expect(section.interpolate).toBe(false)
     expect(section.text(mainAgent)).toBe(RESPONSE_LANGUAGE_TEXT)
     enabled.set(false)
