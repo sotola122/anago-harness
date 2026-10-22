@@ -1,0 +1,33 @@
+# Fork-only compatibility layer for upstream-owned recorded sessions.
+#
+# The fork's shipped `headless` template mounts @anago-harness/anago-core, which
+# adds tools, a system-prompt section, and a different default search provider.
+# Recorded sessions pin the request headers they saw, so these entries restore
+# the upstream composition and let the committed recordings replay unchanged.
+# Fork-owned scenarios re-enable what they need in their own composition.
+- id: memory
+  disabled: true
+
+- id: llm-wiki
+  disabled: true
+
+- id: response-language
+  disabled: true
+
+- id: subagent-cursor
+  disabled: true
+
+- id: tool-subagent-cursor
+  disabled: true
+
+- id: web-search-exa
+  disabled: true
+
+- id: web-search-brave
+  disabled: true
+
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: deepseek-official
+    fetchProvider: http

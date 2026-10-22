@@ -11,6 +11,387 @@
 
 每个包的条目用三个标识符标注：`inject` 列出插件注入的服务键，其 `cordis.yml` 树还必须加载这些服务的提供者；`refs` 列出声明引用、但未粘贴在此处的类型；`source` 链接到声明配置的源文件。范围限定为 harness 层级（`packages/`）；配置树还可能加载的 vendored cordis 插件（控制台日志记录器等）固定为上游源代码（参见 [vendoring policy](../vendor/README.md)），未收录于此目录。
 
+<!-- BEGIN GENERATED config-catalog:@anago-harness/llm-wiki -->
+<a id="anago-harnessllm-wiki"></a>
+
+## `@anago-harness/llm-wiki`
+
+- `inject`: `tools` · `skills` · `commands`
+- `source`: [`packages/fork/llm-wiki/src/config.ts:120`](../packages/fork/llm-wiki/src/config.ts)
+
+```ts config-catalog
+/** Resolved plugin configuration (DESIGN §6.6). */
+export interface WikiConfig {
+  /** Whether the existence notice is injected at all. */
+  readonly notice: boolean
+  /** The global wiki setting, which the sidecar may override. */
+  readonly global: GlobalWikiConfig
+  /** `wiki_write` approval mode (DESIGN §6.4, D2). */
+  readonly writeApproval: 'none' | 'ask'
+  /** Per-file write caps, read by `wiki_write`. */
+  readonly write: WikiWriteConfig
+  /** Search index bounds, read by `wiki_search`. */
+  readonly search: WikiSearchConfig
+  /** The checks `wiki_lint` and `/wiki lint` run when the caller names none. */
+  readonly lint: WikiLintConfig
+}
+
+/** The global wiki setting (DESIGN §6.4, U5). */
+export interface GlobalWikiConfig {
+  /**
+   * Path to the repository that holds the global wiki, or `''` for "none".
+   * `~` and `~/` are expanded; a relative path is refused. The **sidecar**
+   * under `$DSH_HOME` is consulted first, so a `/wiki repo set` and
+   * `/wiki repo unset` win over this value.
+   */
+  readonly repo: string
+  /**
+   * Directory under the repository top that holds the pages, `pages` by
+   * default.
+   *
+   * The global wiki is not always laid out with `pages/`: an existing knowledge
+   * repository may keep its pages under `concepts/`. Only the **page** directory
+   * moves — `raw/`, `index.md`, and `WIKI.md` stay where the convention puts
+   * them — and only the global wiki is configurable; the project wiki keeps
+   * `pages/`.
+   *
+   * The value is one directory name relative to the repository top. The schema
+   * refuses `/`, `\`, a NUL byte, an empty value, `.`/`..`, a leading `.`, and
+   * the three names the convention fixes (`raw`, `index.md`, `WIKI.md`), so it
+   * cannot name a path outside the repository and cannot collide with `raw/`
+   * (the repository is the trust boundary, not the Profile).
+   */
+  readonly pagesDir: string
+}
+
+/** Per-file write caps `wiki_write` applies (DESIGN §6.4). */
+export interface WikiWriteConfig {
+  /** Maximum bytes of one page file (and of `index.md` and `WIKI.md`). */
+  readonly maxPageBytes: number
+  /** Maximum bytes of one `raw/<topic>/<date>-<source>.md`. */
+  readonly maxRawBytes: number
+}
+
+/** Search index bounds (DESIGN §6.5). */
+export interface WikiSearchConfig {
+  /** Maximum pages indexed per wiki root. */
+  readonly maxPages: number
+  /** Maximum bytes of one page the index reads. */
+  readonly maxPageBytes: number
+  /** Maximum posting bytes per wiki root. */
+  readonly maxPostingBytes: number
+}
+
+/** The lint's default check set. */
+export interface WikiLintConfig {
+  /**
+   * Which checks `wiki_lint` and `/wiki lint` run when the caller omits them.
+   *
+   * The design's default is all three. The schema refuses an empty list (a
+   * lint that checks nothing is never what a deployment means), removes
+   * duplicates, and puts the checks in the order the tool runs them
+   * ({@link LINT_CHECKS}). An unknown name fails the load rather than being
+   * dropped, so a typo cannot silently widen the set back to all three.
+   */
+  readonly checks: readonly LintCheck[]
+}
+
+/** The checks `wiki_lint` can run (DESIGN §6.6). */
+export type LintCheck = 'links' | 'index' | 'raw'
+```
+<!-- END GENERATED config-catalog:@anago-harness/llm-wiki -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/memory -->
+<a id="anago-harnessmemory"></a>
+
+## `@anago-harness/memory`
+
+- `inject`: `tools` · `commands`
+- `source`: [`packages/fork/memory/src/config.ts:83`](../packages/fork/memory/src/config.ts)
+
+```ts config-catalog
+/** Resolved plugin configuration (DESIGN §4.4). */
+export interface MemoryConfig {
+  /** Per-store code-point limits. */
+  readonly limits: MemoryLimits
+  /** Workspace store switches. */
+  readonly workspace: WorkspaceConfig
+  /** Preset filter applied to injection, the tool, and the review. */
+  readonly presets: PresetsConfig
+  /** Write-approval mode (DESIGN §4.5): `ask` enables the prompt and the staged path. */
+  readonly writeApproval: 'none' | 'ask'
+  /** Staged-write bound (DESIGN §4.5). */
+  readonly pending: PendingConfig
+  /** Turn-end review (DESIGN §4.7). */
+  readonly review: ReviewConfig
+  /** Writer-lock budget in milliseconds. */
+  readonly lockWaitMs: number
+}
+
+/** Per-store character limits (DESIGN §4.3). */
+export interface MemoryLimits {
+  /** `$DSH_HOME/memories/MEMORY.md`. */
+  readonly memory: number
+  /** `$DSH_HOME/memories/USER.md`. */
+  readonly user: number
+  /** `<projectRoot>/.dsh/memory/MEMORY.md`. */
+  readonly workspace: number
+}
+
+/** Workspace store switches (DESIGN §4.4, §5.1). */
+export interface WorkspaceConfig {
+  /** Whether the workspace store exists at all; `false` is a global-memory-only deployment. */
+  readonly enabled: boolean
+  /** Whether the plugin writes the managed `.gitignore` block before its first write (N1). */
+  readonly manageGitignore: boolean
+}
+
+/** Agent-preset filter (DESIGN §4.4). */
+export interface PresetsConfig {
+  /** Preset ids excluded from injection, the `memory` tool, and the turn-end review. */
+  readonly exclude: readonly string[]
+}
+
+/** Staged-write bound (DESIGN §4.5). */
+export interface PendingConfig {
+  /** Maximum pending files per store. */
+  readonly maxPerStore: number
+}
+
+/** Turn-end review settings (DESIGN §4.7). */
+export interface ReviewConfig {
+  /** Whether the review runs at all; the design default is enabled (U1). */
+  readonly enabled: boolean
+  /** Completed turns accumulated before one review. */
+  readonly everyTurns: number
+  /** Attempts per session, failures included. */
+  readonly maxRunsPerSession: number
+  /** Cap on the transcript excerpt sent to the auxiliary call. */
+  readonly maxInputBytes: number
+  /** Cap on the review's output tokens. */
+  readonly maxOutputTokens: number
+  /** Abort budget for one review call. */
+  readonly timeoutMs: number
+  /** Whether a headless run lets the review run; the design default is no. */
+  readonly includeHeadless: boolean
+}
+```
+<!-- END GENERATED config-catalog:@anago-harness/memory -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/response-language -->
+<a id="anago-harnessresponse-language"></a>
+
+## `@anago-harness/response-language`
+
+- `inject`: `systemPrompt`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/fork/response-language/src/index.ts:47`](../packages/fork/response-language/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: one live switch, so the row can be turned off in place. */
+export interface Config {
+  /** Whether the instruction is injected for main agents. */
+  readonly enabled: Volatile<boolean>
+}
+```
+<!-- END GENERATED config-catalog:@anago-harness/response-language -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/subagent-cursor -->
+<a id="anago-harnesssubagent-cursor"></a>
+
+## `@anago-harness/subagent-cursor`
+
+- `inject`: `subagents` · `subprocess`
+- `source`: [`packages/fork/subagent-cursor/src/index.ts:75`](../packages/fork/subagent-cursor/src/index.ts)
+
+```ts config-catalog
+/**
+ * Provider configuration (see the package README for the field table).
+ *
+ * The schema applies every default, so a value of this type is complete; a
+ * `cordis.yml` row may omit any field.
+ */
+export interface Config {
+  /** Registry name inside `ctx.subagents`; must be unique per composition. */
+  providerName: string
+  /** Cursor CLI executable resolved through `ctx.subprocess.resolveExecutable`. */
+  agentBinary: string
+  /** Optional `--model` value; omitted uses the CLI default. */
+  model?: string
+  /** `--output-format` value; `text` is the unverified-JSON-schema escape hatch. */
+  outputFormat: OutputFormat
+  /** Execution mode; `agent` emits no `--mode`. */
+  mode: ExecutionMode
+  /** Emit `--sandbox enabled` (true) or `disabled` (false, diagnostics only). */
+  sandbox: boolean
+  /** Emit `--force` (Run Everything); off by default. */
+  force: boolean
+  /** Emit `--trust` to skip the workspace trust prompt in print mode. */
+  trust: boolean
+  /** Per-run wall-clock budget in milliseconds. */
+  timeoutMs: number
+  /** SIGTERM-to-SIGKILL grace handed to the subprocess provider. */
+  disposeGraceMs: number
+  /** In-memory stdout cap; overflow keeps the tail only. */
+  stdoutMaxBytes: number
+  /** Full-stdout spill cap used to recover a truncated JSON payload. */
+  stdoutSpillMaxBytes: number
+  /** In-memory stderr cap used for the log-only diagnostic tail. */
+  stderrMaxBytes: number
+  /** Extra environment variables layered over the scrubbed parent environment. */
+  env: Record<string, string>
+  /** Extra CLI arguments; provider-owned flags are rejected at start. */
+  extraArgs: string[]
+}
+
+/** `--output-format` values this provider passes to the CLI. */
+export type OutputFormat = 'json' | 'text'
+
+/**
+ * `--mode` values this provider understands. `agent` is the provider's name for
+ * "no `--mode` flag": the CLI only accepts `plan` and `ask`, and passing
+ * `--mode agent` would fail its choices check.
+ */
+export type ExecutionMode = 'agent' | 'ask' | 'plan'
+```
+<!-- END GENERATED config-catalog:@anago-harness/subagent-cursor -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/subagent-pi -->
+<a id="anago-harnesssubagent-pi"></a>
+
+## `@anago-harness/subagent-pi`
+
+- `inject`: `subagents` · `subprocess`
+- `source`: [`packages/fork/subagent-pi/src/index.ts:52`](../packages/fork/subagent-pi/src/index.ts)
+
+```ts config-catalog
+/**
+ * Provider configuration (see the package README for the field table).
+ *
+ * The schema applies every default, so a value of this type is complete; a
+ * `cordis.yml` row may omit any field.
+ */
+export interface Config {
+  /** Registry name inside `ctx.subagents`; must be unique per composition. */
+  providerName: string
+  /** Pi CLI executable resolved through `ctx.subprocess.resolveExecutable`. */
+  executable: string
+  /** Optional `--provider` id; requires `model`. */
+  provider?: string
+  /** Optional `--model` pattern or id; absent uses Pi's own configured model. */
+  model?: string
+  /** Optional `--thinking` level. */
+  thinking?: PiThinkingLevel
+  /** Optional `--tools` allowlist; an empty list emits `--no-tools`. */
+  tools?: string[] | undefined
+  /** Optional `--exclude-tools` denylist. */
+  excludeTools?: string[] | undefined
+  /** Emit `--approve` (true) or `--no-approve` (false) for project-local files. */
+  approve: boolean
+  /** Optional absolute `--session-dir`; absent emits `--no-session`. */
+  sessionDir?: string
+  /** Extra environment variables layered over the scrubbed parent environment. */
+  env: Record<string, string>
+  /** Optional per-run wall-clock budget in milliseconds; absent is unbounded. */
+  timeoutMs?: number
+  /** SIGTERM-to-SIGKILL grace handed to the subprocess provider. */
+  disposeGraceMs: number
+}
+
+/** One `--thinking` level understood by the Pi CLI. */
+export type PiThinkingLevel = (typeof PI_THINKING_LEVELS)[number]
+```
+<!-- END GENERATED config-catalog:@anago-harness/subagent-pi -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/tui -->
+<a id="anago-harnesstui"></a>
+
+## `@anago-harness/tui`
+
+- `inject`: `agents` · `tuiStartup` · `appReady` · `appExit`
+- `source`: [`packages/fork/tui/src/index.ts:30`](../packages/fork/tui/src/index.ts)
+
+```ts config-catalog
+/** Row config; command-line flags override both fields. */
+export interface Config {
+  /** Palette used when `--theme` is absent. */
+  theme: 'dark' | 'light'
+  /** Use the main screen when `--inline` is absent. */
+  inline: boolean
+}
+```
+<!-- END GENERATED config-catalog:@anago-harness/tui -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/web-search-brave -->
+<a id="anago-harnessweb-search-brave"></a>
+
+## `@anago-harness/web-search-brave`
+
+- `inject`: `web`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/fork/web-search-brave/src/index.ts:37`](../packages/fork/web-search-brave/src/index.ts)
+
+```ts config-catalog
+/** Plugin config; every field is volatile, so a settings change reaches the next search. */
+export interface Config {
+  /** Literal Brave Search API key; prefer {@link apiKeyEnv} so no secret enters configuration files. */
+  apiKey: Volatile<string | undefined>
+  /** Credential reference resolved for each search; defaults to `BRAVE_API_KEY`. */
+  apiKeyEnv: Volatile<string>
+  /** Base URL the Web Search path is appended to. */
+  baseURL: Volatile<string>
+  /** `country` parameter; the empty string sends no country. */
+  country: Volatile<string>
+  /** `search_lang` parameter. */
+  searchLang: Volatile<string>
+  /** `ui_lang` parameter. */
+  uiLang: Volatile<string>
+  /** `safesearch` parameter. */
+  safesearch: Volatile<BraveSafeSearch>
+  /** `freshness` parameter (`pd`/`pw`/`pm`/`py` or `YYYY-MM-DDtoYYYY-MM-DD`); unset sends none. */
+  freshness: Volatile<string | undefined>
+  /** Provider-side timeout in milliseconds, validated at startup and again for every search, and never clamped. */
+  timeoutMs: Volatile<number>
+  /** Upper bound on `count`, clamped into Brave's 1..20 range. */
+  maxResults: Volatile<number>
+}
+
+/** Safe-search modes Brave accepts for `safesearch`. */
+export type BraveSafeSearch = 'off' | 'moderate' | 'strict'
+```
+<!-- END GENERATED config-catalog:@anago-harness/web-search-brave -->
+
+<!-- BEGIN GENERATED config-catalog:@anago-harness/web-search-exa -->
+<a id="anago-harnessweb-search-exa"></a>
+
+## `@anago-harness/web-search-exa`
+
+- `inject`: `web`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/fork/web-search-exa/src/index.ts:40`](../packages/fork/web-search-exa/src/index.ts)
+
+```ts config-catalog
+/** Plugin config; every field is volatile, so a settings change reaches the next search. */
+export interface Config {
+  /** Literal Exa API key; prefer {@link apiKeyEnv} so no secret enters configuration files. */
+  apiKey: Volatile<string | undefined>
+  /** Credential reference resolved for each search; defaults to `EXA_API_KEY`. */
+  apiKeyEnv: Volatile<string>
+  /** Endpoint base; `/search` is appended. Defaults to the public Exa API. */
+  baseURL: Volatile<string>
+  /** Retrieval mode sent as Exa's `type`; defaults to `auto`. */
+  searchType: Volatile<ExaSearchType>
+  /** Default result count when a request carries no `maxResults`; unset sends none. */
+  numResults: Volatile<number | undefined>
+  /** Highlight sentences requested per result; defaults to one. */
+  highlightsPerResult: Volatile<number>
+}
+
+/** Retrieval modes Exa accepts for its `type` field. */
+export type ExaSearchType = 'auto' | 'keyword' | 'neural'
+```
+<!-- END GENERATED config-catalog:@anago-harness/web-search-exa -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-acp -->
 <a id="deepseek-aidsh-acp"></a>
 
@@ -4592,6 +4973,7 @@ export interface Config {
 <!-- BEGIN GENERATED config-catalog:no-config -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
+| `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | — | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
 | `@deepseek-ai/dsh-api-account-controller` | `deepseekAccount` · `agents` | [`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts) |
@@ -4733,7 +5115,12 @@ export interface Config {
 <!-- BEGIN GENERATED config-catalog:library -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
+| `@anago-harness/anago-core` | — | [`packages/fork/anago-core/src/index.ts`](../packages/fork/anago-core/src/index.ts) |
+| `@anago-harness/anago-tui` | — | [`packages/fork/anago-tui/src/index.ts`](../packages/fork/anago-tui/src/index.ts) |
+| `@anago-harness/anago-web` | — | [`packages/fork/anago-web/src/index.ts`](../packages/fork/anago-web/src/index.ts) |
 | `@anago-harness/fork-policy` | — | [`packages/fork/fork-policy/src/index.ts`](../packages/fork/fork-policy/src/index.ts) |
+| `@anago-harness/knowledge-common` | — | [`packages/fork/knowledge-common/src/index.ts`](../packages/fork/knowledge-common/src/index.ts) |
+| `@anago-harness/web-search-credentials` | — | [`packages/fork/web-search-credentials/src/index.ts`](../packages/fork/web-search-credentials/src/index.ts) |
 | `@deepseek-ai/dsh-agent-loop-testkit` | — | [`packages/test-support/agent-loop-testkit/src/index.ts`](../packages/test-support/agent-loop-testkit/src/index.ts) |
 | `@deepseek-ai/dsh-anonymous-user-id` | — | [`packages/identity/anonymous-user-id/src/index.ts`](../packages/identity/anonymous-user-id/src/index.ts) |
 | `@deepseek-ai/dsh-app-boot` | — | [`packages/boot/app-boot/src/index.ts`](../packages/boot/app-boot/src/index.ts) |

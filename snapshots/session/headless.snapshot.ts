@@ -1256,6 +1256,9 @@ describe('headless recorded-session snapshots', () => {
       const compositionPatch = join(composition.dir, replaying ? 'cordis.snapshot.yml' : 'cordis.yml')
       const patchSources = [
         join(baseComposition.dir, 'cordis.yml'),
+        // anago: restore the upstream composition above the fork's bundle rows,
+        // before the scenario layer so fork-owned scenarios can re-enable rows.
+        join(snapshotsRoot, 'upstream-compat.cordis.yml'),
         ...composition === baseComposition && !replaying ? [] : [compositionPatch],
         join(baseComposition.dir, 'model.cordis.yml'),
         ...existsSync(join(scenario.dir, 'runtime.cordis.yml')) ? [join(scenario.dir, 'runtime.cordis.yml')] : [],

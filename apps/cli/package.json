@@ -20,6 +20,9 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@anago-harness/anago-core": "workspace:*",
+    "@anago-harness/anago-tui": "workspace:*",
+    "@anago-harness/anago-web": "workspace:*",
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-hmr": "workspace:*",
     "@deepseek-ai/cordis-plugin-include": "workspace:~",

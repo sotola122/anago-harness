@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fork/tui/README.md
+/:
+  en: 744247c51c8c9228
+  zh: 744247c51c8c9228
+/anago-harness-tui:
+  en: e0e7a7dbdd1fd815
+  zh: 14990144d723cb1e
+/anago-harness-tui/summary:
+  en: c85ddf4d7b3d3d67
+  zh: c234f7e78b8e85b5
+/anago-harness-tui/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/anago-harness-tui/use-this-package:
+  en: e9226400b6daec3e
+  zh: 85d8e0331c585ebb
+/anago-harness-tui/use-this-package/keys:
+  en: f22aeebdc7ff7b60
+  zh: 22d9240657e0f172
+/anago-harness-tui/understand-the-implementation:
+  en: 772765b61014ea49
+  zh: c88fb952881b584e
+/anago-harness-tui/further-exploration:
+  en: ddbe4c52a536b1d0
+  zh: d98db649d054aa43
+/anago-harness-tui/model-experience:
+  en: 37cec7c1923ca6b8
+  zh: 56611b5d864d416e
+/anago-harness-tui/model-experience/kv-cache-effect:
+  en: 797ef51f89bd58d8
+  zh: a58c37aee489b3ee
+/anago-harness-tui/known-limitations-and-deferred-work:
+  en: 61a463fa94450ab3
+  zh: 0677570030357790
+/anago-harness-tui/known-limitations-and-deferred-work/dev-note:
+  en: fa8ede3cd2c38dd7
+  zh: fb911199ce95e6e8

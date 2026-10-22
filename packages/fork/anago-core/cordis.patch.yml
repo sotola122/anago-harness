@@ -1,0 +1,47 @@
+# anago-core: the fork's host capabilities over dsh-base. The plugin packages
+# stay plain plugins; this bundle owns the rows.
+- insert:
+    - id: memory
+      name: '@anago-harness/memory'
+    - id: llm-wiki
+      name: '@anago-harness/llm-wiki'
+      config:
+        # The knowledge repository keeps its pages under concepts/.
+        global:
+          pagesDir: concepts
+    - id: response-language
+      name: '@anago-harness/response-language'
+      config:
+        enabled: true
+    - id: subagent-cursor
+      name: '@anago-harness/subagent-cursor'
+    - id: tool-subagent-cursor
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: cursor
+        toolName: subagent_cursor
+        maxDepth: provider-managed
+    - id: subagent-pi
+      name: '@anago-harness/subagent-pi'
+    - id: tool-subagent-pi
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: pi
+        toolName: subagent_pi
+        maxDepth: provider-managed
+    - id: web-search-exa
+      name: '@anago-harness/web-search-exa'
+      config:
+        apiKeyEnv: EXA_API_KEY
+    - id: web-search-brave
+      name: '@anago-harness/web-search-brave'
+      config:
+        apiKeyEnv: BRAVE_API_KEY
+
+# The fork's default search provider. A non-insert patch replaces the row's
+# `config` wholesale, so `fetchProvider` is restated.
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: exa
+    fetchProvider: http

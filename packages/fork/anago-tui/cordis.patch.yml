@@ -1,0 +1,10 @@
+# anago-tui: the terminal application layer over dsh-base and anago-core.
+- insert:
+    - id: tui-startup
+      name: '@anago-harness/tui/startup'
+    - id: tui-app
+      name: '@anago-harness/tui'
+    # dsh-base mounts the user-questions service but not the model-facing
+    # ask_user_question tool; the TUI answers it through a modal.
+    - id: tool-ask-user
+      name: '@deepseek-ai/dsh-tool-ask-user'

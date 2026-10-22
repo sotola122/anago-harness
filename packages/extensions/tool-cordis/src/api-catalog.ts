@@ -4798,10 +4798,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
   },
   {
-    name: 'ApprovalPolicy',
-    declaration: 'export type ApprovalPolicy = \'ask\' | \'never\';',
-  },
-  {
     name: 'ApprovalRequest',
     declaration: 'export interface ApprovalRequest extends ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n}',
   },
@@ -5688,10 +5684,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'IndexInjectionPlacement',
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
-  },
-  {
-    name: 'InspectOptions',
-    declaration: 'export interface InspectOptions {\n    readonly registry?: Registry;\n}',
   },
   {
     name: 'InspectorId',

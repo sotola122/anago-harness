@@ -4,22 +4,22 @@
 #   pnpm run verify-translation-pairing --write packages/fork/README.md
 /:
   en: 0b9ccfbf4f5ada61
-  zh: e2ca54aabdebbb26
+  zh: 8a5557355890ec2f
 /fork-fork-policy:
   en: 900e060386c24938
-  zh: 607bbe89b59b4946
+  zh: cf0cecb169086080
 /fork-fork-policy/summary:
-  en: e6c605fd0c640560
-  zh: ebe5af21962b6348
+  en: a17a3b38311ad979
+  zh: 2ef7731076508a39
 /fork-fork-policy/table-of-contents:
   en: 09848f4d056e4fc1
   zh: 8df6139cff0288f6
 /fork-fork-policy/packages:
-  en: eea0a74ae82b3f4e
-  zh: e522bc097f14d552
+  en: 01b712134b371400
+  zh: a40b7cd3bad8cae5
 /fork-fork-policy/related-documentation:
-  en: 3116eabba538e69a
-  zh: baac77bde5a5e991
+  en: f4761531f975cab3
+  zh: f984e76a9fb064a7
 /fork-fork-policy/dev-note:
   en: b75c8458928b72b9
   zh: 003ba4e17b4b5269

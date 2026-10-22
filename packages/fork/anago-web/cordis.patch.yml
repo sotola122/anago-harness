@@ -1,0 +1,12 @@
+# anago-web: the fork's browser layer over dsh-web-app.
+- insert:
+    # A client half attaches only to the row whose specifier is the bare
+    # package name.
+    - id: ui-settings-web-search-providers
+      name: '@anago-harness/client-ui-settings-web-search'
+
+# The upstream DeepSeek search card writes the same web.searchProvider field.
+# Disable it until the DeepSeek search rows are removed.
+- id: ui-settings-web-search
+  name: '@deepseek-ai/dsh-client-ui-settings-web-search'
+  disabled: true

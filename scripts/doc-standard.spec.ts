@@ -68,6 +68,8 @@ const PACKAGE_LIBRARIES: Readonly<Record<string, string>> = {
   'packages/experimental/webworker-runtime': 'Browser worker runtime library with explicit host entry points.',
   'packages/experimental/hook-protocol': 'Shared wire-protocol library between the hook bridges.',
   'packages/fork/fork-policy': 'Host egress guard and profile patch lists imported by app boot; no plugin registration.',
+  'packages/fork/knowledge-common': 'Shared knowledge-store library (scanning, entries, atomic writes, containment, digests, gitignore); no plugin registration.',
+  'packages/fork/web-search-credentials': 'Shared web-search API-key resolution (literal, credentials service, launch environment) consumed by the fork providers.',
   'packages/identity/anonymous-user-id': 'Harness-home identity helper with no plugin registration.',
   'packages/sandbox/sandbox-windows-acl': 'Windows ACL sandbox library consumed by sandbox-local.',
   'packages/sdk/client': 'Client-process library; the spawned runtime owns plugin behavior.',

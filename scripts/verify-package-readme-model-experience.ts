@@ -38,6 +38,8 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/util/values': 'The package only validates, snapshots, compares, freezes, or rejects caller-owned values; consumers own every model-facing use.',
   'packages/util/code-language': 'The package only maps a filename suffix to a syntax-highlighting language id; the read consumer owns the persisted hint.',
   'packages/fork/fork-policy': 'The package installs a host egress denylist and returns profile patch lists. It does not construct model input.',
+  'packages/fork/knowledge-common': 'The package only provides knowledge-store file primitives to its consumers; they own every model-facing use.',
+  'packages/fork/web-search-credentials': 'The package only resolves an API key for its provider consumers; they own every model-facing result.',
 }
 
 /**
@@ -78,6 +80,13 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/attachment/attachment': { kind: 'indirect', reason: 'The storage seam delegates model request rendering to provider adapters.' },
   'packages/attachment/attachment-local': { kind: 'indirect', reason: 'The local backend delegates model request rendering to provider adapters.' },
   'packages/client/ui-jobs': { kind: 'none', reason: 'Browser-side presentation of host-observed output; touches no prompt, message, schema, stream, or tool result.' },
+  'packages/fork/client-ui-settings-web-search': { kind: 'none', reason: 'The cards edit provider configuration for a human; the provider packages own the model-facing search result.' },
+  'packages/fork/tui': { kind: 'none', reason: 'The terminal UI renders session state for a human and contributes no prompt, tool schema, or session event.' },
+  'packages/fork/anago-core': { kind: 'indirect', reason: 'The bundle mounts the packages that own each model-facing tool, prompt section, and search provider.' },
+  'packages/fork/anago-web': { kind: 'indirect', reason: 'The bundle mounts browser-only settings cards; provider packages own the model-facing search result.' },
+  'packages/fork/anago-tui': { kind: 'indirect', reason: 'The bundle mounts the terminal application rows; the TUI contributes no prompt, tool schema, or session event.' },
+  'packages/fork/web-search-brave': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },
+  'packages/fork/web-search-exa': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },
   'packages/shell/shell': { kind: 'indirect', reason: 'The service interface delegates all model rendering to dsh-tool-bash.' },
   'packages/shell/shell-env': { kind: 'indirect', reason: 'The env service exposes managed DSH_* facts through the shell tools (dsh-tool-bash/dsh-tool-pwsh); it registers no prompt or schema of its own.' },
   'packages/shell/bash-local': { kind: 'indirect', reason: 'The executor backend delegates model rendering to dsh-tool-bash.' },

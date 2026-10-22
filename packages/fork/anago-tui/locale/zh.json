@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "anago-tui",
+    "description": "Terminal application layer for anago profiles: the pi-based TUI and the ask-user tool."
+  }
+}

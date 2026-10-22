@@ -247,6 +247,10 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
         failures.push(`${PROFILE_SOURCE}: default bundle ${name} must declare dsh.bundle.patch`)
       }
       if (optionalBundles.has(name)) failures.push(`${PROFILE_SOURCE}: optional bundle ${name} must not be a default bundle`)
+      // A default bundle is resolved from the installation, so the launcher package must supply it.
+      if (cli?.manifest.dependencies?.[name] === undefined) {
+        failures.push(`${PROFILE_SOURCE}: default bundle ${name} must be a runtime dependency of apps/cli`)
+      }
     }
     const webLayers = selection.webBundles.flatMap((name) => {
       const pkg = packages.get(name)
