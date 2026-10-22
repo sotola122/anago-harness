@@ -87,13 +87,11 @@
 - ツールカード、モデルピッカー（Ctrl+P / `/model`）、セッションピッカー（Ctrl+R / `/resume`）、スラッシュコマンド（`/help` `/model` `/clear` `/resume` `/quit`）、推論ブロック、使用量フッター。
 - テスト 79 → 247 件。残りは README の Known Limitations に記載（推論強度ピッカー、`/resume` のメタデータのみ、画像、ジョブ UI など）。
 
-## 進行中
+### 9. カバレッジ 100% — 完了
 
-### 9. カバレッジ 100%（段階）
-
-- 到達可能なコードはテスト済み: fork 全体で **1731 テスト成功**、statements 99.6% / branches 97.6%。
-- 残りは静的に到達不能な防御コード（`?? fallback`、regex グループ、二重 settle ガードなど）。削除または根拠付き `/* v8 ignore */` で 100% にするクリーンアップを実行中。
-- 受入: `vitest run packages/fork --coverage --coverage.include='packages/fork/**/src/**/*.{ts,tsx}'` が ERROR なし、全ファイル 100%。
+- `packages/fork/**/src/**/*.{ts,tsx}` が **全ファイル 100% / 100% / 100% / 100%**（statements / branches / functions / lines）。カバレッジゲートは exit 0、`does not meet` なし。
+- 到達可能なコードはすべてテスト済み（fork 全体で **1736 テスト成功**）。残っていたのは静的に到達不能な防御コードで、削除を基本とし、fs 境界・未信頼 JSON・ライフサイクル不変条件の 5 箇所だけ根拠付き `/* v8 ignore next -- ... */` を付けた。
+- 併せて、既存の型エラー（committed fork テスト 21 件）を修正し、`tsc -b host+client` も 0 エラーにした。
 
 ## 未着手（優先度順）
 
