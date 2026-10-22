@@ -67,9 +67,9 @@ function installDocument(): StubTag[] {
 
 describe('renderFontStylesheet', () => {
   it('replaces every placeholder with its data URL', () => {
-    const template = 'a __DSH_FONT_ANAGO_GOTHIC__ b __DSH_FONT_NOTO_SANS_JP_LATIN__ c'
+    const template = 'a __DSH_FONT_UDEV_GOTHIC__ b __DSH_FONT_NOTO_SANS_JP_LATIN__ c'
     const css = renderFontStylesheet(template, {
-      __DSH_FONT_ANAGO_GOTHIC__: 'data:font/woff2;base64,AAA',
+      __DSH_FONT_UDEV_GOTHIC__: 'data:font/woff2;base64,AAA',
       __DSH_FONT_NOTO_SANS_JP_LATIN__: 'data:font/woff2;base64,BBB',
     })
     expect(css).toBe('a data:font/woff2;base64,AAA b data:font/woff2;base64,BBB c')
@@ -80,12 +80,12 @@ describe('renderFontStylesheet', () => {
     const stylesheet = readFileSync(new URL('../src/styles/fonts.css', import.meta.url), 'utf8')
     const css = renderFontStylesheet(stylesheet, FONT_REPLACEMENTS)
     expect(css).not.toMatch(/url\(__DSH_FONT_/u)
-    expect(css).toContain(`url(${FONT_REPLACEMENTS.__DSH_FONT_ANAGO_GOTHIC__})`)
+    expect(css).toContain(`url(${FONT_REPLACEMENTS.__DSH_FONT_UDEV_GOTHIC__})`)
   })
 
   it('rejects a font file the stylesheet does not use', () => {
-    expect(() => renderFontStylesheet('no placeholders', { __DSH_FONT_ANAGO_GOTHIC__: 'data:' }))
-      .toThrow(/the stylesheet has no __DSH_FONT_ANAGO_GOTHIC__ for 1 font files/u)
+    expect(() => renderFontStylesheet('no placeholders', { __DSH_FONT_UDEV_GOTHIC__: 'data:' }))
+      .toThrow(/the stylesheet has no __DSH_FONT_UDEV_GOTHIC__ for 1 font files/u)
   })
 
   it('rejects a placeholder the replacement map does not cover', () => {
@@ -98,14 +98,14 @@ describe('installFontStyles', () => {
   it('does nothing outside a browser document', async () => {
     Reflect.deleteProperty(globalThis, 'document')
     const ctx = new Context()
-    expect(() => installFontStyles(ctx, 'body {}')).not.toThrow()
+    expect(() => { installFontStyles(ctx, 'body {}') }).not.toThrow()
     await ctx.fiber.dispose()
   })
 
   it('mounts an attributable tag and removes it with the plugin', async () => {
     const tags = installDocument()
     const ctx = new Context()
-    installFontStyles(ctx, 'body { font-family: Anago Gothic; }')
+    installFontStyles(ctx, 'body { font-family: UDEV Gothic; }')
 
     expect(tags).toHaveLength(1)
     const tag = tags[0] as StubTag
@@ -113,7 +113,7 @@ describe('installFontStyles', () => {
       plugin: '@anago-harness/client-ui-fonts-anago',
       pluginCss: '@anago-harness/client-ui-fonts-anago/fonts.css',
     })
-    expect(tag.textContent).toBe('body { font-family: Anago Gothic; }')
+    expect(tag.textContent).toBe('body { font-family: UDEV Gothic; }')
 
     await ctx.fiber.dispose()
     expect(tags).toHaveLength(0)
@@ -123,7 +123,7 @@ describe('installFontStyles', () => {
 
 describe('plugin entries', () => {
   it('keeps the host row inert', () => {
-    expect(applyHost()).toBeUndefined()
+    expect(() => { applyHost() }).not.toThrow()
   })
 
   it('mounts the rendered shipped stylesheet from the browser entry', async () => {
@@ -135,7 +135,7 @@ describe('plugin entries', () => {
     const css = tags[0]?.textContent ?? ''
     expect(css).not.toMatch(/url\(__DSH_FONT_/u)
     expect(css).toContain('@font-face')
-    expect(css).toContain("font-family: 'Anago Gothic';")
+    expect(css).toContain("font-family: 'UDEV Gothic';")
 
     await ctx.fiber.dispose()
     expect(tags).toHaveLength(0)

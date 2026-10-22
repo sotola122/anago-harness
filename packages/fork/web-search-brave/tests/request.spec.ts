@@ -175,4 +175,9 @@ describe('buildSearchHeaders / describeSearchSettings', () => {
       'count=8, country=JP, search_lang=jp, ui_lang=ja-JP, safesearch=moderate',
     )
   })
+
+  it('renders a JSON-sourced null as an empty value', () => {
+    const params = JSON.parse('{"country":null,"search_lang":"en"}') as Record<string, string>
+    expect(describeSearchSettings(params)).toBe('country=, search_lang=en')
+  })
 })

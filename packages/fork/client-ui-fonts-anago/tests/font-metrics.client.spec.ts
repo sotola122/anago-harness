@@ -45,13 +45,13 @@ function em(value: number | null): number | undefined {
 describe('shipped font binaries', () => {
   it('records exactly the seven files the stylesheet loads', () => {
     expect(metrics.fonts.map(font => font.file).sort()).toEqual([
-      'anago-gothic-regular.woff2',
       'intel-one-mono-latin-ext.woff2',
       'intel-one-mono-latin.woff2',
       'intel-one-mono-symbols.woff2',
       'noto-sans-jp-kana.woff2',
       'noto-sans-jp-kanji.woff2',
       'noto-sans-jp-latin.woff2',
+      'udev-gothic-regular.woff2',
     ])
     const total = metrics.fonts.reduce((sum, font) => sum + font.bytes, 0)
     expect(total).toBeLessThan(6 * 1024 * 1024)
@@ -82,7 +82,7 @@ describe('shipped font binaries', () => {
   })
 
   it('keeps a full-width glyph at exactly two cells in the terminal face', () => {
-    const gothic = metrics.fonts.find(font => font.file === 'anago-gothic-regular.woff2')
+    const gothic = metrics.fonts.find(font => font.file === 'udev-gothic-regular.woff2')
     expect(gothic?.unitsPerEm).toBe(2048)
     expect(em(gothic?.advances.halfWidth ?? null)).toBe(0.5)
     expect(em(gothic?.advances.fullWidth ?? null)).toBe(1)
@@ -90,14 +90,13 @@ describe('shipped font binaries', () => {
     expect(em(gothic?.advances.fullWidth ?? null)).toBe(2 * (em(gothic?.advances.halfWidth ?? null) ?? 0))
   })
 
-  it('ships the OFL-renamed subset, never the reserved upstream name', () => {
-    const [gothic] = metrics.fonts.filter(font => font.file === 'anago-gothic-regular.woff2')
-    expect(gothic?.family).toBe('Anago Gothic')
-    expect(gothic?.file).not.toContain('udev')
-    expect(gothic?.derivedFrom).toContain('UDEV Gothic v2.2.0')
-    expect(metrics.licenses['Anago Gothic']).toBe('UDEV-Gothic-OFL.txt')
-    expect(stylesheet).toContain("font-family: 'Anago Gothic';")
-    expect(stylesheet).not.toContain("font-family: 'UDEV Gothic';")
+  it('ships the unmodified upstream font under its own name', () => {
+    const [gothic] = metrics.fonts.filter(font => font.file === 'udev-gothic-regular.woff2')
+    expect(gothic?.family).toBe('UDEV Gothic')
+    expect(gothic?.file).toContain('udev')
+    expect(metrics.licenses['UDEV Gothic']).toBe('UDEV-Gothic-OFL.txt')
+    expect(stylesheet).toContain("font-family: 'UDEV Gothic';")
+    expect(stylesheet).not.toContain("font-family: 'Anago Gothic';")
   })
 
   it('keeps the Japanese fallback on the same half/full-width metrics', () => {
@@ -107,12 +106,12 @@ describe('shipped font binaries', () => {
     expect(em(kana?.advances.fullWidth ?? null)).toBe(2 * (em(kana?.advances.halfWidth ?? null) ?? 0))
   })
 
-  it('covers the full Japanese range across the Anago Gothic and Noto faces', () => {
+  it('covers the full Japanese range across the UDEV Gothic and Noto faces', () => {
     const ranges = metrics.fonts.map(font => font.unicodeRange).join(' ')
     for (const block of ['U+3000-303F', 'U+3040-309F', 'U+30A0-30FF', 'U+4E00-9FFF', 'U+3400-4DBF', 'U+FF65-FF9F']) {
       expect(ranges).toContain(block)
     }
-    expect(metrics.fonts.filter(font => font.family === 'Anago Gothic')).toHaveLength(1)
+    expect(metrics.fonts.filter(font => font.family === 'UDEV Gothic')).toHaveLength(1)
     expect(metrics.fonts.filter(font => font.family === 'Noto Sans JP')).toHaveLength(3)
     expect(metrics.fonts.filter(font => font.family === 'Intel One Mono')).toHaveLength(3)
   })

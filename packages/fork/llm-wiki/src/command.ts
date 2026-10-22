@@ -276,7 +276,12 @@ async function runRepoSet(
   }
   deps.search.invalidate(accepted.repo.repoRoot)
   if (before.kind === 'found') deps.search.invalidate(before.repo.repoRoot)
-  const pages = await countPages(accepted.repo.repoRoot).catch(() => 0)
+  let pages = 0
+  try {
+    pages = await countPages(accepted.repo.repoRoot)
+  } catch {
+    // A freshly designated repository whose pages cannot be counted still gets its summary.
+  }
   // `AGENTS.md` is the repository's own file and is never written; `WIKI.md` is
   // reported as created only when this call wrote the template.
   const charterCreated = accepted.skeleton.created.includes(

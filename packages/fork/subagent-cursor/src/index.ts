@@ -242,7 +242,9 @@ class CursorProvider implements SubagentProvider {
     const watch = deadline(request.signal, config.timeoutMs, TIMEOUT_CODE)
     const controller = new AbortController()
     const onAbort = (): void => {
-      if (!controller.signal.aborted) controller.abort(watch.signal.reason)
+      // Aborting an already-aborted controller is a no-op, so this is safe to
+      // call after local cancellation won the race.
+      controller.abort(watch.signal.reason)
     }
     watch.signal.addEventListener('abort', onAbort, { once: true })
     let watchCleared = false

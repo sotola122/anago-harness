@@ -14,7 +14,7 @@ import { chmod, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import type { AtomicWriteApi } from '@anago-harness/knowledge-common'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi, assert } from 'vitest'
 import { isMemoryError } from '../src/errors.ts'
 import {
   ALL_MAX_BYTES,
@@ -414,7 +414,9 @@ describe('approval and rejection edge cases (DESIGN §4.5)', () => {
       { op: addOp(keptId, 'dropped by hand'), file: kept, directory: { target: 'memory', directory } },
     ])
     expect(outcomes[0]).toMatchObject({ id: goneId, ok: false, code: 'MEMORY_IO' })
-    expect(outcomes[0]?.message).toContain('could not be removed')
+    const [first] = outcomes
+    assert(first !== undefined && !first.ok)
+    expect(first.message).toContain('could not be removed')
     expect(outcomes[1]).toEqual({ id: keptId, target: 'memory', ok: true })
     expect(await readdir(directory)).toEqual([])
   })

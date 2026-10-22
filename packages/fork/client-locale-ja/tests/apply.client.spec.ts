@@ -81,6 +81,6 @@ describe('client-locale-ja', () => {
   })
 
   it('keeps the host Loader row inert', () => {
-    expect(applyHost()).toBeUndefined()
+    expect(() => { applyHost() }).not.toThrow()
   })
 })

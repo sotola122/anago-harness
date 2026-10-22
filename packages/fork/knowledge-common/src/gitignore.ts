@@ -156,17 +156,13 @@ export function inspectGitignoreBlock(content: string): GitignoreLayout {
     else if (marker === 'end') ends.push(line)
   }
   if (starts.length === 0 && ends.length === 0) return { kind: 'absent' }
-  if (starts.length !== 1 || ends.length !== 1) {
+  const startLine = starts[0]
+  const endLine = ends[0]
+  if (starts.length !== 1 || ends.length !== 1 || startLine === undefined || endLine === undefined) {
     return {
       kind: 'malformed',
       detail: `${GITIGNORE_START_MARKER} appears ${String(starts.length)} time(s) and ${GITIGNORE_END_MARKER} ${String(ends.length)} time(s); nothing was changed`,
     }
-  }
-  const startLine = starts[0]
-  const endLine = ends[0]
-  // The single-start/single-end check above makes both defined.
-  if (startLine === undefined || endLine === undefined) {
-    return { kind: 'malformed', detail: 'managed block markers could not be located; nothing was changed' }
   }
   const startIndex = lines.indexOf(startLine)
   const endIndex = lines.indexOf(endLine)
@@ -362,7 +358,9 @@ export async function ensureGitignoreBlock(
               changed: false,
               created: current === null,
               added: false,
-              content: current ?? '',
+              // A present block plans its own content unchanged; an absent file
+              // always plans the block, so `changed: false` implies a string here.
+              content: plan.content,
             },
           }
         }

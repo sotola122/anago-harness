@@ -121,14 +121,6 @@ interface WikiWriteArgs {
   readonly edit?: { readonly old_text: string; readonly new_text: string }
 }
 
-/** A component that may name a file or a directory inside the wiki. */
-function isSafeComponent(component: string): boolean {
-  if (component === '' || component === '.' || component === '..') return false
-  if (component.startsWith('.')) return false
-  if (component.includes('/') || component.includes('\\')) return false
-  return true
-}
-
 /**
  * Check one path against the four allowed shapes (DESIGN §6.4).
  *
@@ -173,7 +165,7 @@ export function classifyWritePath(
     if (components.length !== 2) {
       return { error: `a page is \`${pagesDir}/<slug>.md\`; sub-directories are not part of the convention` }
     }
-    const name = components[1] ?? ''
+    const name = components[1] as string
     if (!name.endsWith(WIKI_FILE_EXTENSION)) {
       return { error: `a page file ends with \`${WIKI_FILE_EXTENSION}\`` }
     }
@@ -191,9 +183,9 @@ export function classifyWritePath(
         error: `a source is \`${WIKI_RAW_DIRECTORY}/<topic>/<YYYY-MM-DD>-<source>.md\`; the topic directory is required`,
       }
     }
-    const topic = components[1] ?? ''
-    const name = components[2] ?? ''
-    if (!isSafeComponent(topic)) return { error: `\`${topic}\` is not a usable topic directory name` }
+    const topic = components[1] as string
+    const name = components[2] as string
+    if (topic.startsWith('.')) return { error: `\`${topic}\` is not a usable topic directory name` }
     if (!name.endsWith(WIKI_FILE_EXTENSION)) {
       return { error: `a source file ends with \`${WIKI_FILE_EXTENSION}\`` }
     }
@@ -318,7 +310,7 @@ export function renderWrite(
   }
   let candidate: string
   if (hasContent) {
-    candidate = args.content ?? ''
+    candidate = args.content
   } else {
     const edit = args.edit as { readonly old_text: string; readonly new_text: string }
     if (typeof edit.old_text !== 'string' || typeof edit.new_text !== 'string') {

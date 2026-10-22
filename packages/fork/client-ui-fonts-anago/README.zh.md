@@ -1,5 +1,5 @@
 ---
-description: "日语优先的 Web UI 字体：Anago Gothic（按 OFL 改名的 UDEV Gothic 子集）负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 作为覆盖更广的回退。"
+description: "日语优先的 Web UI 字体：UDEV Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 作为覆盖更广的回退。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在 Web 配置中挂载本包，Anago 界面就会用日文字形绘制日文：Anago Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 覆盖其余字符。本包随附各字体的 woff2 文件及其 SIL OFL 许可证，覆盖 `--dsh-font-family-text-default` 与 `--dsh-font-family-code-default`，并在应用根节点设置正文字体栈，现有组件因此无需改动即可继承。在设置中保存的自定义字体仍排在最前。这些字体的 woff2 约占 5 MiB，进入客户端包后约 6.7 MiB。
+在 Web 配置中挂载本包，Anago 界面就会用日文字形绘制日文：UDEV Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 覆盖其余字符。本包随附各字体的 woff2 文件及其 SIL OFL 许可证，覆盖 `--dsh-font-family-text-default` 与 `--dsh-font-family-code-default`，并在应用根节点设置正文字体栈，现有组件因此无需改动即可继承。在设置中保存的自定义字体仍排在最前。这些字体的 woff2 约占 5.3 MiB，进入客户端包后约 7 MiB。
 
 ## 目录
 
@@ -37,11 +37,11 @@ kind: "package-reference"
 
 | 字体族 | 文件 | 字重 | 绘制的字符 | 大小 |
 |---|---|---|---|---|
-| Anago Gothic | `anago-gothic-regular.woff2` | 400 | 假名、CJK 表意文字、全角形式 | 1.4 MiB |
+| UDEV Gothic | `udev-gothic-regular.woff2` | 400 | 假名、CJK 表意文字、全角形式 | 1.7 MiB |
 | Noto Sans JP | `noto-sans-jp-latin.woff2`、`noto-sans-jp-kana.woff2`、`noto-sans-jp-kanji.woff2` | 100–900 | 拉丁文字、假名、CJK 表意文字 | 3.6 MiB |
 | Intel One Mono | `intel-one-mono-latin.woff2`、`intel-one-mono-latin-ext.woff2`、`intel-one-mono-symbols.woff2` | 300–700 | 拉丁文字、标点、制表符 | 41 KiB |
 
-Anago Gothic 是 UDEV Gothic 改名后的 woff2 子集：SIL OFL 规定上游字体名仅限未修改版本使用，因此随包文件的名字表采用派生名，版权记录与 OFL 文本保持原样。它的 `unicode-range` 不包含拉丁文字，因此正文中的拉丁字符落到 Noto Sans JP，代码中的拉丁字符落到 Intel One Mono；代码字体栈在上游的中文优先项之前列出了两个日文字体，代码片段因此不会回退到中文字形。用户在设置中保存的字体列表仍然排在最前，因为 `base.css` 在 `body` 上把该列表组合在被覆盖的默认值之前。
+UDEV Gothic 是未经修改的上游字体，仅从 TTF 转换为 WOFF2，名字表与字形保持不变，因此随包字体族与指定字体一致。它的 `unicode-range` 不包含拉丁文字，因此正文中的拉丁字符落到 Noto Sans JP，代码中的拉丁字符落到 Intel One Mono；代码字体栈在上游的中文优先项之前列出了两个日文字体，代码片段因此不会回退到中文字形。用户在设置中保存的字体列表仍然排在最前，因为 `base.css` 在 `body` 上把该列表组合在被覆盖的默认值之前。
 
 -----
 
@@ -57,7 +57,7 @@ Node 半是空的 `apply`，仅让本包持有一个 Loader 行，使客户端�
 
 Token 覆盖使用 `:root:root`，因此无需依赖样式表顺序即可胜过 ui-theme 的 `:root` 默认值。样式表还在 `body` 与 `#root` 上设置 `font-family: var(--dsw-font-family)`，未声明字体族的组件因此继承正文栈；代码块保留 `--ds-font-family-code`，它解析到被覆盖的代码默认值。
 
-字体的来源、字形数量、字宽与文件哈希记录在 `src/fonts/fonts.json`；许可证与文件同目录，为 `UDEV-Gothic-OFL.txt`、`Noto-Sans-JP-OFL.txt` 与 `Intel-One-Mono-OFL.txt`。子集用 `pyftsubset --flavor=woff2` 切出，因此随包文件是上游字体的修改版本。UDEV Gothic 的子集以 `Anago Gothic` 名义随包，这一派生名满足保留字体名条款；其名字表与 CSS 字体族一致，上游版权记录保留在字体中。
+字体的来源、字形数量、字宽与文件哈希记录在 `src/fonts/fonts.json`；许可证与文件同目录，为 `UDEV-Gothic-OFL.txt`、`Noto-Sans-JP-OFL.txt` 与 `Intel-One-Mono-OFL.txt`。Noto Sans JP 用 `pyftsubset --flavor=woff2` 按范围切分，Intel One Mono 原样随包。UDEV Gothic 保留上游名称与字形，仅容器由 TTF 变为 WOFF2，浏览器中的应用范围由 CSS `unicode-range` 限定。
 
 </details>
 
@@ -95,7 +95,7 @@ Token 覆盖使用 `:root:root`，因此无需依赖样式表顺序即可胜过 
 <a id="known-limitations-and-deferred-work"></a>
 
 - 客户端包把每个字体以 base64 内联，因此 5.0 MiB 的 woff2 会让 `client.js` 增长到约 6.7 MiB；如果 Host 提供字体路由，浏览器就能按范围按需获取。
-- Anago Gothic 只随附 400 字重，因此加粗的日文渲染为合成粗体；Noto Sans JP 仅在它未覆盖的字符上提供真实字重。
+- UDEV Gothic 只随附 400 字重，因此加粗的日文渲染为合成粗体；Noto Sans JP 仅在它未覆盖的字符上提供真实字重。
 - 本包仅属于本 fork，不发布到 npm。
 
 <a id="dev-note"></a>
@@ -106,7 +106,7 @@ Token 覆盖使用 `:root:root`，因此无需依赖样式表顺序即可胜过 
 
 上游来源：GitHub release 中的 UDEV Gothic v2.2.0 `UDEVGothic-Regular.ttf`、`notofonts/noto-cjk` 的 Noto Sans JP 变量字体 `NotoSansJP-VF.ttf`，以及 `@fontsource-variable/intel-one-mono` 5.3.0 tarball 中的 Intel One Mono 变量 woff2 文件。UDEV 与 Noto 的文件按范围切分子集：假名与全角形式、CJK 表意文字，以及仅 Noto 包含的拉丁文字。Intel One Mono 原样随包。
 
-重新生成时，用 fontTools 的 `pyftsubset` 配合记录范围内的 `--unicodes`、`--flavor=woff2` 与 `--drop-tables+=DSIG`，再把 UDEV 子集的名字记录改写为 `Anago Gothic`（`fontTools.ttLib`：nameID 1、3、4、5、6），然后重新记录 `src/fonts/fonts.json` 中的字节数、哈希与字宽。测试会重算每个哈希，因此改动字体却不更新度量会导致测试失败。
+重新生成时，用 fontTools 的 `pyftsubset` 配合记录范围内的 `--unicodes`、`--flavor=woff2` 与 `--drop-tables+=DSIG`，UDEV Gothic 则直接载入上游 TTF，设置 `flavor = 'woff2'` 后保存，不改动名字表；然后重新记录 `src/fonts/fonts.json` 中的字节数、哈希与字宽。测试会重算每个哈希，因此改动字体却不更新度量会导致测试失败。
 
 测试刻意保持为文件级静态检查：它们读取样式表、许可证、清单与字体二进制，而不导入浏览器半，因此无需浏览器即可运行。`全角` 检查断言终端字体把全角字形的步进恰好推进为半角字形步进的两倍，这正是 xterm 测量的单元格比例。
 

@@ -140,16 +140,16 @@ export function tokenize(text: string): string[] {
     }
   }
   const flushRun = (): void => {
-    if (run.length === 1) terms.push(run[0] ?? '')
+    if (run.length === 1) terms.push(run[0] as string)
     else {
       for (let index = 0; index + 1 < run.length; index += 1) {
-        terms.push(`${run[index] ?? ''}${run[index + 1] ?? ''}`)
+        terms.push(`${run[index] as string}${run[index + 1] as string}`)
       }
     }
     run = []
   }
   for (const character of normalized) {
-    const codePoint = character.codePointAt(0) ?? 0
+    const codePoint = character.codePointAt(0) as number
     if (isAsciiAlnum(codePoint)) {
       flushRun()
       word += character
@@ -201,20 +201,18 @@ export function frontmatterList(frontmatter: string | null, key: string): string
       const match = pattern.exec(line)
       if (match === null) continue
       collecting = true
-      const inline = (match[1] ?? '').trim()
+      const inline = (match[1] as string).trim()
       const body = inline.startsWith('[') && inline.endsWith(']') ? inline.slice(1, -1) : inline
       for (const raw of body.split(',')) {
-        const item = unquote(raw.trim())
-        if (item !== '') items.push(item)
+        items.push(unquote(raw.trim()))
       }
       continue
     }
     const item = /^[ \t]*-[ \t]*(.*)$/u.exec(line)
     if (item === null) break
-    const value = unquote((item[1] ?? '').trim())
-    if (value !== '') items.push(value)
+    items.push(unquote((item[1] as string).trim()))
   }
-  return items
+  return items.filter(item => item !== '')
 }
 
 /** Remove one layer of matching quotes from a frontmatter scalar. */
@@ -472,16 +470,21 @@ interface PageScan {
   readonly skipped: number
 }
 
+/** Compare two strings in code-unit order, the ordering `sort` expects. */
+function compareStrings(left: string, right: string): number {
+  return Number(left > right) - Number(left < right)
+}
+
 /** Newest first, then by slug, so a truncated index keeps the newest pages. */
 function byNewestFirst(left: PageFile, right: PageFile): number {
   if (left.mtimeMs !== right.mtimeMs) return right.mtimeMs - left.mtimeMs
-  return left.slug < right.slug ? -1 : left.slug > right.slug ? 1 : 0
+  return compareStrings(left.slug, right.slug)
 }
 
 /** The reverse ordering, for eviction and for `/wiki reindex`'s report. */
 function byOldestFirst(left: IndexedPage, right: IndexedPage): number {
   if (left.mtimeMs !== right.mtimeMs) return left.mtimeMs - right.mtimeMs
-  return left.slug < right.slug ? -1 : left.slug > right.slug ? 1 : 0
+  return compareStrings(left.slug, right.slug)
 }
 
 /**
@@ -531,9 +534,7 @@ async function scanPages(
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { files: [], skipped: 0 }
     throw error
   }
-  const names = [...listed].sort((left, right) =>
-    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
-  )
+  const names = [...listed].sort((left, right) => compareStrings(left.name, right.name))
   const files: PageFile[] = []
   let skipped = 0
   for (const entry of names) {
@@ -619,7 +620,7 @@ function removePage(index: MutableIndex, slug: string): void {
   if (page === undefined) return
   index.pages.delete(slug)
   for (const term of page.terms.keys()) {
-    const remaining = (index.documentFrequency.get(term) ?? 0) - 1
+    const remaining = (index.documentFrequency.get(term) as number) - 1
     if (remaining <= 0) index.documentFrequency.delete(term)
     else index.documentFrequency.set(term, remaining)
   }
@@ -946,7 +947,7 @@ export function searchIndex(index: WikiIndex, request: SearchRequest): IndexHit[
   }
   hits.sort((left, right) => {
     if (left.score !== right.score) return right.score - left.score
-    return left.page.slug < right.page.slug ? -1 : left.page.slug > right.page.slug ? 1 : 0
+    return compareStrings(left.page.slug, right.page.slug)
   })
   return hits.slice(0, limit)
 }
@@ -989,7 +990,7 @@ function lowerBound(values: readonly number[], value: number): number {
   let high = Math.max(0, values.length - 1)
   while (low < high) {
     const middle = (low + high) >> 1
-    if ((values[middle] ?? 0) < value) low = middle + 1
+    if ((values[middle] as number) < value) low = middle + 1
     else high = middle
   }
   return low
@@ -1068,7 +1069,7 @@ export function buildSnippet(body: string, terms: readonly string[]): string {
       bestEnd = end
     }
   }
-  return body.slice(view.cpSource[bestStart] ?? 0, view.cpSource[bestEnd] ?? body.length).trim()
+  return body.slice(view.cpSource[bestStart], view.cpSource[bestEnd]).trim()
 }
 
 /** One hit as the tool would return it before §9 scanning. */

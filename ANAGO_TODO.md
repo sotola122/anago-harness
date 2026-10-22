@@ -54,7 +54,7 @@
 
 ### 6. 日本語フォント — 完了
 
-- `@anago-harness/client-ui-fonts-anago` を追加。Anago Gothic（UDEV Gothic の OFL サブセットを RFN 回避のため改名）、Noto Sans JP（latin/kana/kanji の 3 分割 woff2）、Intel One Mono（latin/latin-ext/symbols）。合計 5.02 MiB、OFL 同梱。
+- `@anago-harness/client-ui-fonts-anago` を追加。UDEV Gothic（**無改変**の上流フォントを TTF→WOFF2 変換のみ。CSS の `unicode-range` でかな・漢字に限定）、Noto Sans JP（latin/kana/kanji の 3 分割 woff2）、Intel One Mono（latin/latin-ext/symbols）。合計 5.02 MiB、OFL 同梱。
 - CSS は `?inline` + effect で `<style>` を注入し、`:root:root` で text / code のフォント変数を上書き。コードスタックにも日本語フォントを先行。
 - 検証: 18 テスト（全角 = 2 × 半角の実測を含む）、lint 0、tsc 成功。
 

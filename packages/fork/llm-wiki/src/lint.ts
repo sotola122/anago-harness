@@ -36,6 +36,7 @@
 import { lstat, readFile, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { digestMatches, isDigestLike } from '@anago-harness/knowledge-common'
+import { describeError } from './errors.ts'
 import {
   frontmatterValue,
   indexPath,
@@ -309,7 +310,7 @@ async function collectPages(target: LintTarget, issues: LintIssue[]): Promise<Pa
         scope: target.scope,
         kind: 'unreadable',
         path: display,
-        detail: `the page could not be read (${error instanceof Error ? error.message : String(error)})`,
+        detail: `the page could not be read (${describeError(error)})`,
       })
     }
   }
@@ -457,7 +458,7 @@ function checkIndex(
       scope: target.scope,
       kind: 'index-stale',
       path: display,
-      detail: `line ${String(lines[0] ?? 0)} lists [[${slug}]], but ${pagesDir}/${slug}${WIKI_FILE_EXTENSION} does not exist`,
+      detail: `line ${String(lines[0])} lists [[${slug}]], but ${pagesDir}/${slug}${WIKI_FILE_EXTENSION} does not exist`,
     })
   }
   for (const page of pages) {
@@ -512,7 +513,7 @@ async function checkRaw(target: LintTarget, issues: LintIssue[]): Promise<void> 
         scope: target.scope,
         kind: 'unreadable',
         path: display,
-        detail: `the source could not be read (${error instanceof Error ? error.message : String(error)})`,
+        detail: `the source could not be read (${describeError(error)})`,
       })
       continue
     }

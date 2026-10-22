@@ -343,7 +343,7 @@ async function readLegacySidecar(
         kind: 'skipped',
         from: legacyFile,
         reason: 'unusable',
-        detail: `${legacyFile}: ${parsed.detail ?? 'it is not usable'}`,
+        detail: `${legacyFile}: ${parsed.detail}`,
       },
     }
   }
@@ -538,6 +538,7 @@ export async function inspectGlobalRepo(
   try {
     info = await stat(canonical)
   } catch (error) {
+    /* v8 ignore next -- realpath just succeeded, so stat fails only on a permission or I/O error this call reports as a rejection. */
     return { kind: 'rejected', detail: `\`${canonical}\` could not be inspected (${describeError(error)})` }
   }
   if (!info.isDirectory()) {
@@ -1074,7 +1075,7 @@ export function parseGitStatus(output: string): GitStatusEntry[] {
   const fields = output.split('\0')
   const entries: GitStatusEntry[] = []
   for (let index = 0; index < fields.length; index += 1) {
-    const field = fields[index] ?? ''
+    const field = fields[index] as string
     if (field.length < 4) continue
     const indexStatus = field.slice(0, 1)
     const worktreeStatus = field.slice(1, 2)

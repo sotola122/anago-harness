@@ -4,7 +4,7 @@
  * `src/styles/fonts.css` can name the bytes without a URL the bundle cannot
  * serve. Keys are the placeholders that stylesheet carries.
  */
-import anagoGothic from '../fonts/anago-gothic-regular.woff2'
+import udevGothic from '../fonts/udev-gothic-regular.woff2'
 import intelOneMonoLatin from '../fonts/intel-one-mono-latin.woff2'
 import intelOneMonoLatinExt from '../fonts/intel-one-mono-latin-ext.woff2'
 import intelOneMonoSymbols from '../fonts/intel-one-mono-symbols.woff2'
@@ -14,7 +14,7 @@ import notoSansJpLatin from '../fonts/noto-sans-jp-latin.woff2'
 
 /** Placeholder → data URL, one entry per `@font-face` `src` in the stylesheet. */
 export const FONT_REPLACEMENTS: Readonly<Record<string, string>> = {
-  __DSH_FONT_ANAGO_GOTHIC__: anagoGothic,
+  __DSH_FONT_UDEV_GOTHIC__: udevGothic,
   __DSH_FONT_NOTO_SANS_JP_LATIN__: notoSansJpLatin,
   __DSH_FONT_NOTO_SANS_JP_KANA__: notoSansJpKana,
   __DSH_FONT_NOTO_SANS_JP_KANJI__: notoSansJpKanji,

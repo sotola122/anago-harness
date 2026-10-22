@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { projectableSessionEvent, subscribeAgentEvents, type AgentEventSink } from '../src/host/events.ts'
+import type { ProjectableTranscriptEvent } from '../src/projection/blocks.ts'
 
 /** The Agent identity the subscriptions filter by. */
 const AGENT = { id: 'agent-1', session: { id: SessionId('session-1') } }
@@ -21,18 +22,18 @@ const PROJECTABLE = [
  * @returns the sink and its spies.
  */
 function sink(): AgentEventSink & {
-  event: ReturnType<typeof vi.fn>
-  delta: ReturnType<typeof vi.fn>
-  reasoning: ReturnType<typeof vi.fn>
-  status: ReturnType<typeof vi.fn>
-  error: ReturnType<typeof vi.fn>
+  event: Mock<(event: ProjectableTranscriptEvent) => void>
+  delta: Mock<(text: string) => void>
+  reasoning: Mock<(text: string) => void>
+  status: Mock<(status: 'idle' | 'running') => void>
+  error: Mock<(error: unknown) => void>
 } {
   return {
-    event: vi.fn(),
-    delta: vi.fn(),
-    reasoning: vi.fn(),
-    status: vi.fn(),
-    error: vi.fn(),
+    event: vi.fn<(event: ProjectableTranscriptEvent) => void>(),
+    delta: vi.fn<(text: string) => void>(),
+    reasoning: vi.fn<(text: string) => void>(),
+    status: vi.fn<(status: 'idle' | 'running') => void>(),
+    error: vi.fn<(error: unknown) => void>(),
   }
 }
 

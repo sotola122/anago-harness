@@ -455,7 +455,7 @@ async function runPending(agent: MemoryAgent, deps: MemoryCommandDeps): Promise<
 /** Render one approval/rejection outcome. */
 function renderOutcome(verb: 'approved' | 'rejected', outcome: PendingOutcome): string {
   if (outcome.ok) return `${verb} ${outcome.id} (${outcome.target})`
-  return `${outcome.dropped === true ? 'dropped' : 'kept'} ${outcome.id} (${outcome.target}): ${outcome.message ?? outcome.code ?? 'failed'}`
+  return `${outcome.dropped === true ? 'dropped' : 'kept'} ${outcome.id} (${outcome.target}): ${outcome.message}`
 }
 
 /** `/memory approve` and `/memory reject` (DESIGN §4.5, §4.6). */
@@ -556,7 +556,7 @@ async function runGitignore(
     return {
       kind: 'error',
       text: [
-        `gitignore takes no argument, and there is no \`gitignore ${args[0] ?? ''}\` (sixth revision): the managed block is maintained rather than removed.`,
+        `gitignore takes no argument, and there is no \`gitignore ${args[0]}\` (sixth revision): the managed block is maintained rather than removed.`,
         'Stop the block with `workspace.manageGitignore: false`, or stop using the workspace store with `workspace.enabled: false`; to drop an existing block, edit .gitignore by hand.',
       ].join('\n'),
     }

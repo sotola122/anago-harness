@@ -312,9 +312,8 @@ export async function syncGitignoreBlock(
         edited: false,
         created: false,
         lines: [],
-        skipped: ignored
-          ? 'another rule already ignores the store and this plugin has no block here, so nothing was written'
-          : 'the block already matches the expected lines',
+        skipped:
+          'another rule already ignores the store and this plugin has no block here, so nothing was written',
       }
     }
     const lines = await gitignoreLinesFor(store, options.run, options.signal)

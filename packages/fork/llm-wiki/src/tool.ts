@@ -154,6 +154,15 @@ export async function collectPageSlugs(
   }
 }
 
+/** The global wiki's page slugs, or an empty set when there is no global wiki. */
+async function globalPageSlugs(
+  root: string | undefined,
+  logger: WikiToolDeps['logger'],
+  pagesDir: string,
+): Promise<ReadonlySet<string>> {
+  return root === undefined ? new Set<string>() : await collectPageSlugs(root, logger, pagesDir)
+}
+
 /**
  * Run one lint (DESIGN §6.6).
  *
@@ -182,12 +191,8 @@ export async function runWikiLint(run: {
   const globalView = await run.global.forAgent(run.agent)
   const globalRoot = globalView.kind === 'found' ? globalView.repo.repoRoot : undefined
   const globalPagesDir = run.global.pagesDir
-  const globalWhy = globalView.kind === 'found' ? undefined : globalDisabledReason(globalView)
-  const globalSlugs =
-    globalRoot === undefined
-      ? undefined
-      : await collectPageSlugs(globalRoot, logger, globalPagesDir)
-  if (scope === 'project' || scope === 'all') {
+  const globalSlugs = await globalPageSlugs(globalRoot, logger, globalPagesDir)
+  if (scope !== 'global') {
     const inspection = await inspectWiki({
       cwd,
       ...(run.signal === undefined ? {} : { signal: run.signal }),
@@ -204,7 +209,7 @@ export async function runWikiLint(run: {
         { scope: 'project', wikiRoot: inspection.root.wikiRoot, displayPrefix: `${WIKI_DIRECTORY}/` },
         {
           checks,
-          ...(globalSlugs === undefined ? {} : { globalSlugs }),
+          globalSlugs,
           globalPagesDir,
           globalEnabled: globalRoot !== undefined,
         },
@@ -222,30 +227,31 @@ export async function runWikiLint(run: {
     }
   }
   if (scope === 'global' || scope === 'all') {
-    if (globalRoot === undefined) {
-      const why = globalWhy ?? 'the global wiki is unavailable'
-      if (scope === 'global') return { issues: [], summary: `wiki_lint (${scope}): ${why}` }
-      notes.push(why)
-    } else {
+    if (globalView.kind === 'found') {
+      const root = globalView.repo.repoRoot
       const result = await lintWiki(
         {
           scope: 'global',
-          wikiRoot: globalRoot,
+          wikiRoot: root,
           displayPrefix: '',
           pagesDir: globalPagesDir,
-          summaryLabel: `global wiki (${globalRoot})`,
+          summaryLabel: `global wiki (${root})`,
         },
         {
           checks,
-          ...(globalSlugs === undefined ? {} : { globalSlugs }),
+          globalSlugs,
           globalPagesDir,
           globalEnabled: true,
         },
       )
       issues.push(...result.issues)
       sections.push(result.summary)
-      const index = run.search?.state(globalRoot)
+      const index = run.search?.state(root)
       if (index?.truncated === true) sections.push(describeTruncation(index))
+    } else {
+      const why = globalDisabledReason(globalView)
+      if (scope === 'global') return { issues: [], summary: `wiki_lint (${scope}): ${why}` }
+      notes.push(why)
     }
   }
   const cut = issues.slice(0, MAX_LINT_ISSUES)
@@ -279,7 +285,7 @@ export async function executeWikiLint(
   const cwd = agent === undefined ? undefined : cwdOf(agent)
   const checks = normalizeChecks(args.checks, deps.checks)
   const scope: LintScope = args.scope ?? 'project'
-  if (cwd === undefined) {
+  if (agent === undefined || cwd === undefined) {
     return {
       issues: [],
       summary: `wiki_lint (${scope}): the session recorded no working directory, so there is no wiki to check`,
@@ -292,7 +298,7 @@ export async function executeWikiLint(
     logger: deps.logger,
     global: deps.global,
     ...(deps.search === undefined ? {} : { search: deps.search }),
-    ...(agent === undefined ? {} : { agent }),
+    agent,
     signal: exec.signal,
   })
 }

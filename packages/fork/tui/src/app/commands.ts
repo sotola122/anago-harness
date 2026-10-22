@@ -55,8 +55,7 @@ export function parseSlashInput(text: string): ParsedSlashCommand | undefined {
   const trimmed = text.trimStart()
   const match = /^\/([a-z][a-z0-9_-]*)(?=$|[\t\n\r ])/u.exec(trimmed)
   if (match === null) return undefined
-  const name = match[1]
-  if (name === undefined) return undefined
+  const name = match[1] as string
   return { name, args: trimmed.slice(match[0].length).trim() }
 }
 

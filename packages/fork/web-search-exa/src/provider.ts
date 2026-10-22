@@ -129,12 +129,12 @@ function credentialMissing(apiKeyEnv: string): WebError {
 }
 
 /**
- * Build the cancellation error, retaining the caller's reason.
- * @param signal - the caller's signal, when it was passed and aborted.
+ * Build the cancellation error, retaining the caller's reason. Only the
+ * provider's abort checks call this, and each one runs after `aborted` is true.
+ * @param signal - the caller's aborted signal.
  * @returns the mapped error.
  */
-function aborted(signal?: AbortSignal): WebError {
-  if (signal === undefined || !signal.aborted) return new WebError('Exa search aborted', 'WEB_ABORTED')
+function aborted(signal: AbortSignal): WebError {
   return new WebError('Exa search aborted', 'WEB_ABORTED', { cause: signal.reason })
 }
 

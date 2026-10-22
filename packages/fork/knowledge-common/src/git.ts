@@ -95,10 +95,9 @@ export async function resolveGitRoots(
   let root = checkoutRoot
   if (common.code === 0) {
     const commonDir = common.stdout.trim().replace(/[/\\]+$/u, '')
-    if (commonDir.endsWith('.git')) {
-      const parent = path.dirname(commonDir)
-      if (parent !== '' && parent !== commonDir) root = parent
-    }
+    // `--path-format=absolute` makes this an absolute directory, so its parent
+    // exists and is distinct from it whenever the answer ends in `.git`.
+    if (commonDir.endsWith('.git')) root = path.dirname(commonDir)
   }
   const resolvedCheckout = path.resolve(checkoutRoot)
   const resolvedRoot = path.resolve(root)

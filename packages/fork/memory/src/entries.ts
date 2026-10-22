@@ -42,6 +42,12 @@ export interface MemoryOperation {
   readonly old_text?: string
 }
 
+/** A {@link MemoryOperation} with the fields {@link assertOperationShape} proved present for its `op`. */
+type ValidOperation =
+  | (MemoryOperation & { readonly op: 'add'; readonly text: string })
+  | (MemoryOperation & { readonly op: 'patch'; readonly text: string; readonly old_text: string })
+  | (MemoryOperation & { readonly op: 'remove'; readonly old_text: string })
+
 /** One entry the non-ASCII advisory wants reviewed (DESIGN §4.1, N6). */
 export interface ReviewSuggestion {
   /** 1-based position in the resulting store, matching `/memory show`. */
@@ -66,7 +72,7 @@ export interface ApplyResult {
 
 /** Render one finding for a refusal message. */
 function describeFinding(finding: ScanFinding): string {
-  return finding.detail === '' ? finding.rule : `${finding.rule}: ${finding.detail}`
+  return `${finding.rule}: ${finding.detail}`
 }
 
 /**
@@ -120,7 +126,7 @@ function locateUnique(
 }
 
 /** Validate one operation's shape before anything is scanned or changed. */
-function assertOperationShape(operation: MemoryOperation, position: number): void {
+function assertOperationShape(operation: MemoryOperation, position: number): asserts operation is ValidOperation {
   const at = `operations[${String(position)}]`
   // The list is model-supplied JSON: its element type is an assertion until this
   // function accepts it, so the discriminator is read as unvalidated input.
@@ -197,7 +203,7 @@ export function applyOperations(
   for (const [position, operation] of operations.entries()) {
     assertOperationShape(operation, position)
     if (operation.op === 'add') {
-      const text = scanEntry(operation.text ?? '', redacted)
+      const text = scanEntry(operation.text, redacted)
       if (isDuplicateEntry(next, text)) {
         throw memoryError(
           'MEMORY_DUPLICATE',
@@ -208,7 +214,7 @@ export function applyOperations(
       applied.push(text)
       continue
     }
-    const oldText = operation.old_text ?? ''
+    const oldText = operation.old_text
     const { index, count, entry } = locateUnique(next, oldText)
     if (count === 0) {
       throw memoryError(
@@ -228,7 +234,7 @@ export function applyOperations(
       next.splice(index, 1)
       continue
     }
-    const replacement = scanEntry(entry.replace(oldText, operation.text ?? ''), redacted)
+    const replacement = scanEntry(entry.replace(oldText, operation.text), redacted)
     applied.push(replacement)
     next[index] = replacement
   }

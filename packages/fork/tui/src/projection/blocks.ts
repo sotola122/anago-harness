@@ -284,11 +284,12 @@ export function applyTranscriptEvent(state: TranscriptState, event: ProjectableT
       const callId = event.data.message.source.callId
       const text = contentText(event.data.message.content)
       const failed = event.data.error !== undefined || event.data.message.isError === true
-      const index = findLastIndex(state.blocks, block => block.kind === 'tool' && block.id === `tool-${callId}`)
-      if (index === -1) return { ...state, lastSeq: seq }
+      const existing = state.blocks.findLast(
+        (block): block is ToolBlock => block.kind === 'tool' && block.id === `tool-${callId}`,
+      )
+      if (existing === undefined) return { ...state, lastSeq: seq }
       const blocks = [...state.blocks]
-      const existing = state.blocks[index]
-      if (existing?.kind !== 'tool') return { ...state, lastSeq: seq }
+      const index = state.blocks.lastIndexOf(existing)
       const summary = summarizeToolResult({
         name: existing.name,
         text,
@@ -392,10 +393,9 @@ export function isExpandable(block: DisplayBlock): block is ExpandableBlock {
  * @returns the next state, or the same state when nothing is expandable.
  */
 export function toggleLastExpandable(state: TranscriptState): TranscriptState {
-  const index = findLastIndex(state.blocks, isExpandable)
-  if (index === -1) return state
-  const block = state.blocks[index]
-  if (block === undefined || !isExpandable(block)) return state
+  const block = state.blocks.findLast(isExpandable)
+  if (block === undefined) return state
+  const index = state.blocks.lastIndexOf(block)
   const blocks = [...state.blocks]
   blocks[index] = { ...block, expanded: !block.expanded }
   return { ...state, blocks }
@@ -435,18 +435,4 @@ export function addNoticeBlock(state: TranscriptState, text: string): Transcript
  */
 export function setTranscriptStatus(state: TranscriptState, status: 'idle' | 'running'): TranscriptState {
   return state.status === status ? state : { ...state, status }
-}
-
-/**
- * Find the last index matching a predicate.
- * @param values - values to scan.
- * @param predicate - match test.
- * @returns the last matching index, or -1.
- */
-function findLastIndex<T>(values: readonly T[], predicate: (value: T) => boolean): number {
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    const value = values[index]
-    if (value !== undefined && predicate(value)) return index
-  }
-  return -1
 }

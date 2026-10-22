@@ -134,8 +134,7 @@ export class PickerDialog implements Component {
       if (start > 0) content.push(this.theme.dim(`  … ${String(start)} more`))
       let group: string | undefined
       for (let position = start; position < end; position += 1) {
-        const item = visible[position]
-        if (item === undefined) continue
+        const item = visible[position] as PickerItem
         if (item.group !== undefined && item.group !== group) {
           group = item.group
           content.push(this.theme.dim(item.group))

@@ -133,12 +133,14 @@ export async function injectNotice(
 
 /** Count the pages for the notice, containing every failure to a zero. */
 async function countPagesSafely(wikiRoot: string, logger: WikiLogger): Promise<number> {
+  let pages = 0
   try {
-    return await countPages(wikiRoot)
+    pages = await countPages(wikiRoot)
   } catch (error) {
+    /* v8 ignore next -- `countPages` fails only when the page directory cannot be listed, and the count is advisory. */
     logger.debug('dsh-llm-wiki: the page count of %s failed (%s)', wikiRoot, describeError(error))
-    return 0
   }
+  return pages
 }
 
 /**

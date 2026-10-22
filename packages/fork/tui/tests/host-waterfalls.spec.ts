@@ -19,7 +19,7 @@ describe('approval waterfall answerer', () => {
     const ctx = new Context()
     const askApproval = vi.fn()
     registerApprovalWaterfall(ctx, () => null, () => ({ askApproval }))
-    const next = vi.fn(() => 'unavailable' as const)
+    const next = vi.fn(async () => 'unavailable' as const)
 
     await expect(Promise.resolve(ctx.waterfall('approval/request', APPROVAL, next))).resolves.toBe('unavailable')
 
@@ -36,7 +36,7 @@ describe('approval waterfall answerer', () => {
       () => AGENT as never,
       () => ({ askApproval }),
     )
-    const next = vi.fn(() => 'unavailable' as const)
+    const next = vi.fn(async () => 'unavailable' as const)
 
     await expect(Promise.resolve(ctx.waterfall(
       'approval/request',
@@ -52,7 +52,7 @@ describe('approval waterfall answerer', () => {
   it('delegates until the renderer has started', async () => {
     const ctx = new Context()
     registerApprovalWaterfall(ctx, () => AGENT as never, () => null)
-    const next = vi.fn(() => 'unavailable' as const)
+    const next = vi.fn(async () => 'unavailable' as const)
 
     await expect(Promise.resolve(ctx.waterfall('approval/request', APPROVAL, next))).resolves.toBe('unavailable')
 
@@ -64,7 +64,7 @@ describe('approval waterfall answerer', () => {
     const ctx = new Context()
     const askApproval = vi.fn(async () => 'allowed-once' as const)
     registerApprovalWaterfall(ctx, () => AGENT as never, () => ({ askApproval }))
-    const next = vi.fn(() => 'unavailable' as const)
+    const next = vi.fn(async () => 'unavailable' as const)
 
     await expect(Promise.resolve(ctx.waterfall('approval/request', APPROVAL, next))).resolves.toBe('allowed-once')
 
@@ -79,9 +79,9 @@ describe('user-questions waterfall answerer', () => {
     const ctx = new Context()
     const askQuestions = vi.fn()
     registerQuestionsWaterfall(ctx, () => null, () => ({ askQuestions }))
-    const next = vi.fn(() => null)
+    const next = vi.fn(async () => ({ answers: [] }))
 
-    await expect(Promise.resolve(ctx.waterfall('user-questions/request', QUESTIONS, next))).resolves.toBeNull()
+    await expect(Promise.resolve(ctx.waterfall('user-questions/request', QUESTIONS, next))).resolves.toEqual({ answers: [] })
 
     expect(next).toHaveBeenCalledTimes(1)
     expect(askQuestions).not.toHaveBeenCalled()
@@ -92,13 +92,13 @@ describe('user-questions waterfall answerer', () => {
     const ctx = new Context()
     const askQuestions = vi.fn()
     registerQuestionsWaterfall(ctx, () => AGENT as never, () => ({ askQuestions }))
-    const next = vi.fn(() => null)
+    const next = vi.fn(async () => ({ answers: [] }))
 
     await expect(Promise.resolve(ctx.waterfall(
       'user-questions/request',
       { agent: { id: 'agent-2' }, questions: [] } as never,
       next,
-    ))).resolves.toBeNull()
+    ))).resolves.toEqual({ answers: [] })
 
     expect(next).toHaveBeenCalledTimes(1)
     expect(askQuestions).not.toHaveBeenCalled()
@@ -110,7 +110,7 @@ describe('user-questions waterfall answerer', () => {
     const answer = { answers: [{ id: 'q1', selected: ['Yes'] }] }
     const askQuestions = vi.fn(async () => answer)
     registerQuestionsWaterfall(ctx, () => AGENT as never, () => ({ askQuestions }))
-    const next = vi.fn(() => null)
+    const next = vi.fn(async () => ({ answers: [] }))
     const request = { questions: [{ id: 'q1', question: 'Continue?' }] } as never
 
     await expect(Promise.resolve(ctx.waterfall('user-questions/request', request, next))).resolves.toBe(answer)
@@ -123,9 +123,9 @@ describe('user-questions waterfall answerer', () => {
   it('delegates while the renderer has not started', async () => {
     const ctx = new Context()
     registerQuestionsWaterfall(ctx, () => AGENT as never, () => null)
-    const next = vi.fn(() => null)
+    const next = vi.fn(async () => ({ answers: [] }))
 
-    await expect(Promise.resolve(ctx.waterfall('user-questions/request', QUESTIONS, next))).resolves.toBeNull()
+    await expect(Promise.resolve(ctx.waterfall('user-questions/request', QUESTIONS, next))).resolves.toEqual({ answers: [] })
 
     expect(next).toHaveBeenCalledTimes(1)
     await ctx.fiber.dispose()
@@ -135,9 +135,9 @@ describe('user-questions waterfall answerer', () => {
     const ctx = new Context()
     const askQuestions = vi.fn(async () => null)
     registerQuestionsWaterfall(ctx, () => AGENT as never, () => ({ askQuestions }))
-    const next = vi.fn(() => null)
+    const next = vi.fn(async () => ({ answers: [] }))
 
-    await expect(Promise.resolve(ctx.waterfall('user-questions/request', QUESTIONS, next))).resolves.toBeNull()
+    await expect(Promise.resolve(ctx.waterfall('user-questions/request', QUESTIONS, next))).resolves.toEqual({ answers: [] })
 
     expect(askQuestions).toHaveBeenCalledTimes(1)
     expect(next).toHaveBeenCalledTimes(1)

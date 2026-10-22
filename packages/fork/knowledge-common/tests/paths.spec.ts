@@ -37,6 +37,18 @@ describe('isPathWithin', () => {
     expect(isPathWithin('/', '/anywhere/at/all.md')).toBe(true)
     expect(isPathWithin('/', '/')).toBe(true)
   })
+
+  it('compares case-insensitively on Windows, where the filesystem is', () => {
+    const original = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
+    try {
+      expect(isPathWithin('/Repo', '/repo/pages/a.md')).toBe(true)
+      expect(isPathWithin('/Repo', '/other')).toBe(false)
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(process, 'platform')
+      else Object.defineProperty(process, 'platform', original)
+    }
+  })
 })
 
 describe('canonicalizeTargetPath', () => {

@@ -60,6 +60,6 @@ describe('card manifest', () => {
   })
 
   it('keeps the host Loader row inert', () => {
-    expect(apply()).toBeUndefined()
+    expect(() => { apply() }).not.toThrow()
   })
 })

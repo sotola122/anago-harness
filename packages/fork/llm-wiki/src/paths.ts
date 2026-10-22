@@ -289,7 +289,7 @@ function maskFencedCode(text: string): string {
   const lines = text.split('\n')
   let fence: { readonly character: string; readonly length: number } | null = null
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? ''
+    const line = lines[index] as string
     if (fence !== null) {
       const closing = FENCE_CLOSE.exec(line)
       const delimiter = closing?.[1] ?? ''
@@ -301,8 +301,8 @@ function maskFencedCode(text: string): string {
     }
     const opening = FENCE_OPEN.exec(line)
     if (opening === null) continue
-    const delimiter = opening[1] ?? ''
-    fence = { character: delimiter[0] ?? '`', length: delimiter.length }
+    const delimiter = opening[1] as string
+    fence = { character: delimiter[0] as string, length: delimiter.length }
     lines[index] = blankLine(line)
   }
   return lines.join('\n')
@@ -323,7 +323,7 @@ function maskInlineCode(text: string): string {
   const characters = text.split('')
   const blank = (from: number, to: number): void => {
     for (let index = from; index < to; index += 1) {
-      const character = characters[index] ?? ''
+      const character = characters[index] as string
       if (character !== '\n' && character !== '\r') characters[index] = ' '
     }
   }
@@ -398,7 +398,7 @@ export function parseWikiLinks(text: string): WikiLink[] {
   const links: WikiLink[] = []
   for (const match of maskCodeSpans(text).matchAll(WIKI_LINK)) {
     const raw = match[0]
-    const body = (match[1] ?? '').trim()
+    const body = (match[1] as string).trim()
     if (body === '') continue
     const hash = body.indexOf('#')
     const withoutAnchor = hash === -1 ? body : body.slice(0, hash)
@@ -442,7 +442,7 @@ export interface WikiDocument {
 export function splitFrontmatter(text: string): WikiDocument {
   const match = FRONTMATTER.exec(text)
   if (match === null) return { frontmatter: null, body: text }
-  return { frontmatter: match[1] ?? '', body: text.slice(match[0].length) }
+  return { frontmatter: match[1] as string, body: text.slice(match[0].length) }
 }
 
 /**
@@ -460,7 +460,7 @@ export function frontmatterValue(frontmatter: string | null, key: string): strin
   const pattern = new RegExp(`^[ \\t]*${key}[ \\t]*:[ \\t]*(.*)$`, 'mu')
   const match = pattern.exec(frontmatter)
   if (match === null) return null
-  const value = (match[1] ?? '').trim()
+  const value = (match[1] as string).trim()
   if (value === '') return null
   return value.replace(/^["'](.*)["']$/u, '$1').trim()
 }

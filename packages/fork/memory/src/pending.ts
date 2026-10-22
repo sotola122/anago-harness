@@ -589,17 +589,30 @@ export interface ApprovalTargets {
 }
 
 /** What happened to one requested pending operation. */
-export interface PendingOutcome {
+export type PendingOutcome = PendingApplied | PendingFailed
+
+/** A staged operation the caller applied (`approve`) or deleted (`reject`). */
+export interface PendingApplied {
   /** The pending id. */
   readonly id: string
   /** The store it addressed. */
   readonly target: MemoryTarget
   /** Whether it was applied (`approve`) or deleted (`reject`). */
-  readonly ok: boolean
-  /** The refusal code when it was not, starting with `MEMORY_`. */
-  readonly code?: string
-  /** The refusal message when it was not. */
-  readonly message?: string
+  readonly ok: true
+}
+
+/** A staged operation that could not be applied or deleted. */
+export interface PendingFailed {
+  /** The pending id. */
+  readonly id: string
+  /** The store it addressed. */
+  readonly target: MemoryTarget
+  /** Whether it was applied (`approve`) or deleted (`reject`). */
+  readonly ok: false
+  /** The refusal code, starting with `MEMORY_`. */
+  readonly code: string
+  /** The refusal message. */
+  readonly message: string
   /**
    * Whether the pending file was removed anyway: a content-level refusal
    * (`MEMORY_PENDING_STALE` and the rules approval re-checks) drops the record,

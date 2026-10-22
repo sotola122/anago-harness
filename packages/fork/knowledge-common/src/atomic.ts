@@ -163,8 +163,8 @@ export async function updateFileLocked<T>(
       { signal: deadline.signal, waitMs },
     )
   } catch (error) {
-    if (options.signal?.aborted === true) throw options.signal.reason ?? error
-    if (deadline.signal.aborted) throw deadline.signal.reason ?? error
+    if (options.signal?.aborted === true) throw options.signal.reason
+    if (deadline.signal.aborted) throw deadline.signal.reason
     if (isLockTimeoutMessage(error)) throw new FileLockTimeoutError(filename, waitMs)
     throw error
   } finally {

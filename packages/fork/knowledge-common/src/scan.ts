@@ -262,14 +262,14 @@ export function nonAsciiRatio(text: string): number {
   for (const character of stripCodeSpans(text)) {
     if (/\s/u.test(character)) continue
     total += 1
-    if ((character.codePointAt(0) ?? 0) > 0x7f) nonAscii += 1
+    if ((character.codePointAt(0) as number) > 0x7f) nonAscii += 1
   }
   return total === 0 ? 0 : nonAscii / total
 }
 
 /** Describe one code point for a finding. */
 function describeCharacter(character: string): string {
-  const code = character.codePointAt(0) ?? 0
+  const code = character.codePointAt(0) as number
   return `U+${code.toString(16).toUpperCase().padStart(4, '0')}`
 }
 
@@ -342,8 +342,8 @@ function applySecretRule(
   kinds: SecretKind[],
   kind: SecretKind,
   pattern: RegExp,
-  // `replace` hands a non-participating capture group to the callback as `undefined`.
-  rewrite: (match: string, ...groups: (string | undefined)[]) => string,
+  // Every pattern below is matched with all of its capture groups participating.
+  rewrite: (match: string, ...groups: string[]) => string,
 ): string {
   const next = text.replace(pattern, (match: string, ...groups: string[]) => rewrite(match, ...groups))
   if (next !== text && !kinds.includes(kind)) kinds.push(kind)
@@ -375,7 +375,7 @@ export function redactSecrets(text: string): { text: string; redacted: SecretKin
     kinds,
     'url-credential',
     URL_CREDENTIAL,
-    (_match, scheme) => `${scheme ?? ''}${redactionPlaceholder('url-credential')}@`,
+    (_match, scheme) => `${scheme}${redactionPlaceholder('url-credential')}@`,
   )
   out = applySecretRule(out, kinds, 'api-key', API_KEY, () => redactionPlaceholder('api-key'))
   out = applySecretRule(out, kinds, 'aws-key', AWS_KEY, () => redactionPlaceholder('aws-key'))
@@ -390,7 +390,7 @@ export function redactSecrets(text: string): { text: string; redacted: SecretKin
   )
   out = applySecretRule(out, kinds, 'jwt', JWT, () => redactionPlaceholder('jwt'))
   out = applySecretRule(out, kinds, 'env-secret', ENV_SECRET, (match, name, separator, value) =>
-    isAlreadyRedacted(value ?? '') ? match : `${name ?? ''}${separator ?? '='}${redactionPlaceholder('env-secret')}`,
+    isAlreadyRedacted(value) ? match : `${name}${separator}${redactionPlaceholder('env-secret')}`,
   )
   return { text: out, redacted: kinds }
 }
@@ -404,17 +404,20 @@ export function redactSecrets(text: string): { text: string; redacted: SecretKin
 export function scanText(text: string): ScanResult {
   const found = new Map<ScanRule, string>()
   const add = (rule: ScanRule, detail: string): void => {
-    if (!found.has(rule)) found.set(rule, detail)
+    found.set(rule, detail)
   }
   characterFindings(text, add)
   patternFindings(text, add)
-  const rules = RULE_ORDER.filter(rule => found.has(rule))
+  const findings = RULE_ORDER.flatMap((rule) => {
+    const detail = found.get(rule)
+    return detail === undefined ? [] : [{ rule, detail }]
+  })
   const { text: redactedText, redacted } = redactSecrets(text)
   const ratio = nonAsciiRatio(text)
   return {
-    ok: rules.length === 0,
-    findings: rules.map(rule => ({ rule, detail: found.get(rule) ?? '' })),
-    rules,
+    ok: findings.length === 0,
+    findings,
+    rules: findings.map(finding => finding.rule),
     text: redactedText,
     redacted,
     nonAsciiRatio: ratio,

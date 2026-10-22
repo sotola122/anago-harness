@@ -33,13 +33,13 @@ describe('Japanese font stylesheet', () => {
       expect(face).toMatch(/src: url\(__DSH_FONT_[A-Z0-9_]+__\) format\('woff2'\);/u)
       expect(face).toContain('unicode-range: ')
     }
-    expect(faceOf('Anago Gothic')).toHaveLength(1)
+    expect(faceOf('UDEV Gothic')).toHaveLength(1)
     expect(faceOf('Noto Sans JP')).toHaveLength(3)
     expect(faceOf('Intel One Mono')).toHaveLength(3)
   })
 
   it('keeps Latin out of the Japanese text face so it falls through', () => {
-    const [gothic] = faceOf('Anago Gothic')
+    const [gothic] = faceOf('UDEV Gothic')
     expect(gothic).toBeDefined()
     const range = /unicode-range: ([^;]+);/u.exec(gothic ?? '')?.[1] ?? ''
     expect(range).toContain('U+3040-309F')
@@ -52,13 +52,13 @@ describe('Japanese font stylesheet', () => {
   it('replaces the token defaults ahead of the upstream stacks', () => {
     expect(stylesheet).toContain(':root:root {')
     const textDefault = /--dsh-font-family-text-default: ([^;]+);/u.exec(stylesheet)?.[1] ?? ''
-    expect(textDefault).toBe("'Anago Gothic', 'Noto Sans JP', " + UPSTREAM_TEXT_STACK)
+    expect(textDefault).toBe("'UDEV Gothic', 'Noto Sans JP', " + UPSTREAM_TEXT_STACK)
     const codeDefault = /--dsh-font-family-code-default: ([^;]+);/u.exec(stylesheet)?.[1] ?? ''
-    expect(codeDefault).toBe("'Intel One Mono', 'Anago Gothic', 'Noto Sans JP', " + UPSTREAM_CODE_STACK)
+    expect(codeDefault).toBe("'Intel One Mono', 'UDEV Gothic', 'Noto Sans JP', " + UPSTREAM_CODE_STACK)
     // Japanese inside a code span must resolve to the shipped faces, never to the
     // upstream Chinese-first entries that follow them.
     const codeFamilies = codeDefault.split(',').map(family => family.trim())
-    expect(codeFamilies.indexOf("'Anago Gothic'")).toBeLessThan(codeFamilies.indexOf("'PingFang SC'"))
+    expect(codeFamilies.indexOf("'UDEV Gothic'")).toBeLessThan(codeFamilies.indexOf("'PingFang SC'"))
     expect(codeFamilies.indexOf("'Noto Sans JP'")).toBeLessThan(codeFamilies.indexOf("'Microsoft YaHei'"))
   })
 

@@ -32,7 +32,7 @@ vi.mock('../src/app/root.ts', async (importOriginal) => {
       screens.created.push(this)
     }
 
-    start(): void {
+    override start(): void {
       super.start()
       screens.started.push(this)
     }
@@ -468,7 +468,7 @@ describe('tui-app boot', () => {
     const row = boot({ selection: DEFAULT_SELECTION })
     await settle()
     const terminal = row.terminal()
-    const fallback = vi.fn(() => 'unavailable')
+    const fallback = vi.fn(async () => 'unavailable' as const)
 
     const approval = row.ctx.waterfall(
       'approval/request',
@@ -486,7 +486,7 @@ describe('tui-app boot', () => {
         agent: { id: 'agent-1' },
         questions: [{ id: 'q1', question: 'Continue?', options: [{ label: 'Yes' }] }],
       } as never,
-      () => null,
+      async () => ({ answers: [] }),
     )
     await settle()
     terminal.send('\r')
@@ -504,13 +504,13 @@ describe('tui-app boot', () => {
     })
     await settle()
 
-    const fallback = vi.fn(() => 'unavailable')
+    const fallback = vi.fn(async () => 'unavailable' as const)
     const decision = row.ctx.waterfall(
       'approval/request',
       { agent: { id: 'agent-2' }, toolName: 'bash' } as never,
       fallback,
     )
-    expect(decision).toBe('unavailable')
+    await expect(decision).resolves.toBe('unavailable')
     expect(fallback).toHaveBeenCalledTimes(1)
 
     read.resolve({ events: [] })

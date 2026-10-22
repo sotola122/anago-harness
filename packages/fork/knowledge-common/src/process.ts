@@ -90,7 +90,8 @@ export function createNodeGitRunner(options: NodeGitRunnerOptions = {}): GitRunn
           if (isAbortError(error)) {
             // `execFile` reports cancellation as an `AbortError` instance; keep it
             // so the caller reads the same `name` the signal carried.
-            reject(error instanceof Error ? error : new Error('the git command was cancelled'))
+            const cancellation: Error = error
+            reject(cancellation)
             return
           }
           const raw = (error as { code?: unknown }).code

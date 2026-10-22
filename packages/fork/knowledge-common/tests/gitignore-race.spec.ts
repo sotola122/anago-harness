@@ -23,7 +23,8 @@ const state = vi.hoisted(() => ({ current: 'a different length' as string | null
 vi.mock('../src/atomic.ts', async importOriginal => ({
   ...await importOriginal<typeof import('../src/atomic.ts')>(),
   async updateFileLocked<T>(_api: AtomicWriteApi, _filename: string, update: LockedUpdater<T>): Promise<T> {
-    return update(state.current)
+    const next = await update(state.current)
+    return next.result
   },
 }))
 

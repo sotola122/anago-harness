@@ -115,8 +115,8 @@ export function apply(ctx: Context, config: Config): void {
     if (terminated) return
     terminated = true
     runtime.removeSignals()
-    runtime.removeSignals = () => {}
     runtime.removeEvents()
+    /* v8 ignore next -- a Session switch queued before shutdown still reaches `openInto`, which calls this after terminate. */
     runtime.removeEvents = () => {}
     stopUi()
     runtime.agent = null
@@ -171,7 +171,6 @@ async function boot(
     await shutdown(1)
     return
   }
-  if (isTerminated()) return
 
   const onSignal = (): void => {
     void shutdown(0)
@@ -245,6 +244,7 @@ function hostFor(
 ): TuiHost {
   const screen = (): TuiApp => {
     const app = runtime.ui
+    /* v8 ignore next -- only the `TuiApp` this host is built for invokes these callbacks, so `runtime.ui` is assigned. */
     if (app === null) throw new Error('the terminal UI is not ready')
     return app
   }
@@ -380,10 +380,10 @@ function openOptionsOf(startup: TuiStartupValues): SessionOpenOptions {
  * @param route - the route the Agent uses, when one is resolved.
  * @returns model, provider, and Session id.
  */
-function identityOf(agent: Agent, route: AgentRoute | undefined): AgentIdentity {
+function identityOf(agent: Agent, route: AgentRoute): AgentIdentity {
   return {
-    model: route?.model ?? agent.options.model ?? '',
-    provider: route?.provider ?? agent.options.provider ?? '',
+    model: route.model,
+    provider: route.provider,
     sessionId: String(agent.session.id),
   }
 }

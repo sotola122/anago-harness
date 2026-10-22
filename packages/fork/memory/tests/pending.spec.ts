@@ -10,7 +10,7 @@ import { mkdir, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import path from 'node:path'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import type { AtomicWriteApi } from '@anago-harness/knowledge-common'
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, assert } from 'vitest'
 import { isMemoryError } from '../src/errors.ts'
 import {
   ALL_MAX_BYTES,
@@ -518,9 +518,10 @@ describe('approval (DESIGN §4.5)', () => {
       lockWaitMs: 5000,
       logger,
     })
-    expect(outcomes[0]?.ok).toBe(false)
-    expect(outcomes[0]?.code).toBe('MEMORY_PENDING_STALE')
-    expect(outcomes[0]?.dropped).toBe(true)
+    const [first] = outcomes
+    assert(first !== undefined && !first.ok)
+    expect(first.code).toBe('MEMORY_PENDING_STALE')
+    expect(first.dropped).toBe(true)
     expect(await readStoreFile(file)).toBe('something else entirely\n')
     expect(await readdir(directory)).toEqual([])
     expect(logger.warnings.join('\n')).toMatch(/dropped the staged operation/u)
@@ -549,9 +550,11 @@ describe('approval (DESIGN §4.5)', () => {
       lockWaitMs: 5000,
       logger: recordingLogger(),
     })
-    expect(outcomes[0]?.code).toBe('MEMORY_PENDING_STALE')
-    expect(outcomes[0]?.message).toMatch(/MEMORY_DUPLICATE/u)
-    expect(outcomes[0]?.dropped).toBe(true)
+    const [first] = outcomes
+    assert(first !== undefined && !first.ok)
+    expect(first.code).toBe('MEMORY_PENDING_STALE')
+    expect(first.message).toMatch(/MEMORY_DUPLICATE/u)
+    expect(first.dropped).toBe(true)
     expect(await readdir(directory)).toEqual([])
   })
 
@@ -566,8 +569,9 @@ describe('approval (DESIGN §4.5)', () => {
       lockWaitMs: 5000,
       logger: recordingLogger(),
     })
-    expect(outcomes[0]?.ok).toBe(false)
-    expect(outcomes[0]?.dropped).toBe(false)
+    const [first] = outcomes
+    assert(first !== undefined && !first.ok)
+    expect(first.dropped).toBe(false)
     expect(await readdir(directory)).toHaveLength(1)
   })
 

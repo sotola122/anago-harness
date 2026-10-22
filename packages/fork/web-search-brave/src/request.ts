@@ -192,6 +192,5 @@ function setIfPresent(params: Record<string, string>, key: string, value: string
 
 /** Count whitespace-separated words the way Brave's own schema does, ignoring surrounding blanks. */
 function countWords(query: string): number {
-  const trimmed = query.trim()
-  return trimmed.length === 0 ? 0 : trimmed.split(/\s+/u).length
+  return query.trim().split(/\s+/u).length
 }

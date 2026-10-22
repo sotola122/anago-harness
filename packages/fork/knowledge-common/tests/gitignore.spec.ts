@@ -343,8 +343,9 @@ describe('ensureGitignoreBlock', () => {
   it('refuses a write that does not land the planned byte count', async () => {
     const root = await createTempDir()
     const api = {
-      async writeFileAtomic(filename: string, content: string): Promise<void> {
-        await writeFile(filename, content.slice(0, Math.max(0, content.length - 2)), { mode: 0o644 })
+      async writeFileAtomic(filename: string, content: string | Uint8Array): Promise<void> {
+        const text = typeof content === 'string' ? content : Buffer.from(content).toString('utf8')
+        await writeFile(filename, text.slice(0, Math.max(0, text.length - 2)), { mode: 0o644 })
       },
       async withFileLock<T>(_filename: string, operation: () => Promise<T>): Promise<T> {
         return operation()

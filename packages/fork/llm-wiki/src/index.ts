@@ -132,13 +132,10 @@ export function apply(ctx: Context, config: WikiConfig): void {
     createNoticeListener({ config, logger, cache, global })(payload, next),
   )
   // Per-session resolution of the cwd rule (DESIGN §6.4 check 5). The listener
-  // must not throw: an exception there fails agent creation outright (S6).
+  // must not throw — an exception there fails agent creation outright (S6) — and
+  // `noteAgent` reports its own failures.
   ctx.on('agent/created', ({ agent }) => {
-    try {
-      global.noteAgent(agent)
-    } catch (error) {
-      logger.warn('dsh-llm-wiki: the global wiki could not be resolved for the new agent (%s)', String(error))
-    }
+    global.noteAgent(agent)
   })
   ctx.skills.register(createSkillRegistration(import.meta.url))
   ctx.commands.register({

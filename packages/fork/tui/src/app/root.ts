@@ -379,11 +379,8 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
     build: (choose: (value: T) => void, cancel: () => void) => Component,
   ): Promise<T | null> {
     return new Promise((resolve, reject) => {
-      let settled = false
       let handle: OverlayHandle | undefined
       const finish = (value: T | null): void => {
-        if (settled) return
-        settled = true
         handle?.hide()
         this.requestFrame()
         resolve(value)
@@ -567,8 +564,6 @@ export class TuiApp implements ApprovalPresenter, QuestionsPresenter {
       case 'quit':
         this.options.onExit()
         return
-      default:
-        this.addNotice(`unknown command /${command.name} · type /help for the command list`)
     }
   }
 

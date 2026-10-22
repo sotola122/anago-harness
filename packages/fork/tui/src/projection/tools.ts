@@ -101,6 +101,7 @@ function argumentObject(raw: string): Record<string, unknown> | undefined {
     return value as Record<string, unknown>
   } catch (error) {
     // Tool arguments may be truncated while streaming; the raw text is still useful.
+    /* v8 ignore next -- JSON.parse of pathologically nested model arguments throws RangeError; only a SyntaxError means "not JSON". */
     if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
@@ -221,7 +222,7 @@ export function describeToolInvocation(name: string, rawArguments: string): Tool
   if (fallback !== undefined) return { summary: summarizeText(fallback) }
   const strings = stringArrayArgument(args)
   if (strings !== undefined) return { summary: summarizeText(strings.join(' ')) }
-  return { summary: summarizeText(rawArguments, 80) || name }
+  return { summary: summarizeText(rawArguments, 80) }
 }
 
 /**

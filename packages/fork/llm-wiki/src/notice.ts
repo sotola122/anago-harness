@@ -136,7 +136,7 @@ export async function noticeForInspection(inspection: WikiInspection): Promise<U
   try {
     pages = await countPages(inspection.root.wikiRoot)
   } catch {
-    pages = 0
+    // The count is advisory: a wiki whose pages cannot be listed still gets its notice.
   }
   return createNoticeMessage(inspection, pages)
 }

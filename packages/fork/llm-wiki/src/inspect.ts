@@ -33,6 +33,7 @@ import {
   resolveGitRoots,
 } from '@anago-harness/knowledge-common'
 import { WIKI_DIRECTORY, WIKI_SETTINGS_FILE } from './paths.ts'
+import { describeError } from './errors.ts'
 
 /** How `.dsh/wiki.yml` was understood (DESIGN §6.3). */
 export interface WikiSettings {
@@ -95,8 +96,8 @@ export function parseWikiSettings(content: string | null, source = WIKI_SETTINGS
       warnings.push(`${source}: ignored the line ${JSON.stringify(rawLine.trim())} (only \`key: value\` lines are understood)`)
       continue
     }
-    const key = (match[1] ?? '').trim()
-    const value = (match[2] ?? '').trim()
+    const key = (match[1] as string).trim()
+    const value = (match[2] as string).trim()
     keys.add(key)
     if (key === 'commit') {
       if (/^true$/iu.test(value)) commit = true
@@ -133,10 +134,17 @@ export interface WikiRootCache {
    * taken. The failure detail is cached with the answer so a debug log does not
    * have to re-run git to say why there is no wiki.
    */
-  readonly entries: Map<
-    string,
-    { readonly at: number; readonly roots: GitRoots | null; readonly detail: string | null }
-  >
+  readonly entries: Map<string, WikiRootCacheEntry>
+}
+
+/** One cached `rev-parse` answer and the moment it was taken. */
+export interface WikiRootCacheEntry {
+  /** When the answer was taken, for the TTL. */
+  readonly at: number
+  /** The roots, or `null` when the directory is not a usable worktree. */
+  readonly roots: GitRoots | null
+  /** One line saying why there is no root, or `null` on success. */
+  readonly detail: string | null
 }
 
 /**
@@ -188,8 +196,9 @@ async function rootsFor(options: InspectOptions): Promise<RootsAnswer> {
   const answer = await runRevParse(options)
   options.cache?.entries.set(options.cwd, { at: Date.now(), roots: answer.roots, detail: answer.detail })
   if (options.cache !== undefined && options.cache.entries.size > 64) {
-    const oldest = [...options.cache.entries.entries()].sort((left, right) => left[1].at - right[1].at)[0]
-    if (oldest !== undefined) options.cache.entries.delete(oldest[0])
+    const oldest = [...options.cache.entries.entries()]
+      .sort((left, right) => left[1].at - right[1].at)[0] as [string, WikiRootCacheEntry]
+    options.cache.entries.delete(oldest[0])
   }
   return answer
 }
@@ -333,7 +342,7 @@ export async function inspectWiki(options: InspectOptions): Promise<WikiInspecti
   try {
     answer = await rootsFor(options)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = describeError(error)
     return { kind: 'absent', detail: `no git worktree could be resolved from ${options.cwd}: ${message}` }
   }
   if (answer.roots === null) {
@@ -384,7 +393,7 @@ export async function readWikiSettings(file: string): Promise<WikiSettings> {
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
     if (code === 'ENOENT') return { commit: false, warnings: [] }
-    const message = error instanceof Error ? error.message : String(error)
+    const message = describeError(error)
     return {
       commit: false,
       warnings: [`${file} could not be read (${message}); treated as commit: false`],

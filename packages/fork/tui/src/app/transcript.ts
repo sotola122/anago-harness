@@ -116,7 +116,7 @@ function renderTool(block: ToolBlock, width: number, theme: Theme): string[] {
   if (block.summary !== '' && block.summary !== block.name) parts.push(block.summary)
   for (const fact of block.facts) parts.push(fact)
   if (block.durationMs !== undefined) parts.push(formatDuration(block.durationMs))
-  const heading = color(parts[0] ?? '')
+  const heading = color(parts[0] as string)
     + (parts.length === 1 ? '' : theme.dim(` · ${parts.slice(1).join(' · ')}`))
   return [truncateToWidth(heading, width), ...renderToolDetail(block, width, theme)]
 }
@@ -137,7 +137,7 @@ function renderReasoning(block: ReasoningBlock, width: number, theme: Theme): st
     lines.push(...renderBody(block.text, width, theme.dim))
     return lines
   }
-  const preview = summarizeText(block.text.split('\n')[0] ?? '')
+  const preview = summarizeText(block.text.split('\n')[0] as string)
   if (preview !== '') lines.push(truncateToWidth(`${GUTTER}${theme.dim(`└ ${preview}`)}`, width))
   return lines
 }

@@ -272,14 +272,15 @@ export interface ReviewOperation {
  */
 export function stripCodeFence(text: string): string {
   const trimmed = text.trim()
-  const lines = trimmed.split('\n')
-  if (lines.length < 2) return trimmed
-  const opening = /^(`{3,}|~{3,})/u.exec(lines[0]?.trim() ?? '')
+  const firstBreak = trimmed.indexOf('\n')
+  if (firstBreak === -1) return trimmed
+  const opening = /^(`{3,}|~{3,})/u.exec(trimmed)
   if (opening === null) return trimmed
-  const marker = opening[1] ?? ''
+  const marker = opening[1] as string
   const closing = new RegExp(`^${marker[0]}{${String(marker.length)},}$`, 'u')
-  if (!closing.test(lines[lines.length - 1]?.trim() ?? '')) return trimmed
-  return lines.slice(1, -1).join('\n').trim()
+  const lastBreak = trimmed.lastIndexOf('\n')
+  if (!closing.test(trimmed.slice(lastBreak + 1).trim())) return trimmed
+  return trimmed.slice(firstBreak + 1, lastBreak).trim()
 }
 
 /**
@@ -460,11 +461,6 @@ interface SessionCounters {
   fullNotified: boolean
   /** The previous round's short outcome. */
   lastOutcome: string | null
-}
-
-/** Release a timer that may not exist. */
-function clearTimer(timer: NodeJS.Timeout | null): void {
-  if (timer !== null) clearTimeout(timer)
 }
 
 /**
@@ -677,11 +673,11 @@ export function createReviewRunner(deps: ReviewDeps): ReviewRunner {
   /** One round, from the sidecar read to the notice (DESIGN §4.7). */
   const runRound = async (
     agent: ReviewAgent,
+    sessionId: string,
     state: SessionCounters,
     active: ActiveReview,
   ): Promise<void> => {
     const review = deps.config.review
-    const sessionId = agent.session.id ?? ''
     const file = sidecarFor(sessionId)
     await loadCounters(state, file)
     if (state.runs >= review.maxRunsPerSession) {
@@ -762,13 +758,12 @@ export function createReviewRunner(deps: ReviewDeps): ReviewRunner {
     const signal = active.controller.signal
     let output = ''
     let failure: unknown = null
-    let timer: NodeJS.Timeout | null = null
+    const timer = setTimeout(() => {
+      active.controller.abort(
+        new ReviewError('REVIEW_TIMEOUT', `the review did not finish within ${String(review.timeoutMs)} ms`),
+      )
+    }, review.timeoutMs)
     try {
-      timer = setTimeout(() => {
-        active.controller.abort(
-          new ReviewError('REVIEW_TIMEOUT', `the review did not finish within ${String(review.timeoutMs)} ms`),
-        )
-      }, review.timeoutMs)
       const call = await llm.prepareCall({ ...route, maxTokens: review.maxOutputTokens }, signal)
       const messages: Message[] = [
         createUserMessage({
@@ -801,7 +796,7 @@ export function createReviewRunner(deps: ReviewDeps): ReviewRunner {
     } catch (error) {
       failure = error
     } finally {
-      clearTimer(timer)
+      clearTimeout(timer)
     }
     // Past this point the call happened, so the accumulation is spent whatever
     // the outcome was (DESIGN §4.7: a failed round does not redo the same pile).
@@ -886,9 +881,9 @@ export function createReviewRunner(deps: ReviewDeps): ReviewRunner {
     const active: ActiveReview = { agent, controller, settled, settle }
     activeReview = active
     try {
-      await runRound(agent, state, active)
+      await runRound(agent, sessionId, state, active)
     } finally {
-      if (activeReview === active) activeReview = null
+      activeReview = null
       active.settle()
     }
   }
