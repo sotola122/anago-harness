@@ -44,7 +44,59 @@
 - 確認結果: `subagent-cursor` の `model` は未設定が既定で、`--model` は設定時のみ付与。**モデルを固定していない**（未設定なら Cursor CLI 自身の既定）。
 - 制約: per-call のモデル選択は未対応。ツール側の `allowedModels` は DSH の provider/model ルートで、Cursor CLI のモデル名と名前空間が一致しないため、写像すると誤った値になる。必要なら CUR 専用のモデル設定を別途設計する（項目 12）。
 
+## 対応済み（このラウンド）
+
+### 5. 日本語 UI（ja ロケール）— 完了
+
+- `@anago-harness/client-locale-ja` を追加し、`common`（41）、`settings`（41）、`settings.locale`（1）、`settings.shell`（14）、`settings.pluginInventory`（37）、`pluginManager`（220/221）、`settings.webSearchProviders`（35）の **389 キー**を日本語化。未訳キーは en へフォールバック。
+- `anago-web` で `locale.preference: ja` を既定に固定。
+- 検証: パッケージテスト 5 件、lint 0、tsc 成功、README ゲート通過。
+
+### 6. 日本語フォント — 完了
+
+- `@anago-harness/client-ui-fonts-anago` を追加。Anago Gothic（UDEV Gothic の OFL サブセットを RFN 回避のため改名）、Noto Sans JP（latin/kana/kanji の 3 分割 woff2）、Intel One Mono（latin/latin-ext/symbols）。合計 5.02 MiB、OFL 同梱。
+- CSS は `?inline` + effect で `<style>` を注入し、`:root:root` で text / code のフォント変数を上書き。コードスタックにも日本語フォントを先行。
+- 検証: 18 テスト（全角 = 2 × 半角の実測を含む）、lint 0、tsc 成功。
+
+### 7. ツールカタログ — 完了
+
+- `gen-tool-catalog` に `@anago-harness/memory`（`memory`）と `@anago-harness/llm-wiki`（`wiki_write` / `wiki_search` / `wiki_lint`）の mount レシピを追加し、`docs/tool-catalog.md` / `.zh.md` を再生成。
+- 検証: `--check` 成功、`gen-tool-catalog.spec` 10/10、md-links / md-wrap / pairing 通過。
+
+### 8. フォーク固有スナップショット — 完了
+
+- `snapshots/session/anago-{memory,wiki,search}` を録音し、キーなしで replay 可能（3/3 成功）。
+- `headless.snapshot.ts` は `anago` 構成で upstream-compat をスキップし、検索フィクスチャを起動して Brave が選ばれたことを検証。
+- 互換レイヤーに `subagent-pi` / `tool-subagent-pi` の無効化を追加し、upstream の text-turn replay も復旧。
+
+### 10. client manifest 契約テスト — 完了
+
+- `tests/manifest.spec.ts` を追加（`platform: web`、`./client` の types/default、inject の宣言、runtime 依存なし、CSS Modules 不使用）。
+
+### 11. Exa numResults — 完了
+
+- 効果のない `numResults` を Exa の config / provider / カード / 辞書 / テストから削除（`maxResults` は従来どおり `numResults` に写像）。
+
+### 13. 設計・記録の整合 — 完了
+
+- 互換 patch の warn + skip を `vendor/include` の `applyEntryPatches` で確認し、設計に根拠を記載。
+- persistence 記録の「optional message source」を「required source + unknown producer discriminator」に修正（英中）。
+
+### 14. TUI — 主要ギャップを実装
+
+- ツールカード、モデルピッカー（Ctrl+P / `/model`）、セッションピッカー（Ctrl+R / `/resume`）、スラッシュコマンド（`/help` `/model` `/clear` `/resume` `/quit`）、推論ブロック、使用量フッター。
+- テスト 79 → 247 件。残りは README の Known Limitations に記載（推論強度ピッカー、`/resume` のメタデータのみ、画像、ジョブ UI など）。
+
+## 進行中
+
+### 9. カバレッジ 100%（段階）
+
+- 到達可能なコードはテスト済み: fork 全体で **1731 テスト成功**、statements 99.6% / branches 97.6%。
+- 残りは静的に到達不能な防御コード（`?? fallback`、regex グループ、二重 settle ガードなど）。削除または根拠付き `/* v8 ignore */` で 100% にするクリーンアップを実行中。
+- 受入: `vitest run packages/fork --coverage --coverage.include='packages/fork/**/src/**/*.{ts,tsx}'` が ERROR なし、全ファイル 100%。
+
 ## 未着手（優先度順）
+
 
 ### 5. [P1] 日本語 UI（ja ロケール）
 
