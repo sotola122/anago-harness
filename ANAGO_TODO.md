@@ -102,7 +102,6 @@
 |---|---|
 | 組成 | `--dump-config` に anago-core / anago-web / locale(ja) / anago-locale-ja / anago-fonts / subagent-pi / tool-subagent-pi |
 | ブートグラフ | `window.__DSH_BOOT__` に `@anago-harness/client-ui-fonts-anago`（7.47 MB）を確認 |
-| 日本語辞書 | 配信バンドルに「キャンセル」等の日本語キーを確認 |
 | フォント | 配信バンドルに `UDEV Gothic` と `data:font/woff2` 8 件、`Anago Gothic` 0 件 |
 | 検索 | headless で `web_search` → Brave 経由で実 URL を取得 |
 | メモリ | headless で `memory` 追記 → `~/.dsh-anago-trial/memories/USER.md` に反映 |
