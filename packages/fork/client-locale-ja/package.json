@@ -1,6 +1,6 @@
 {
   "name": "@anago-harness/client-locale-ja",
-  "description": "Japanese language pack for the anago Web UI: registers the ja locale and partial ja dictionaries for the shared shell vocabulary, the settings and Plugins pages, and the fork web-search cards.",
+  "description": "Japanese language pack for the anago Web UI: registers the ja locale and full-key ja dictionaries for the conversation screen, chat transcript, approvals and questions, agent presets, the workspace picker and session list, layout and sidebar controls, settings, the Plugins page, and the fork web-search cards.",
   "version": "0.2.1-rc.2",
   "private": true,
   "type": "module",

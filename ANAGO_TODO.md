@@ -108,6 +108,8 @@
 | サブエージェント | `subagent_pi` → 子の出力 `PI_OK` |
 | スナップショット | `anago-{memory,wiki,search}` 3/3 をキーなしで replay |
 | TUI（実 PTY） | `script` で PTY を割り当てて起動 → 2.6 KB の描画（ANSI・罫線・日本語フッター）を確認、クラッシュなし |
+| ブラウザ描画（ヘッドレス Chrome） | `lang="ja"`、本文が日本語（未知の世界へ / プレビュー / ワークスペースを選択 / 標準モード）、Plugins ページも日本語 |
+| フォント適用 | `getComputedStyle` = `"UDEV Gothic", "Noto Sans JP", ...`、`document.fonts.check('16px "UDEV Gothic"')` = true、スクリーンショットで日本語グリフを確認 |
 
 残るのは**ブラウザでの見た目確認**（日本語表示・UDEV Gothic・xterm の全角幅）のみ。
 
