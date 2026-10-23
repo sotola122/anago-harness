@@ -19,7 +19,10 @@
  * idle **and** the round can read the conversation), and `agent/disposed`
  * cancels a round whose agent went away. None of them is awaited by the caller,
  * and `agent/turn-stopping` and `runMaintenance` are not used: the first would
- * hold the turn and the second would hold later input (S24).
+ * hold the turn and the second would hold later input (S24). Because the round
+ * starts at the idle status a controller may release the agent on, the drain
+ * holds the agent (`ctx.agents.hold`) until the round settles, so that release
+ * cannot abort the review.
  *
  * The one defense this plugin has for memory content is the §9 scan at
  * injection time (and at write time, and again when a staged write is
@@ -32,6 +35,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { delegationDepthOf } from './agents.ts'
 import { createMemoryApprovalGate } from './approval.ts'
@@ -50,14 +54,15 @@ import { createMemoryTool, MEMORY_TOOL_NAME } from './tool.ts'
 export const name = 'memory'
 
 /**
- * The service registries this plugin needs at load time. The tool registry
- * carries the tool; the command registry carries `/memory`, and a deployment
- * without it would silently lose the whole approval workflow, so the plugin
- * waits for it rather than starting half-configured. The **approval** service
- * is deliberately not here: DESIGN §4.5 defines what to do without one (treat
- * the policy as `never` and stage), so it is looked up per call instead.
+ * The services this plugin needs at load time. The tool registry carries the
+ * tool; the command registry carries `/memory`, and a deployment without it
+ * would silently lose the whole approval workflow; the agent registry owns the
+ * lifecycle a review must hold across (`ctx.agents.hold`). The plugin waits for
+ * each rather than starting half-configured. The **approval** service is
+ * deliberately not here: DESIGN §4.5 defines what to do without one (treat the
+ * policy as `never` and stage), so it is looked up per call instead.
  */
-export const inject = ['tools', 'commands']
+export const inject = ['tools', 'commands', 'agents']
 
 export { Config }
 export type { MemoryConfig }
@@ -96,12 +101,12 @@ export function apply(ctx: Context, config: MemoryConfig): void {
     input: { hint: MEMORY_COMMAND_HINT },
     handler: invocation => runMemoryCommand(invocation, { config, logger, api }),
   })
-  // The turn-end review (DESIGN §4.7). The three listeners are registered
-  // unawaited: `agent/status` is an emit, and the whole point is that the turn
-  // that just ended is not held while the auxiliary call runs. The drain
-  // promise is deliberately dropped — `drain` contains its own failures. The
-  // runner belongs to this `apply` call, so two plugin instances never share
-  // its single-flight slot, and the disposer stops new rounds, aborts the
+  // The turn-end review (DESIGN §4.7). The listeners are registered unawaited:
+  // `agent/status` is an emit, and the whole point is that the turn that just
+  // ended is not held while the auxiliary call runs. The drain promise is
+  // deliberately dropped — `drain` contains its own failures. The runner
+  // belongs to this `apply` call, so two plugin instances never share its
+  // single-flight slot, and the disposer stops new rounds, aborts the
   // in-flight one, and awaits its final writes.
   const review = createReviewRunner({
     config,
@@ -110,15 +115,52 @@ export function apply(ctx: Context, config: MemoryConfig): void {
     llm: () => ctx.get('llm'),
     isHeadless: () => isHeadlessRun(ctx),
   })
+  /** Drains whose hold is not released yet, so unload can wait for them. */
+  const pendingDrains = new Set<Promise<void>>()
+  /**
+   * Run one drain with its agent held against an idle release.
+   *
+   * The hold is taken before `drain`'s first await and before the `agent/status`
+   * emit returns: a controller that releases an idle agent checks `holds()`, and
+   * a release scheduled in that same tick would otherwise dispose the agent
+   * whose review is about to read the conversation. Releasing it in the drain's
+   * `finally` covers success, failure, and the `stop()` that aborts the round.
+   * @param agent - the agent whose idle status starts the review.
+   */
+  const drainHeld = (agent: Agent): void => {
+    let hold: Disposable
+    try {
+      hold = ctx.agents.hold(agent)
+    } catch (error) {
+      // A disposed agent cannot be reviewed; containing the throw keeps the
+      // `agent/status` emit intact for every listener that follows.
+      logger.warn('dsh-memory: the review skipped an agent that is no longer live (%s)', describeError(error))
+      return
+    }
+    const drained = (async () => {
+      try {
+        await review.drain(agent)
+      } finally {
+        hold[Symbol.dispose]()
+      }
+    })()
+    pendingDrains.add(drained)
+    void drained.finally(() => {
+      pendingDrains.delete(drained)
+    })
+  }
   ctx.effect(() => async () => {
     await review.stop()
+    // `stop` settles the round; this awaits the drain's `finally`, the point
+    // where the hold is released, so unloading never leaves one behind.
+    await Promise.allSettled([...pendingDrains])
   }, 'memory.review-runner')
   ctx.on('session/event', (session, event) => {
     review.observe(session, event)
   })
   ctx.on('agent/status', (payload) => {
     if (payload.status !== 'idle') return
-    void review.drain(payload.agent)
+    drainHeld(payload.agent)
   })
   ctx.on('agent/disposed', (payload) => {
     review.dispose(payload.agent)

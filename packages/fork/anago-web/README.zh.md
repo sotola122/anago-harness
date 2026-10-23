@@ -1,5 +1,5 @@
 ---
-description: "anago 配置的浏览器层：Plugins 页面上的 Exa 与 Brave 搜索设置卡片。"
+description: "anago 配置的浏览器层：Plugins 页面上的 Exa 与 Brave 搜索设置卡片，以及把被其他进程写入的会话显示为只读的输入区。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-anago 配置的浏览器层：Plugins 页面上的 Exa 与 Brave 搜索设置卡片。 本包不携带运行时代码，其实质是 `cordis.patch.yml`，由 manifest 的 `dsh.bundle.patch` 字段声明。
+anago 配置的浏览器层：Plugins 页面上的 Exa 与 Brave 搜索设置卡片，以及把被其他进程写入的会话显示为只读的输入区。 本包不携带运行时代码，其实质是 `cordis.patch.yml`，由 manifest 的 `dsh.bundle.patch` 字段声明。
 
 ## 目录
 
@@ -30,6 +30,7 @@ anago 配置的浏览器层：Plugins 页面上的 Exa 与 Brave 搜索设置卡
 | 行 | 包 |
 |---|---|
 | `ui-settings-web-search-providers` | `@anago-harness/client-ui-settings-web-search` |
+| `ui-session-share` | `@anago-harness/client-ui-session-share` |
 
 -----
 

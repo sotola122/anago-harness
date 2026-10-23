@@ -25,6 +25,7 @@ function observation(
     events,
     inheritedEventCount: SessionLogOffset(0),
     cursor: -1,
+    savedCursor: -1,
     projections: {
       asOfSeq: -1,
       values: {

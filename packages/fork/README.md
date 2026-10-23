@@ -34,6 +34,7 @@ The fork group holds the packages this fork adds to the product: private policy,
 | [`web-search-credentials`](web-search-credentials/README.md) | Shared API-key lookup order for the search providers | (library) |
 | [`client-ui-settings-web-search`](client-ui-settings-web-search/README.md) | Exa and Brave search settings cards on the Plugins page | `ui-settings-web-search-providers` |
 | [`client-ui-fonts-anago`](client-ui-fonts-anago/README.md) | Japanese-first Web UI fonts | `anago-fonts` |
+| [`client-ui-session-share`](client-ui-session-share/README.md) | Read-only composer for a Session another process is writing | `ui-session-share` |
 | [`tui`](tui/README.md) | Terminal UI application plugin built on the pi terminal UI library | `tui-startup`, `tui-app` |
 | [`anago-core`](anago-core/README.md) | Profile bundle: the host rows above | (bundle) |
 | [`anago-web`](anago-web/README.md) | Profile bundle: the browser rows above | (bundle) |

@@ -26,7 +26,7 @@ kind: "package-library"
 
 在把配置段投影为提供方每次操作的选项时调用 `createCredentialReaders`，在需要密钥的操作里调用 `resolveCredentialValue`。
 
-```ts
+```ts ignore-check
 const readers = createCredentialReaders(ctx, apiKeyEnv)
 const options = { apiKey, apiKeyEnv, ...readers, baseURL }
 
@@ -41,7 +41,7 @@ const key = await resolveCredentialValue(options, signal, {
 
 在消息里引用异常文本或响应正文的提供方必须先做约简，并使用该次操作解析出的密钥：
 
-```ts
+```ts ignore-check
 const detail = boundedProviderDetail(redactSecret(String(error), key), 200)
 ```
 

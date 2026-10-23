@@ -33,7 +33,7 @@ The seam ships the [JSONL](../session-persistence-jsonl/README.md) backend: one 
 
 ### What the service provides
 
-With a backend mounted, five service methods address stored sessions:
+With a backend mounted, six service methods address stored sessions:
 
 ```text
 const handle = await ctx.sessionPersistence.create(header)     // store a new session, take write ownership
@@ -41,6 +41,7 @@ const handle = await ctx.sessionPersistence.open(id, 'write')  // claim single-w
 const reader = await ctx.sessionPersistence.open(id, 'read')   // observe without ownership
 const snap = await ctx.sessionPersistence.stat(id)             // header + revision (+ eventCount / sizeBytes) without a log read
 const all = await ctx.sessionPersistence.list()                // one snapshot per visible stored session
+const owner = await ctx.sessionPersistence.ownership(id)       // free | owned-here | held-elsewhere | missing | unknown
 await ctx.sessionPersistence.flush()                           // backend-wide durability barrier over every active write handle
 ```
 
@@ -51,6 +52,8 @@ Every log read and write flows through the returned `SessionHandle`; there are n
 ### Ownership and visibility
 
 `create` and `open(id, 'write')` take in-process single-writer ownership: a second write open while an owner is active rejects with `SessionAlreadyOwnedError`, `create` on an occupied id rejects with `SessionAlreadyExistsError`, and a mutation on a `read` handle rejects with `SessionReadOnlyError` — one handle type, runtime refusal. Any operation on a closed handle rejects with `SessionHandleClosedError`, and `SessionOwnershipLostError` marks a write handle whose ownership is permanently gone (close it and reopen). A created session is observable in this process from the moment `create` resolves, while the backend may defer physical materialization until the first `append` or `flush`; other processes see only materialized sessions, and a session that never materialized before a crash never existed.
+
+`ownership(id)` classifies one stored session's write path without taking ownership and without creating the session directory or its lock file. It reports `owned-here` while this process holds the write handle or a write claim, including a created-but-unmaterialized session; `held-elsewhere` while another instance or process holds the kernel write lock; `free` when the session is stored and no writer holds it; `missing` when no stored session matches the id; and `unknown` when a permission or I/O failure prevents the probe from deciding. The answer describes one moment and is not mutual exclusion: it supports presenting or refusing a session, never writing without `open(id, 'write')`.
 
 ### The live write path and shutdown drain
 
@@ -153,6 +156,7 @@ These limits define where the seam's guarantees stop. They are current package c
 - **No deletion or retention API** — pruning stored sessions is out-of-band backend maintenance.
 - **`list()` is unpaginated and unfiltered** — it returns every stored session's snapshot; fine for local stores, unindexed at scale.
 - **Synthetic closers are the only crash story** — resume appends `interruptedTurnClosers` through the write handle; there is no partial-turn resume that continues an interrupted turn instead of closing it.
+- **`ownership` is a snapshot, not a reservation** — another instance may take or release the write lock immediately after the probe, so a stale `free` answer cannot substitute for acquiring write ownership.
 
 <a id="dev-note"></a>
 ### Dev Note

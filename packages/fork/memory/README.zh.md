@@ -68,7 +68,7 @@ kind: "package-reference"
 
 **写入审批。** 当 `writeApproval: ask` 时，任何携带至少一条操作的 `memory` 调用都由会话的有效策略决定（`ctx.approval.overrideOf(session) ?? config.policy`；部署中没有审批服务时视为 `never`）。策略为 `ask` 时返回 `{kind:'ask'}`，并给出英文和日文提示；被允许的调用正常写入，拒绝、取消或无人应答则不写任何内容。策略为 `never` 时调用被放行，但该次执行被标记，工具改为把每条操作暂存到 `$DSH_HOME/memories/pending/`。
 
-**回合结束 review。** 已完成回合（`reason.kind === 'completed'` 的 `turn/end`）会累积，review 在 `agent/status` 变为 idle 时排出：当 `completed - consumed >= everyTurns` 且仍有尝试次数时发起一次辅助调用。结果始终暂存（`source: 'review'`），review 自身从不应用任何更改。调用复用会话自己的 provider 与 model 路由，每个插件实例同时只跑一轮；由 `agent/disposed`、卸载插件与 `timeoutMs` 中止，卸载时还会等待该轮完成最终的暂存与旁路文件写入。派发前会把精确请求（路由、system、messages、token 上限与 reasoning effort）作为仅日志事件 `memory/review-request` 追加到会话日志；失败时写一条警告并消耗一次尝试。
+**回合结束 review。** 已完成回合（`reason.kind === 'completed'` 的 `turn/end`）会累积，review 在 `agent/status` 变为 idle 时排出：当 `completed - consumed >= everyTurns` 且仍有尝试次数时发起一次辅助调用。结果始终暂存（`source: 'review'`），review 自身从不应用任何更改。调用复用会话自己的 provider 与 model 路由，每个插件实例同时只跑一轮；由 `agent/disposed`、卸载插件与 `timeoutMs` 中止，卸载时还会等待该轮完成最终的暂存与旁路文件写入。从该 idle 状态到这一轮结算为止，插件持有 agent（`ctx.agents.hold`），因此会释放空闲 agent 的控制器（`releaseOnIdle`）无法在 review 进行到一半时销毁它；成功、失败与卸载都会释放该持有。派发前会把精确请求（路由、system、messages、token 上限与 reasoning effort）作为仅日志事件 `memory/review-request` 追加到会话日志；失败时写一条警告并消耗一次尝试。
 
 **凭据与秘密。** 插件不保存自己的 API key、token 或任何凭据，也不会索要它们。每条条目在写入、批准、注入以及 review 的输入与输出时都会经过 `@anago-harness/knowledge-common` 的内容扫描；形似秘密的文本会替换为 `[REDACTED:<kind>]`，并在工具结果中报告被替换的种类。review 通过 `ctx.llm` 走会话已有的路由，因此不新增凭据、不新增端点；派发前会把精确请求作为仅日志事件 `memory/review-request` 追加到会话日志，响应本身不记录。暂存文件位于 `$DSH_HOME`（工作树之外）且权限为 `0600`，`workspace-write` 沙箱无法在其中放置文件。
 
@@ -90,7 +90,7 @@ kind: "package-reference"
 
 审批由 `tools/pre-execute` 监听器和记录执行对象的 `WeakSet` 组成。`PreToolDecision.allow` 没有“标记为暂存”的字段，而重新读取策略无法区分“被批准的 ask”和“never”；注册表把同一个执行对象同时交给 waterfall 和 `tool.execute`，因此标记精确且永不被消费。`/memory` 提供 `list`、`show`、`path`、`pending`、`approve`、`reject`、`gitignore`。没有 `gitignore remove`；要停用请设 `workspace.manageGitignore: false` 或 `workspace.enabled: false`。
 
-review 由三个监听器组成而不是一个：`session/event` 统计已完成回合，`agent/status` 排出，`agent/disposed` 中止。刻意不使用 `agent/turn-stopping` 和 `runMaintenance`，以免 review 拖住回合或后续输入。每个 `apply` 创建自己的 runner，因此插件实例之间不共享单飞槽位；`ctx.effect` 的清理器会停止新回合、中止进行中的一轮，并等待其结算（包括调用后的暂存与旁路文件写入）。派发前 runner 会把精确请求作为仅日志事件 `memory/review-request` 追加到日志。进度保存在 `$DSH_HOME/memories/review/<sha256(sessionId)>.json` 的旁路文件（`reviewRuns`、`consumedCompleted`、`fullNotified`、`lastOutcome`），resume 后继续沿用同一预算。摘录从 `deriveMessages()` 由新到旧遍历，只保留 `user` 与 `model` 的 text 块直到 `maxInputBytes`，并附上当前条目；输出必须是单个 JSON 对象、最多 4 条操作，并经过与工具相同的校验（扫描、分隔符、上限、重复、非 ASCII 提示）后才暂存。
+review 由三个监听器组成而不是一个：`session/event` 统计已完成回合，`agent/status` 排出，`agent/disposed` 中止。刻意不使用 `agent/turn-stopping` 和 `runMaintenance`，以免 review 拖住回合或后续输入。每个 `apply` 创建自己的 runner，因此插件实例之间不共享单飞槽位；`ctx.effect` 的清理器会停止新回合、中止进行中的一轮，并等待其结算（包括调用后的暂存与旁路文件写入）。排出时会为整轮持有 agent：持有在 review 第一次 await 之前取得，在 drain 的 `finally` 中释放，并由清理器等待，因此空闲释放与卸载都不会留下未释放的持有，也不会让这一轮在写入中途被中止。派发前 runner 会把精确请求作为仅日志事件 `memory/review-request` 追加到日志。进度保存在 `$DSH_HOME/memories/review/<sha256(sessionId)>.json` 的旁路文件（`reviewRuns`、`consumedCompleted`、`fullNotified`、`lastOutcome`），resume 后继续沿用同一预算。摘录从 `deriveMessages()` 由新到旧遍历，只保留 `user` 与 `model` 的 text 块直到 `maxInputBytes`，并附上当前条目；输出必须是单个 JSON 对象、最多 4 条操作，并经过与工具相同的校验（扫描、分隔符、上限、重复、非 ASCII 提示）后才暂存。
 
 ### 源码地图
 

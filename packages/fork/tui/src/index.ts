@@ -116,8 +116,6 @@ export function apply(ctx: Context, config: Config): void {
     terminated = true
     runtime.removeSignals()
     runtime.removeEvents()
-    /* v8 ignore next -- a Session switch queued before shutdown still reaches `openInto`, which calls this after terminate. */
-    runtime.removeEvents = () => {}
     stopUi()
     runtime.agent = null
     runtime.selection = null
@@ -138,6 +136,24 @@ export function apply(ctx: Context, config: Config): void {
     booted = true
     void boot(ctx, config, terminate, isTerminated, runtime)
   }))
+}
+
+/**
+ * The Agent, model selection, and route of the Session the screen shows.
+ *
+ * The renderer starts only after the first Session opens and stops before
+ * shutdown clears the runtime, so screen callbacks never observe an empty
+ * runtime.
+ * @param runtime - shared UI, Agent, and selection facts.
+ * @returns the open Agent, its model selection, and its resolved route.
+ */
+function liveSession(runtime: Runtime): { agent: Agent; selection: ModelSelectionRef; route: ModelRoute } {
+  const agent = runtime.agent
+  const selection = runtime.selection
+  const route = selection?.current
+  /* v8 ignore next 2 -- input and host callbacks run only while a Session is open; the runtime clears after the renderer stops. */
+  if (agent === null || selection === null || route === undefined) throw new Error('no Agent is open yet')
+  return { agent, selection, route }
 }
 
 /**
@@ -195,18 +211,17 @@ async function boot(
     inline: startup.inline || config.inline,
     theme: startup.theme ?? config.theme,
     onSubmit: (text) => {
-      const agent = runtime.agent
-      if (agent === null) throw new Error('no Agent is open yet')
-      sendPrompt(agent, text)
+      sendPrompt(liveSession(runtime).agent, text)
     },
     onAbort: () => {
       const agent = runtime.agent
+      /* v8 ignore next -- the renderer starts only after the first Agent opens and stops before shutdown clears it. */
       if (agent !== null) abortAgent(agent)
     },
     onExit: () => {
       void shutdown(0)
     },
-    host: hostFor(ctx, runtime, queueSession, isTerminated, startup),
+    host: hostFor(ctx, runtime, queueSession, isTerminated),
   })
   runtime.ui = ui
 
@@ -226,13 +241,13 @@ async function boot(
  *
  * Model routes come from the Host LLM catalog and are installed on the live
  * Agent through its model-selection listeners, so a switch applies to later
- * turns without recreating the Agent. Session pages are opened by disposing the
- * current Agent and resuming or creating another in the same terminal.
+ * turns without recreating the Agent. Session pages are opened by resuming or
+ * creating another Agent in the same terminal; the previous Agent is released
+ * only after the new handle is open.
  * @param ctx - plugin context.
  * @param runtime - shared UI, Agent, and selection facts.
  * @param queueSession - serializes Session switches.
  * @param isTerminated - reads the shared termination state.
- * @param startup - invocation flags supplying the initial route.
  * @returns the host callbacks.
  */
 function hostFor(
@@ -240,7 +255,6 @@ function hostFor(
   runtime: Runtime,
   queueSession: (task: () => Promise<void>) => Promise<void>,
   isTerminated: () => boolean,
-  startup: TuiStartupValues,
 ): TuiHost {
   const screen = (): TuiApp => {
     const app = runtime.ui
@@ -248,34 +262,25 @@ function hostFor(
     if (app === null) throw new Error('the terminal UI is not ready')
     return app
   }
-  const currentRoute = (): ModelRoute | undefined => {
-    const route = runtime.selection?.current
-    if (route !== undefined) return { provider: route.provider, model: route.model }
-    if (startup.provider !== null && startup.model !== null) {
-      return { provider: startup.provider, model: startup.model }
-    }
-    return undefined
-  }
 
   return {
-    listModels: (): Promise<readonly ModelOption[]> => listModelOptions(ctx, currentRoute()),
+    listModels: (): Promise<readonly ModelOption[]> => listModelOptions(ctx, liveSession(runtime).route),
     selectModel: async (route) => {
-      const agent = runtime.agent
-      const selection = runtime.selection
-      if (agent === null || selection === null) throw new Error('no Agent is open yet')
+      const { agent, selection } = liveSession(runtime)
       const resolved = await resolveModelRoute(ctx, route)
       selection.current = resolved
       screen().setIdentity(identityOf(agent, resolved))
     },
     listSessions: (): Promise<readonly SessionOption[]> => listSessionOptions(
       ctx,
-      runtime.agent === null ? undefined : String(runtime.agent.session.id),
+      String(liveSession(runtime).agent.session.id),
     ),
     openSession: async (sessionId) => {
-      const route = currentRoute()
+      const { route } = liveSession(runtime)
       const options: SessionOpenOptions = {
         ...sessionId === null ? {} : { resume: sessionId },
-        ...route === undefined ? {} : { provider: route.provider, model: route.model },
+        provider: route.provider,
+        model: route.model,
       }
       await queueSession(() => openInto(ctx, runtime, screen(), options, isTerminated))
     },
@@ -283,11 +288,14 @@ function hostFor(
 }
 
 /**
- * Detach the current Agent and attach the requested Session.
+ * Attach the requested Session and show it.
  *
- * The previous handle is disposed before the new one is opened, and the
- * termination state is re-checked after every await so a shutdown during an
- * open leaves no Agent behind.
+ * The new handle opens before the previous Session is released, so a failed
+ * open (`--resume` included) leaves the current Agent, its listeners, and its
+ * transcript untouched. After a successful open the new Agent is installed
+ * first and the previous handle disposed second, so the runtime never points at
+ * a closing Agent. The termination state is re-checked after every await so a
+ * shutdown during an open leaves no Agent behind.
  * @param ctx - plugin context.
  * @param runtime - shared UI, Agent, and selection facts.
  * @param ui - the screen to repaint.
@@ -301,24 +309,14 @@ async function openInto(
   options: SessionOpenOptions,
   isTerminated: () => boolean,
 ): Promise<void> {
-  runtime.removeEvents()
-  runtime.removeEvents = () => {}
-  const previous = runtime.handle
-  runtime.handle = undefined
-  runtime.agent = null
-  runtime.selection = null
-  try {
-    await previous?.dispose()
-  } catch (error) {
-    process.stderr.write(`tui: failed to close the previous Session: ${describeError(error)}\n`)
-  }
-  if (isTerminated()) return
-
   const opened = await openAgentSession(ctx, options)
   if (isTerminated()) {
     await opened.handle.dispose()
     return
   }
+
+  const previous = runtime.handle
+  runtime.removeEvents()
   const selection: ModelSelectionRef = { current: opened.route, assembled: undefined }
   installModelSelection(opened.handle.agent.ctx, selection)
   runtime.handle = opened.handle
@@ -332,11 +330,28 @@ async function openInto(
     error: (error) => { runtime.ui?.addError(error) },
   })
   ui.resetTranscript()
+  ui.setIdentity(identityOf(opened.handle.agent, opened.route))
+  ui.setStatus('idle')
+  await closePrevious(previous)
+  if (isTerminated()) return
   if (options.resume !== undefined && options.resume !== '') {
     await replayTranscript(ctx, opened.handle.agent.session.id, ui)
   }
-  ui.setIdentity(identityOf(opened.handle.agent, opened.route))
-  ui.setStatus('idle')
+}
+
+/**
+ * Release the Session the runtime just replaced.
+ *
+ * A disposal failure is reported on stderr and does not undo the committed
+ * switch, so one stuck log cannot strand the screen.
+ * @param handle - the previous Session handle; absent at boot.
+ */
+async function closePrevious(handle: AgentHandle | undefined): Promise<void> {
+  try {
+    await handle?.dispose()
+  } catch (error) {
+    process.stderr.write(`tui: failed to close the previous Session: ${describeError(error)}\n`)
+  }
 }
 
 /**

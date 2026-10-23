@@ -1,7 +1,9 @@
 /** Session-specific adapters for Gateway-owned Remote stream lifecycles. */
 
 import type {} from '@deepseek-ai/dsh-api-session-controller/remote'
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+import type { SessionId, SessionOwnership } from '@deepseek-ai/dsh-session/types'
 import {
   RemoteJournalStream,
   RemoteSnapshotStream,
@@ -37,8 +39,26 @@ export {
 /** Pagination fields bound to an already-addressed Session journal. */
 export type ClientSessionPageRequest = Omit<SessionPageRequest, 'address' | 'throughSeq'>
 
+/**
+ * Writer-ownership probe reached through the `session` Remote namespace. The
+ * generated namespace artifact gains this method from the Host descriptor; the
+ * explicit member keeps source-plane consumers type-checking before a build.
+ */
+export interface SessionOwnershipRemote {
+  /**
+   * Probe which process holds each Session's write ownership.
+   * @param ids - Session identities to probe.
+   * @param signal - optional cancellation.
+   * @returns one ownership state per requested identity.
+   */
+  ownership(
+    ids: readonly SessionId[],
+    signal?: AbortSignal,
+  ): Promise<RemoteResult<Record<string, SessionOwnership>>>
+}
+
 /** Complete generated `ctx.remote.session` namespace. */
-export type SessionRemote = ClientRemote['session']
+export type SessionRemote = ClientRemote['session'] & SessionOwnershipRemote
 
 /** Opening metadata carried only by a follow snapshot, never by loadOlder pages. */
 interface SessionJournalPage extends SessionPage {
@@ -179,6 +199,9 @@ export class SessionEventStream extends RemoteJournalStream<
     for await (const frame of this.remote.session.follow({
       address: this.address,
       assistantStream: true,
+      // Opening a conversation is viewing, not writing: the follow never
+      // activates an Agent, so it cannot take the Session's writer lease.
+      mode: 'read',
       ...this.repairRequest(request),
     }, signal)) {
       if (frame.type === 'snapshot') {

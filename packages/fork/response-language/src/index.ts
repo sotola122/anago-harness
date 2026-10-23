@@ -101,10 +101,9 @@ export function responseLanguageText(context: AssembleContext): string {
 }
 
 /**
- * Register the section in the calling context's scope (the plugin fiber), so
- * unloading the plugin removes it through the returned Cordis effect.
- * @param ctx - plugin context carrying the `systemPrompt` registry.
- * @param config - the currently authoritative settings section.
+ * Build the per-request reminder for a top-level agent.
+ * @param context - prompt assembly context carrying the addressed agent.
+ * @returns the fixed reminder, or `''` for a delegated child and for an assembly with no agent.
  */
 export function responseLanguageReminder(context: AssembleContext): string {
   return responseLanguageText(context) === '' ? '' : RESPONSE_LANGUAGE_REMINDER

@@ -10,6 +10,7 @@ import SessionStore, { SessionLogOffset,
   SessionId,
   type SessionEvent,
   type SessionHeader,
+  type SessionOwnership,
 } from '@deepseek-ai/dsh-session'
 import SessionPersistence, {
   SessionAlreadyExistsError,
@@ -140,6 +141,10 @@ class TestPersistence extends SessionPersistence {
     const stored = this.durable.get(id)
     if (stored === undefined) return undefined
     return { header: stored.meta, revision: SessionPersistenceRevision(`test:${id}:${stored.events.length}`) }
+  }
+
+  async ownership(id: SessionId): Promise<SessionOwnership> {
+    return this.durable.has(id) ? 'free' : 'missing'
   }
 
   async list(): Promise<SessionPersistenceSnapshot[]> {

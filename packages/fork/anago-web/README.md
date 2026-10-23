@@ -1,5 +1,5 @@
 ---
-description: "The browser layer for anago profiles: the Exa and Brave web-search settings cards on the Plugins page."
+description: "The browser layer for anago profiles: the Exa and Brave web-search settings cards on the Plugins page, and the read-only composer for a Session another process is writing."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The browser layer for anago profiles: the Exa and Brave web-search settings cards on the Plugins page. The package carries no runtime code; its substance is `cordis.patch.yml`, declared by the `dsh.bundle.patch` manifest field.
+The browser layer for anago profiles: the Exa and Brave web-search settings cards on the Plugins page, and the read-only composer for a Session another process is writing. The package carries no runtime code; its substance is `cordis.patch.yml`, declared by the `dsh.bundle.patch` manifest field.
 
 ## Table of Contents
 
@@ -30,6 +30,7 @@ Mount it after `@deepseek-ai/dsh-web-app`. The patch also disables the upstream 
 | Row | Package |
 |---|---|
 | `ui-settings-web-search-providers` | `@anago-harness/client-ui-settings-web-search` |
+| `ui-session-share` | `@anago-harness/client-ui-session-share` |
 
 -----
 

@@ -62,7 +62,7 @@ Agent 从配置的 `agentDefaultModel` provider 与模型启动；每个参数�
 | `/help` | 在记录中列出命令与按键说明。 |
 | `/model` | 打开模型选择器，列出 Host LLM 目录，并把选中的路由应用到后续回合。 |
 | `/clear` | 关闭当前 Agent，并在同一界面中新建 Session。 |
-| `/resume` | 列出该 profile 已存的 Session，并继续选中的那个。 |
+| `/resume` | 列出该 profile 已存的 Session，并继续选中的那个；被其他进程持有的行会变暗并拒绝选中。 |
 | `/quit` | 恢复终端并退出。 |
 
 ### 按键
@@ -79,7 +79,7 @@ Agent 从配置的 `agentDefaultModel` provider 与模型启动；每个参数�
 | ↑ / ↓ | 在首行或末行时浏览编辑器历史；在模态列表或选择器中移动。 |
 | Shift+Enter、Ctrl+Enter、Alt+Enter | 插入换行（取决于终端支持）。 |
 | 方向键、Backspace、Delete、Ctrl+A/E/K/U/W | 编辑器移动与编辑。 |
-| Enter、Esc | 在模态列表中确认或取消。 |
+| Enter、Esc | 在模态列表中确认或取消；对变暗的行按 Enter 只显示拒绝原因，不会选中。 |
 
 -----
 
@@ -91,7 +91,7 @@ Agent 从配置的 `agentDefaultModel` provider 与模型启动；每个参数�
 
 `src/startup.ts` 是 `tui-startup` 行。commander 命令声明参数族与 action，action 通过 `ctx.provide` 发布 `tuiStartup`；`@deepseek-ai/dsh-cmdline` 的 `parseCmdline` 执行该 action。非法的 `--theme` 或空 `--resume` 属于用法错误，不发布服务。
 
-`src/index.ts` 是 `tui-app` 行。它立即注册审批与提问应答器，等待 `ctx.appReady.onReady(...)`，拒绝非 TTY stdout，按配置的默认模型创建或恢复 Agent（agent-loop 工厂尚未挂载时短暂重试），对恢复的 Session 通过投影重放记录，启动 pi-tui，并负责关闭。打开 Session 与之后的每次切换共用一条 `openInto` 路径：解除上一个事件订阅、释放上一个 Agent、打开新句柄、安装模型选择监听、重置记录，并在恢复时重放历史。Session 切换被串行化，每个 await 都会重新检查共享的终止状态。`ProcessTerminal` 持有 stdin raw mode；每条退出路径都会先停止渲染器再调用 `ctx.appExit`。
+`src/index.ts` 是 `tui-app` 行。它立即注册审批与提问应答器，等待 `ctx.appReady.onReady(...)`，拒绝非 TTY stdout，按配置的默认模型创建或恢复 Agent（agent-loop 工厂尚未挂载时短暂重试），对恢复的 Session 通过投影重放记录，启动 pi-tui，并负责关闭。打开 Session 与之后的每次切换共用一条 `openInto` 路径：先打开新句柄，安装它的模型选择监听与事件订阅，重置记录与页脚，再释放上一个 Agent，并在恢复时重放历史。打开失败（包括 `--resume`）时，当前 Agent、其监听与记录保持不变。Session 切换被串行化，每个 await 都会重新检查共享的终止状态。`ProcessTerminal` 持有 stdin raw mode；每条退出路径都会先停止渲染器再调用 `ctx.appExit`。
 
 行内的 `TuiHost` 回调把界面接到 DSH：`listModelOptions` 读取 LLM 目录，`resolveModelRoute` 校验选中的路由，`installModelSelection` 把它应用到活动 Agent 的后续提示词组装，`listSessionOptions` 读取与恢复重放相同的 `sessionQuery` 语料。
 
@@ -106,7 +106,7 @@ Agent 从配置的 `agentDefaultModel` provider 与模型启动；每个参数�
 
 记录只从已写入事件（`user/message`、`assistant/message`、`tool/call`、`tool/result`、`turn/start`、`turn/end`、`session/title`）与 `agent/assistant-stream` 文本/推理增量提供的瞬时缓冲区派生。恢复重放与实时更新使用同一投影；序号守卫使重复投递无害。块 id 来自 Session 序号。`applyTranscriptEvent` 从 `assistant/message` 读取推理块与 `usage`；`tool/result` 持久化的 `meta` 提供工作目录、读取窗口或 diff 统计等卡片事实，无法识别的负载回退到结果文本。
 
-工具卡片显示工具名、单行调用摘要、`$ command` 之类的细节行、状态、耗时与折叠的结果预览。Ctrl+O 切换最新的工具或推理卡片。推理默认折叠为首行与字符数；仅当 provider 报告用量时，页脚才为当前或最近回合追加 `in … · out …`。模型选择器按 provider 分组列出目录模型，并随输入过滤；选中路由后会安装到 Agent 的模型选择监听上，无需重建 Agent。
+工具卡片显示工具名、单行调用摘要、`$ command` 之类的细节行、状态、耗时与折叠的结果预览。Ctrl+O 切换最新的工具或推理卡片。推理默认折叠为首行与字符数；仅当 provider 报告用量时，页脚才为当前或最近回合追加 `in … · out …`。模型选择器按 provider 分组列出目录模型，并随输入过滤；选中路由后会安装到 Agent 的模型选择监听上，无需重建 Agent。Session 选择器会把设置了 `disabledReason` 的行变暗，在细节栏显示该原因，并在按 Enter 时显示 `cannot select` 提示而不是打开它。
 
 审批模态提供“允许一次”与“拒绝”。提问模态通过 `SelectList` 逐个问题渲染选项，并返回 `{ answers: [{ id, selected }] }`。无选项的问题或 Esc 会交给 `next()`，而不是凭空给出答案。面向其他 Agent 的请求会被委托，便于将来的多 Session 宿主。
 
@@ -146,7 +146,8 @@ Agent 从配置的 `agentDefaultModel` provider 与模型启动；每个参数�
 - **模型选择器只在当前会话生效，且没有推理控制。** 它不会把选中的路由保存为 profile 默认值，不提供 effort 选择，也会略过没有公布目录的 provider（当前路由除外）。
 - **Session 切换只列头部元数据。** `/resume` 显示时间、目录与 id，最多列出最新的 50 个 Session，不显示标题，也不支持删除、重命名与搜索。
 - **恢复重放依赖 `sessionQuery`。** 缺少该服务的 profile 会在恢复时向 stderr 报错而不是显示历史；`dsh-base` 已挂载该服务，因此随附的 `tui` profile 不受影响。
-- **切换 Session 失败后没有 Agent。** `/resume` 与 `/clear` 会先释放当前 Agent 再打开下一个；打开失败时只显示错误，界面在下次切换成功前没有 Agent。
+- **切换 Session 失败时保留当前 Agent。** `/resume` 与 `/clear` 先打开下一个 Agent，再释放当前的；打开失败时只显示错误，屏幕上已有的 Session 仍可继续使用。启动时的 `--resume` 失败仍以状态 1 退出，因为此时还没有打开的 Session。
+- **禁用的 Session 行来自写入租约。** `listSessionOptions` 会为每个列出的 Session 探测 `SessionPersistence.ownership`；被另一个 DSH 进程持有的行会变暗并显示原因，且无法选中。该探测只是建议性的——如果在列出与打开之间丢失租约，同一条打开路径会拒绝它。
 - **工具卡片覆盖已知工具族。** `tool/result.meta` 只按结构读取路径、读取窗口、diff、任务与退出码；未知负载回退到结果文本。diff 只统计行数，不渲染 hunk；没有图片或语法高亮输出。
 - **没有图片。** 不支持 `Image`、剪贴板图片粘贴与附件渲染；记录会忽略图片内容。
 - **主题只有 dark 与 light，且在启动时选择。** 没有 `/theme` 切换、`SettingsList` 或自定义配色；dark/light 之外的主题延期。

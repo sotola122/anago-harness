@@ -217,6 +217,8 @@ interface AgentEntry {
   announced: boolean
   announcing: boolean
   detachRequested: boolean
+  /** Outstanding claims that must finish before an idle release tears the agent down. */
+  holds: number
 }
 
 /** One tracked boundary plus its inherited nesting chain. */
@@ -475,6 +477,7 @@ export class AgentRegistry extends Service {
       announced: false,
       announcing: false,
       detachRequested: false,
+      holds: 0,
     }
     this.store.set(id, entry)
     let entered = true
@@ -579,6 +582,43 @@ export class AgentRegistry extends Service {
    */
   isOwnedBy(id: SessionId, owner: Agent): boolean {
     return this.store.get(id)?.owner === owner
+  }
+
+  /**
+   * Hold one live agent against an idle release. A controller that releases
+   * idle agents checks {@link holds}; background work that must survive an
+   * idle transition (a turn-end review, an orchestration round) holds the agent
+   * until it finishes. Disposal of the agent releases every outstanding hold.
+   * @param agent - live agent to hold.
+   * @returns an idempotent disposable that releases this hold.
+   * @throws when the agent is not live, so a caller cannot leak an unmatchable hold.
+   */
+  hold(agent: Agent): Disposable {
+    const entry = this.store.get(agent.id)
+    if (entry === undefined || entry.agent !== agent) {
+      throw new Error(`agent "${agent.id}" is not live and cannot be held`)
+    }
+    entry.holds += 1
+    let released = false
+    return {
+      [Symbol.dispose]: () => {
+        if (released) return
+        released = true
+        // A disposed agent's entry is gone; the hold was released with it.
+        if (this.store.get(agent.id) !== entry) return
+        entry.holds -= 1
+      },
+    }
+  }
+
+  /**
+   * Count the outstanding holds on one live agent.
+   * @param agent - agent whose holds are counted.
+   * @returns the hold count; zero for an agent that is not live.
+   */
+  holds(agent: Agent): number {
+    const entry = this.store.get(agent.id)
+    return entry?.agent === agent ? entry.holds : 0
   }
 
   /**

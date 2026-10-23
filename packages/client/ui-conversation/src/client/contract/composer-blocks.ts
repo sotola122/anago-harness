@@ -5,6 +5,13 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 export interface ComposerBlock {
   /** Localized placeholder owned by the plugin that raised the block. */
   readonly reason: string
+  /**
+   * Which composer controls the block locks besides message input. `message`
+   * (the default) keeps the model seat live because every block the conversation
+   * raises is cleared by choosing a model; `all` also locks it, for a block
+   * whose cause choosing a model would not clear.
+   */
+  readonly lock?: 'message' | 'all'
 }
 
 /** The registry face other plugins reach through `ctx.conversation.blocks`. */

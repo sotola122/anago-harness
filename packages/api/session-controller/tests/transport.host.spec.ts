@@ -380,6 +380,7 @@ describe('SessionHistoryController', () => {
         inheritedEventCount: SessionLogOffset(0),
         events: [],
         cursor: -1,
+        savedCursor: -1,
         retain: vi.fn(), [Symbol.dispose]: vi.fn(),
       } satisfies SessionObservation),
     } as never)

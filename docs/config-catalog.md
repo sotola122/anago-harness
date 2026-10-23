@@ -104,7 +104,7 @@ export type LintCheck = 'links' | 'index' | 'raw'
 
 ## `@anago-harness/memory`
 
-- `inject`: `tools` · `commands`
+- `inject`: `tools` · `commands` · `agents`
 - `source`: [`packages/fork/memory/src/config.ts:83`](../packages/fork/memory/src/config.ts)
 
 ```ts config-catalog
@@ -183,7 +183,7 @@ export interface ReviewConfig {
 
 - `inject`: `systemPrompt`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fork/response-language/src/index.ts:48`](../packages/fork/response-language/src/index.ts)
+- `source`: [`packages/fork/response-language/src/index.ts:60`](../packages/fork/response-language/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: one live switch, so the row can be turned off in place. */
@@ -598,8 +598,8 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-api-session-controller`
 
-- `inject`: `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `remoteAccess` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
-- `source`: [`packages/api/session-controller/src/index.ts:94`](../packages/api/session-controller/src/index.ts)
+- `inject`: `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `remoteAccess` · `sessions` · `sessionPersistence` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
+- `source`: [`packages/api/session-controller/src/index.ts:97`](../packages/api/session-controller/src/index.ts)
 
 ```ts config-catalog
 /** Session Controller deployment policy. */
@@ -608,6 +608,20 @@ export interface Config {
   readonly nativeOpen?: boolean
   /** Positive integral milliseconds of list work before yielding between complete rows. */
   readonly listWorkSliceMs?: number
+  /**
+   * Release an idle Agent's Session write ownership so another DSH process can
+   * open it. Off by default: an attached Agent keeps the Session's writer lease.
+   */
+  readonly releaseOnIdle?: boolean
+  /** Non-negative milliseconds between the idle signal and the first release check. */
+  readonly releaseIdleDelayMs?: number
+  /** Positive milliseconds between release checks while work or child Agents remain. */
+  readonly releaseRetryMs?: number
+  /**
+   * Positive milliseconds between persistence revision polls for a read-only
+   * follower whose Session writer is another process.
+   */
+  readonly foreignPollMs?: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-api-session-controller -->
@@ -4978,6 +4992,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `package` | `inject` | `source` |
 | --- | --- | --- |
 | `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
+| `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | — | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |

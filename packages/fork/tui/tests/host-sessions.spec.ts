@@ -51,6 +51,30 @@ describe('stored Session listing', () => {
     await ctx.fiber.dispose()
   })
 
+  it('marks a Session another process holds as unselectable with a reason', async () => {
+    const ctx = new Context()
+    provideSessions(ctx, [
+      { id: 'session-a', createdAt: 200 },
+      { id: 'session-b', createdAt: 100 },
+    ])
+    ctx.provide('sessionPersistence', {
+      ownership: async (id: SessionId) => (String(id) === 'session-b' ? 'held-elsewhere' : 'free'),
+    } as never)
+
+    const options = await listSessionOptions(ctx, undefined)
+
+    expect(options).toEqual([
+      { id: 'session-a', createdAt: 200, current: false },
+      {
+        id: 'session-b',
+        createdAt: 100,
+        current: false,
+        disabledReason: 'Another DSH instance is running this Session',
+      },
+    ])
+    await ctx.fiber.dispose()
+  })
+
   it('omits subagent Sessions and caps the list at the fifty newest', async () => {
     const ctx = new Context()
     const headers: FakeHeader[] = []

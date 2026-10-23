@@ -17,11 +17,13 @@ import {
   cleanupTempDirs,
   type DshHome,
   fakeAgent,
+  fakeAgentRegistry,
   fakeApproval,
   fakeContext,
   fakeExec,
   fakeInvocation,
   fakeReviewAgent,
+  type FakeAgentRegistry,
   memoryConfig,
   memoryStorePath,
   pendingRootOf,
@@ -65,6 +67,8 @@ interface Harness {
   readonly listeners: Map<string, WiredListener>
   /** Disposers `apply` registered through `ctx.effect`, in registration order. */
   readonly disposers: (() => unknown)[]
+  /** The counted holds `apply` takes on an agent whose review it drains. */
+  readonly agents: FakeAgentRegistry
 }
 
 /** A fake context with the seams `apply` touches. */
@@ -75,6 +79,7 @@ function createHarness(
     approval?: ReturnType<typeof fakeApproval>
     services?: boolean
     llm?: unknown
+    agents?: FakeAgentRegistry
     /** Whether the shipped headless startup row published its service. */
     headlessStartup?: boolean
     /** `profileContext.name`; undefined means no profile context at all. */
@@ -88,6 +93,7 @@ function createHarness(
   const debugs: string[] = []
   const disposers: (() => unknown)[] = []
   const listeners = new Map<string, WiredListener>()
+  const agents = options.agents ?? fakeAgentRegistry()
   const tools = {
     register: (definition: ToolDefinition) => {
       registered.push(definition)
@@ -101,6 +107,7 @@ function createHarness(
   }
   const ctx = fakeContext({
     tools,
+    agents,
     commands: {
       register: (definition: CommandDefinition) => {
         commands.push(definition)
@@ -138,7 +145,7 @@ function createHarness(
       return undefined
     },
   })
-  return { ctx, registered, commands, restrictions, warnings, debugs, listeners, disposers }
+  return { ctx, registered, commands, restrictions, warnings, debugs, listeners, disposers, agents }
 }
 
 /** An agent whose scoped context answers the tool-registry lookup. */
@@ -194,6 +201,43 @@ function hangingReviewLlm(calls: unknown[], signals: AbortSignal[]): unknown {
   }
 }
 
+/**
+ * An LLM stub whose stream parks on a barrier the test releases.
+ *
+ * The prepared call is recorded before the stream waits, so a test can observe
+ * the round in flight without a timer.
+ * @returns the stub and the barrier release.
+ */
+function gatedReviewLlm(calls: unknown[]): { readonly llm: unknown; release(): void } {
+  const gate = Promise.withResolvers<undefined>()
+  return {
+    llm: {
+      prepareCall: async (config: unknown) => {
+        calls.push(config)
+        return {
+          config,
+          stream: async function* generate(options: { readonly signal?: AbortSignal }) {
+            yield { type: 'text-delta', index: 0, text: '{"operations":[]}' }
+            await gate.promise
+            options.signal?.throwIfAborted()
+          },
+        }
+      },
+    },
+    release: () => {
+      gate.resolve(undefined)
+    },
+  }
+}
+
+/**
+ * The idle-release check the Session Controller applies to a quiescent agent,
+ * reduced to the condition the review can change: `holds(agent) > 0`.
+ */
+function releasable(agents: FakeAgentRegistry, agent: ReturnType<typeof fakeReviewAgent>): boolean {
+  return agents.holds(agent) === 0
+}
+
 /** Fire one completed turn and one idle through the harness's wired listeners. */
 function idleOnce(harness: Harness, agent: ReturnType<typeof fakeReviewAgent>): void {
   const observe = harness.listeners.get('session/event')
@@ -220,7 +264,7 @@ async function waitForRound(agent: ReturnType<typeof fakeReviewAgent>): Promise<
 describe('plugin metadata', () => {
   it('declares its loader name and required services', () => {
     expect(name).toBe('memory')
-    expect(inject).toEqual(['tools', 'commands'])
+    expect(inject).toEqual(['tools', 'commands', 'agents'])
   })
 })
 
@@ -342,6 +386,52 @@ describe('apply', () => {
     idleOnce(harness, later)
     expect(calls).toHaveLength(1)
     expect(existsSync(reviewSidecarPath(later.session.id ?? ''))).toBe(false)
+  })
+
+  it('holds the agent while the review runs and releases it when the round settles', async () => {
+    const calls: unknown[] = []
+    const released = Promise.withResolvers<undefined>()
+    const agents = fakeAgentRegistry(() => { released.resolve(undefined) })
+    const gated = gatedReviewLlm(calls)
+    const harness = createHarness({ llm: gated.llm, agents })
+    apply(harness.ctx, memoryConfig({ review: { everyTurns: 1 } }))
+    const agent = fakeReviewAgent({
+      provider: 'test-provider',
+      model: 'test-model',
+      history: [userMessage('hello')],
+    })
+    idleOnce(harness, agent)
+    await waitUntil(() => calls.length === 1, 'the review call')
+    // The agent went idle and the round is in flight: only the hold keeps an
+    // idle release from disposing the agent the round still reads.
+    expect(harness.agents.holds(agent)).toBe(1)
+    expect(releasable(harness.agents, agent)).toBe(false)
+    gated.release()
+    await released.promise
+    expect(harness.agents.holds(agent)).toBe(0)
+    expect(releasable(harness.agents, agent)).toBe(true)
+    expect(harness.agents.released).toEqual([agent])
+  })
+
+  it('releases the hold when the plugin unloads during a review', async () => {
+    const calls: unknown[] = []
+    const signals: AbortSignal[] = []
+    const harness = createHarness({ llm: hangingReviewLlm(calls, signals) })
+    apply(harness.ctx, memoryConfig({ review: { everyTurns: 1 } }))
+    const agent = fakeReviewAgent({
+      id: 'session-unload-hold',
+      provider: 'test-provider',
+      model: 'test-model',
+      history: [userMessage('hello')],
+    })
+    idleOnce(harness, agent)
+    await waitUntil(() => calls.length === 1, 'the review call')
+    expect(harness.agents.holds(agent)).toBe(1)
+    // Unload aborts the round and waits for the drain, so the hold is gone by
+    // the time the disposer settles.
+    await harness.disposers[0]?.()
+    expect(harness.agents.holds(agent)).toBe(0)
+    expect(harness.agents.released).toEqual([agent])
   })
 
   it('keeps the review out of a headless run even when the profile name is not headless', async () => {

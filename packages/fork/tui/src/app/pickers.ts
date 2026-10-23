@@ -40,6 +40,14 @@ export interface SessionOption {
   readonly cwd?: string
   /** Whether this is the Session the UI currently shows. */
   readonly current: boolean
+  /**
+   * Why the picker must refuse this Session.
+   *
+   * The row renders dimmed with this reason in place of its detail, and Enter
+   * shows a notice instead of opening the Session. Hosts set it when another
+   * process holds the Session's write lease.
+   */
+  readonly disabledReason?: string
 }
 
 /** One selectable row. */
@@ -52,6 +60,13 @@ export interface PickerItem {
   readonly detail?: string
   /** Group heading shown above the first row of the group. */
   readonly group?: string
+  /**
+   * Refusal that turns the row into a visible but unchosen entry.
+   *
+   * The picker dims the label, replaces the detail with the reason, and shows
+   * the reason in a notice when Enter would otherwise choose the row.
+   */
+  readonly disabled?: { readonly reason: string }
 }
 
 /** Filtered picker state. */
@@ -233,7 +248,7 @@ function sessionGroup(createdAt: number, now: number): string {
  * Build rows for the stored Sessions.
  * @param options - Sessions from the profile's session store, newest first.
  * @param now - reference time for the age labels.
- * @returns selectable rows.
+ * @returns selectable rows; a Session with a `disabledReason` carries that refusal.
  */
 export function sessionPickerItems(options: readonly SessionOption[], now: number): readonly PickerItem[] {
   return options.map((option) => {
@@ -243,6 +258,7 @@ export function sessionPickerItems(options: readonly SessionOption[], now: numbe
       label: `${formatRelativeTime(option.createdAt, now)} · ${location}${option.current ? ' (current)' : ''}`,
       detail: option.id,
       group: sessionGroup(option.createdAt, now),
+      ...option.disabledReason === undefined ? {} : { disabled: { reason: option.disabledReason } },
     }
   })
 }

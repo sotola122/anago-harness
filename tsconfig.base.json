@@ -379,6 +379,8 @@
       "@anago-harness/client-ui-settings-web-search/client": ["./packages/fork/client-ui-settings-web-search/src/client/index.ts"],
       "@anago-harness/client-ui-fonts-anago": ["./packages/fork/client-ui-fonts-anago/src"],
       "@anago-harness/client-ui-fonts-anago/client": ["./packages/fork/client-ui-fonts-anago/src/client/index.ts"],
+      "@anago-harness/client-ui-session-share": ["./packages/fork/client-ui-session-share/src"],
+      "@anago-harness/client-ui-session-share/client": ["./packages/fork/client-ui-session-share/src/client/index.ts"],
       "@anago-harness/anago-core": ["./packages/fork/anago-core/src"],
       "@anago-harness/anago-web": ["./packages/fork/anago-web/src"],
       "@anago-harness/anago-tui": ["./packages/fork/anago-tui/src"],

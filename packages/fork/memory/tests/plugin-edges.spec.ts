@@ -17,8 +17,10 @@ import { reviewSidecarPath } from '../src/review.ts'
 import {
   cleanupTempDirs,
   type DshHome,
+  fakeAgentRegistry,
   fakeContext,
   fakeReviewAgent,
+  type FakeAgentRegistry,
   memoryConfig,
   useDshHome,
   userMessage,
@@ -49,18 +51,22 @@ interface Harness {
   readonly ctx: Context
   readonly warnings: string[]
   readonly listeners: Map<string, WiredListener>
+  /** The counted holds `apply` takes on an agent whose review it drains. */
+  readonly agents: FakeAgentRegistry
 }
 
 /** A fake context with the seams `apply` touches. */
 function createHarness(options: { readonly llm?: unknown } = {}): Harness {
   const warnings: string[] = []
   const listeners = new Map<string, WiredListener>()
+  const agents = fakeAgentRegistry()
   const tools = {
     register: (_definition: ToolDefinition) => () => {},
     restrict: (_filter: ToolRestriction) => () => {},
   }
   const ctx = fakeContext({
     tools,
+    agents,
     commands: { register: (_definition: CommandDefinition) => () => {} },
     logger: {
       warn: (message: string, ...args: unknown[]) => {
@@ -82,7 +88,7 @@ function createHarness(options: { readonly llm?: unknown } = {}): Harness {
       return undefined
     },
   })
-  return { ctx, warnings, listeners }
+  return { ctx, warnings, listeners, agents }
 }
 
 /** Wait until a condition holds, bounded so a broken test fails instead of hanging. */
@@ -172,6 +178,30 @@ describe('agent/status wiring', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(calls).toHaveLength(0)
     expect(() => readFileSync(reviewSidecarPath('session-not-idle'), 'utf8')).toThrow()
+  })
+
+  it('skips the review and reports when the agent can no longer be held', async () => {
+    const calls: unknown[] = []
+    const harness = createHarness({ llm: reviewLlm(calls) })
+    apply(harness.ctx, memoryConfig({ review: { everyTurns: 1 } }))
+    const agent = fakeReviewAgent({
+      id: 'session-dead-hold',
+      provider: 'test-provider',
+      model: 'test-model',
+      history: [userMessage('hello')],
+    })
+    // The registry refuses a hold for an agent that already left it.
+    harness.agents.dispose(agent)
+    completeTurn(harness, agent)
+    emit(harness, 'agent/status', { agent, status: 'idle' })
+    await waitUntil(
+      () => harness.warnings.some(line => line.includes('skipped an agent that is no longer live')),
+      'the hold refusal report',
+    )
+    // Nothing was dispatched, and the refused hold left no count behind.
+    expect(calls).toHaveLength(0)
+    expect(harness.agents.holds(agent)).toBe(0)
+    expect(harness.agents.released).toEqual([])
   })
 })
 

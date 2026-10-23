@@ -516,6 +516,32 @@ describe('Session picker', () => {
     failing.app.stop()
   })
 
+  it('shows a held Session dimmed and refuses it with its reason', async () => {
+    const openSession = vi.fn(async () => {})
+    const { app, terminal } = harness({}, fakeHost({
+      listSessions: async () => [{ ...SESSION, disabledReason: 'another process is writing this Session' }],
+      openSession,
+    }))
+    app.start()
+
+    const picked = app.openSessionPicker()
+    await flush()
+    app.renderNow()
+    expect(plain(terminal.visibleLines().join('\n'))).toContain('another process is writing this Session')
+
+    terminal.send('\r')
+    await flush()
+    app.renderNow()
+    expect(plain(terminal.visibleLines().join('\n')))
+      .toContain('cannot select: another process is writing this Session')
+    expect(openSession).not.toHaveBeenCalled()
+
+    terminal.send('\x1b')
+    await picked
+    expect(app.getTranscriptState().blocks).toHaveLength(0)
+    app.stop()
+  })
+
   it('contains an overlay host that refuses to open the dialog', async () => {
     const { app } = harness({}, fakeHost({ listSessions: async () => [SESSION] }))
     app.start()

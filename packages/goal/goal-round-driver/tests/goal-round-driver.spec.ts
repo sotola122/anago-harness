@@ -150,6 +150,23 @@ async function waitForRequests(adapter: ScriptedAdapter, count: number): Promise
   })
 }
 
+/**
+ * The Session Controller's idle-release predicate, reduced to the conditions a
+ * goal round can influence: it releases only a quiescent agent, and a hold is
+ * one of the quiescence conditions.
+ * @param ctx - the mounted context that owns the agent registry.
+ * @param agent - the agent that would be released.
+ * @returns true when a release could proceed right now.
+ */
+function releaseAllowed(ctx: Context, agent: Agent): boolean {
+  const busy = agent.status !== 'idle'
+    || agent.inbox.nextTurn.length > 0
+    || agent.inbox.nextStep.length > 0
+    || ctx.agents.holds(agent) > 0
+    || ctx.agents.list().some(child => ctx.agents.isOwnedBy(child.id, agent))
+  return !busy
+}
+
 describe('goal-round outcome policy', () => {
   it('renders the objective, round budget, authority boundary, and completion protocol', () => {
     const goal: GoalView = {
@@ -949,10 +966,41 @@ describe('same-session goal driving', () => {
 
     await vi.waitFor(() => { expect(descendants.waitForChildren).toHaveBeenCalledWith(test.agent) })
     expect(test.adapter.requests).toHaveLength(0)
+    // The round is still being orchestrated: the agent is idle with an empty
+    // inbox, so the hold is what keeps an idle release from disposing it.
+    expect(test.ctx.agents.holds(test.agent)).toBe(1)
+    expect(releaseAllowed(test.ctx, test.agent)).toBe(false)
 
     descendants.settle()
     await waitForGoal(test.ctx, test.agent, goal => goal?.roundsStarted === 1)
     await waitForRequests(test.adapter, 1)
+    await test.agent.whenIdle()
+    // The enqueue handed the round to the inbox; the driver no longer holds.
+    await vi.waitFor(() => { expect(test.ctx.agents.holds(test.agent)).toBe(0) })
+  })
+
+  it('holds the agent across the next-round checkpoint so an idle release cannot disarm it', async () => {
+    const test = await harness([textResponse('round one')])
+    const checkpoint = Promise.withResolvers<undefined>()
+    let gated = false
+    test.ctx.on('session/flush', () => {
+      if (gated) return
+      gated = true
+      return checkpoint.promise
+    })
+    test.ctx.goals.create(test.agent, { objective: 'hold the checkpoint', maxGoalRounds: 1 })
+
+    await vi.waitFor(() => { expect(gated).toBe(true) })
+    expect(test.agent.status).toBe('idle')
+    expect(test.agent.inbox.nextTurn).toHaveLength(0)
+    expect(test.ctx.agents.holds(test.agent)).toBe(1)
+    expect(releaseAllowed(test.ctx, test.agent)).toBe(false)
+
+    checkpoint.resolve(undefined)
+    await waitForRequests(test.adapter, 1)
+    await test.agent.whenIdle()
+    await vi.waitFor(() => { expect(test.ctx.agents.holds(test.agent)).toBe(0) })
+    expect(releaseAllowed(test.ctx, test.agent)).toBe(true)
   })
 
   it('does not join descendants for an agent without an armed goal', async () => {
@@ -1002,9 +1050,13 @@ describe('same-session goal driving', () => {
     const descendants = provideDescendants(test.ctx)
     test.ctx.goals.create(test.agent, { objective: 'unload while delegates run' })
     await vi.waitFor(() => { expect(descendants.waitForChildren).toHaveBeenCalled() })
+    expect(test.ctx.agents.holds(test.agent)).toBe(1)
 
+    // Teardown closes admission before it joins the driver, so the waiting pass
+    // returns through the unloading race and disposes its hold.
     await test.driver.dispose()
 
+    expect(test.ctx.agents.holds(test.agent)).toBe(0)
     expect(test.ctx.goals.get(test.agent)).toMatchObject({ roundsStarted: 0 })
     expect(test.adapter.requests).toHaveLength(0)
   })

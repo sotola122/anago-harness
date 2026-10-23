@@ -723,6 +723,18 @@ export class SessionManager {
   }
 
   /**
+   * Apply one Session detach forwarded through `ctx.remote.$on`. The stored
+   * Session stays listed and openable; only its live Agent disappears, so the
+   * resident Session object keeps its history and draft.
+   * @param sessionId - Session whose Agent detached.
+   */
+  handleSessionDetached(sessionId: SessionId): void {
+    this.recordMutation({ kind: 'status', sessionId, running: false, agentAvailable: false })
+    this.sessions.get(sessionId)?.handleRunning(false)
+    this.updateParentAvailability()
+  }
+
+  /**
    * Apply one live Agent running-state change.
    * @param sessionId - Session whose Agent state changed.
    * @param running - current Agent running state.

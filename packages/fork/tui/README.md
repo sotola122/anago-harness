@@ -62,7 +62,7 @@ Type `/` in the editor to open the completion popup; Tab or Enter accepts the hi
 | `/help` | List the commands and the key reference in the transcript. |
 | `/model` | Open the model picker, which lists the Host LLM catalog and applies the chosen route to later turns. |
 | `/clear` | Close the current Agent and start a new Session in the same UI. |
-| `/resume` | List the profile's stored Sessions and continue the selected one. |
+| `/resume` | List the profile's stored Sessions and continue the selected one; a row another process holds is dimmed and refuses selection. |
 | `/quit` | Restore the terminal and exit. |
 
 ### Keys
@@ -79,7 +79,7 @@ Type `/` in the editor to open the completion popup; Tab or Enter accepts the hi
 | ↑ / ↓ | Editor history at the first and last visual line; move in a modal list or picker. |
 | Shift+Enter, Ctrl+Enter, Alt+Enter | Insert a newline (terminal support varies). |
 | Arrow keys, Backspace, Delete, Ctrl+A/E/K/U/W | Editor movement and editing. |
-| Enter, Esc | Select or cancel in a modal list. |
+| Enter, Esc | Select or cancel in a modal list; Enter on a dimmed row shows its refusal instead of choosing it. |
 
 -----
 
@@ -91,7 +91,7 @@ Type `/` in the editor to open the completion popup; Tab or Enter accepts the hi
 
 `src/startup.ts` is the `tui-startup` row. Its commander command declares the flag family and an action that publishes `tuiStartup` through `ctx.provide`; `parseCmdline` from `@deepseek-ai/dsh-cmdline` runs that action. An invalid `--theme` or empty `--resume` is a usage error and publishes nothing.
 
-`src/index.ts` is the `tui-app` row. It registers its approval and question answerers immediately, waits for `ctx.appReady.onReady(...)`, refuses a non-TTY stdout, opens or resumes the Agent from the configured default model (retrying briefly while the agent-loop factory mounts), replays a resumed Session's log through the projection, starts pi-tui, and owns shutdown. Opening a Session and every later switch share one `openInto` path: it detaches the previous event listeners, disposes the previous Agent, opens the new handle, installs the model-selection listeners, resets the transcript, and replays history for a resume. Session switches are serialized, and every await re-checks the shared termination state. `ProcessTerminal` owns stdin raw mode; every exit path stops the renderer before `ctx.appExit`.
+`src/index.ts` is the `tui-app` row. It registers its approval and question answerers immediately, waits for `ctx.appReady.onReady(...)`, refuses a non-TTY stdout, opens or resumes the Agent from the configured default model (retrying briefly while the agent-loop factory mounts), replays a resumed Session's log through the projection, starts pi-tui, and owns shutdown. Opening a Session and every later switch share one `openInto` path: it opens the new handle first, installs its model-selection listeners and event subscriptions, resets the transcript and footer, releases the previous Agent, and replays history for a resume. A failed open, `--resume` included, leaves the current Agent, its listeners, and its transcript in place. Session switches are serialized, and every await re-checks the shared termination state. `ProcessTerminal` owns stdin raw mode; every exit path stops the renderer before `ctx.appExit`.
 
 The row's `TuiHost` callbacks connect the screen to DSH: `listModelOptions` reads the LLM catalog, `resolveModelRoute` validates a picked route, `installModelSelection` applies it to the live Agent for later prompt assembly, and `listSessionOptions` reads the same `sessionQuery` corpus the resume replay uses.
 
@@ -106,7 +106,7 @@ The implementation is split so the terminal is not needed for most tests:
 
 The transcript is derived only from recorded events (`user/message`, `assistant/message`, `tool/call`, `tool/result`, `turn/start`, `turn/end`, `session/title`) and transient live buffers fed by `agent/assistant-stream` text and reasoning deltas. Resume replay and live updates use the same projection; a sequence-number guard makes duplicate delivery harmless. Block ids derive from the Session sequence. `applyTranscriptEvent` reads reasoning blocks and `usage` from `assistant/message`, and `tool/result`'s persisted `meta` supplies card facts such as a working directory, a read window, or diff counts; an unrecognized payload falls back to the result text.
 
-A tool card shows the tool name, a one-line invocation summary, a detail line such as `$ command`, status, duration, and a collapsed result preview. Ctrl+O toggles the newest tool or reasoning card. Reasoning is collapsed to its first line and character count; the footer adds `in … · out …` for the current or most recent turn only when the provider reported usage. The model picker groups catalog models by provider and filters as you type; choosing a route installs it on the Agent's model-selection listeners without recreating the Agent.
+A tool card shows the tool name, a one-line invocation summary, a detail line such as `$ command`, status, duration, and a collapsed result preview. Ctrl+O toggles the newest tool or reasoning card. Reasoning is collapsed to its first line and character count; the footer adds `in … · out …` for the current or most recent turn only when the provider reported usage. The model picker groups catalog models by provider and filters as you type; choosing a route installs it on the Agent's model-selection listeners without recreating the Agent. The Session picker dims a row whose `disabledReason` is set, shows that reason in the detail column, and refuses Enter with a `cannot select` notice instead of opening it.
 
 The approval modal offers Allow once and Deny. The question modal renders each question's options through `SelectList`, one question at a time, and returns `{ answers: [{ id, selected }] }`. A question with no options, or Escape, defers to `next()` rather than inventing an answer. Requests addressed to another Agent are delegated, so a future multi-session host keeps working.
 
@@ -146,7 +146,8 @@ None. The package does not alter the system prompt or any part of the stable req
 - **The model picker is session-local and has no reasoning control.** It does not save the chosen route as the profile default, offers no effort selector, and omits providers whose adapter publishes no catalog (except the current route).
 - **Session switching lists header metadata only.** `/resume` shows age, directory, and id, caps the list at 50 newest Sessions, and omits titles, deletion, renaming, and search.
 - **Resume replay requires `sessionQuery`.** A profile that omits the service fails the resume with a stderr line instead of showing history; `dsh-base` mounts it, so the shipped `tui` profile is unaffected.
-- **A failed Session switch leaves no Agent.** `/resume` and `/clear` dispose the current Agent before opening the next one; when the open fails, the error is shown and the UI has no Agent until another switch succeeds.
+- **A failed Session switch keeps the current Agent.** `/resume` and `/clear` open the next Agent before releasing the current one; when the open fails, the error is shown and the Session already on screen stays usable. A `--resume` startup failure still exits with status 1 because no Session is open yet.
+- **Disabled Session rows come from the writer lease.** `listSessionOptions` probes `SessionPersistence.ownership` for each listed Session; one another DSH process holds is dimmed with its reason and cannot be selected. The probe is advisory — a lease lost between listing and opening is refused by the same open path.
 - **Tool cards cover known tool families.** `tool/result.meta` is read structurally for paths, read windows, diffs, jobs, and exit codes; unknown payloads fall back to the result text. Diffs are counted, not rendered as hunks, and there is no image or syntax-highlighted output.
 - **No images.** `Image`, clipboard image paste, and attachment rendering are absent; image content is ignored by the transcript.
 - **Themes are limited to dark and light, chosen at startup.** There is no `/theme` switch, no `SettingsList`, and no custom palette; themes beyond dark and light are deferred.

@@ -755,6 +755,24 @@ get(id: SessionId): Agent | undefined
 isOwnedBy(id: SessionId, owner: Agent): boolean
 
 /**
+ * Hold one live agent against an idle release. A controller that releases
+ * idle agents checks {@link holds}; background work that must survive an
+ * idle transition (a turn-end review, an orchestration round) holds the agent
+ * until it finishes. Disposal of the agent releases every outstanding hold.
+ * @param agent - live agent to hold.
+ * @returns an idempotent disposable that releases this hold.
+ * @throws when the agent is not live, so a caller cannot leak an unmatchable hold.
+ */
+hold(agent: Agent): Disposable
+
+/**
+ * Count the outstanding holds on one live agent.
+ * @param agent - agent whose holds are counted.
+ * @returns the hold count; zero for an agent that is not live.
+ */
+holds(agent: Agent): number
+
+/**
  * All live agents, in registration order.
  * @returns a fresh array; mutating it does not affect the registry.
  */

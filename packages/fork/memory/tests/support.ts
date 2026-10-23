@@ -224,6 +224,70 @@ export function fakeReviewAgent(
   }
 }
 
+/** A fake `ctx.agents` exposing the counted hold the plugin takes on a review. */
+export interface FakeAgentRegistry {
+  /**
+   * Hold one live agent, counted like the real registry.
+   * @param agent - the agent the plugin wants to keep alive.
+   * @returns an idempotent disposable that releases this hold.
+   * @throws when the test marked the agent disposed.
+   */
+  hold(agent: ReviewAgent): Disposable
+  /**
+   * Count the outstanding holds of one agent.
+   * @param agent - the agent to inspect.
+   * @returns the hold count, or zero for a disposed agent.
+   */
+  holds(agent: ReviewAgent): number
+  /**
+   * Mark one agent disposed; later holds throw and outstanding ones are dropped.
+   * @param agent - the agent that left the registry.
+   */
+  dispose(agent: ReviewAgent): void
+  /** Every agent whose hold was released through the returned disposable. */
+  readonly released: ReviewAgent[]
+}
+
+/**
+ * Build the fake registry.
+ * @param onRelease - runs synchronously when a hold is released, so a suite can
+ *   await a barrier instead of polling.
+ * @returns the registry double.
+ */
+export function fakeAgentRegistry(onRelease?: (agent: ReviewAgent) => void): FakeAgentRegistry {
+  const counts = new Map<ReviewAgent, number>()
+  const disposed = new Set<ReviewAgent>()
+  const released: ReviewAgent[] = []
+  return {
+    hold(agent) {
+      if (disposed.has(agent)) {
+        throw new Error(`agent "${agent.session.id ?? ''}" is not live and cannot be held`)
+      }
+      counts.set(agent, (counts.get(agent) ?? 0) + 1)
+      let once = false
+      return {
+        [Symbol.dispose]: () => {
+          if (once) return
+          once = true
+          // A disposed agent's entry is gone; the registry released the hold with it.
+          if (disposed.has(agent)) return
+          counts.set(agent, (counts.get(agent) ?? 1) - 1)
+          released.push(agent)
+          onRelease?.(agent)
+        },
+      }
+    },
+    holds(agent) {
+      return disposed.has(agent) ? 0 : counts.get(agent) ?? 0
+    },
+    dispose(agent) {
+      disposed.add(agent)
+      counts.delete(agent)
+    },
+    released,
+  }
+}
+
 /** One derived assistant message, as `deriveMessages()` carries it. */
 export function assistantMessage(text: string): Message {
   return createAssistantMessage({

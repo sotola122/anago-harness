@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
 import LlmRuntime, { ToolCallId, type GenerateOptions, LlmAdapter, type StreamChunk } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId, type SessionOwnership } from '@deepseek-ai/dsh-session'
 import SessionPersistence, { type SessionHandle, type SessionPersistenceSnapshot } from '@deepseek-ai/dsh-session-persistence'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH } from '@deepseek-ai/dsh-tools'
@@ -19,6 +19,7 @@ class TestPersistence extends SessionPersistence {
   flush(): Promise<void> { return Promise.resolve() }
   stat(): Promise<SessionPersistenceSnapshot | undefined> { return Promise.resolve(undefined) }
   list(): Promise<readonly SessionPersistenceSnapshot[]> { return Promise.resolve([]) }
+  ownership(): Promise<SessionOwnership> { return Promise.resolve('missing') }
 }
 
 class RecordingAdapter extends LlmAdapter {

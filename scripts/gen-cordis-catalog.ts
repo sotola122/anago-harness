@@ -846,6 +846,7 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
   'AbortSignal',
   'AsyncIterable',
   'Context',
+  'Disposable',
   'Error',
   'EntryTree',
   'Fiber',
@@ -956,6 +957,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   WebUpgradeRoute:
     'upgrade route registration contract is owned by packages/host/webserver/src/index.ts',
   JsonValue: 'JSON value union is owned by packages/core/session/src/json.ts',
+  SessionOwnership: 'writer-ownership state is owned by packages/session/session-persistence/README.md',
   KnobState: 'projection unit state fields are owned by packages/interaction/permission-presets/README.md',
   PromptAssembly: 'assembly result is owned by packages/core/system-prompt/README.md',
   RequestRunId: 'dynamic-package payload contract is owned by packages/extensions/cordis-host-runner/src/types.ts',

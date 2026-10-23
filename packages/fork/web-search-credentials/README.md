@@ -26,7 +26,7 @@ Use this library from a `ctx.web` search provider that resolves an API key for e
 
 Call `createCredentialReaders` when projecting a settings section into a provider's per-operation options, and `resolveCredentialValue` inside the operation that needs the key.
 
-```ts
+```ts ignore-check
 const readers = createCredentialReaders(ctx, apiKeyEnv)
 const options = { apiKey, apiKeyEnv, ...readers, baseURL }
 
@@ -41,7 +41,7 @@ Both readers stay lazy, so a key stored or changed after the plugin loaded reach
 
 A provider that quotes exception text or a response body in a message must reduce it first, with the key that operation resolved:
 
-```ts
+```ts ignore-check
 const detail = boundedProviderDetail(redactSecret(String(error), key), 200)
 ```
 

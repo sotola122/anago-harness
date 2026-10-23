@@ -27,8 +27,20 @@ export interface SessionObservation extends Disposable {
    * header, cursor, or projections never copies the log.
    */
   readonly events: readonly SessionEvent[]
-  /** Last observed event seq, or -1 for an empty log. */
+  /**
+   * Last observed event seq, or -1 for an empty log. A prepared observation
+   * includes synthetic repair closers appended for display, so this display
+   * cursor may exceed {@link savedCursor}.
+   */
   readonly cursor: SessionSeqCursor
+  /**
+   * Seq of the last physically persisted event, or -1 when the stored log is
+   * empty. Synthetic repair closers never count: this is the durable point a
+   * resumed writer continues from. A live observation reports its
+   * {@link cursor}, because the live Session is this process's authoritative
+   * view of the log.
+   */
+  readonly savedCursor: SessionSeqCursor
   /** Durable source revision for a cold prepared observation. */
   readonly revision?: SessionPersistenceRevision
   /** Exact projection baseline at {@link cursor}, when the registry is mounted. */
@@ -62,6 +74,8 @@ interface PreparedEntry {
   readonly session: Session
   /** Immutable balanced log (stored events plus in-memory interrupted-turn closers). */
   readonly events: readonly SessionEvent[]
+  /** Durable cursor of the stored events, before the in-memory closers. */
+  readonly savedCursor: SessionSeqCursor
   /** Active observation leases; a pinned entry (`refs > 0`) is never evicted. */
   refs: number
 }
@@ -143,6 +157,7 @@ export class SessionObservationReader {
           revision: snapshot.revision,
           session,
           events: Object.freeze(seed),
+          savedCursor: loaded.savedCursor,
           refs: 0,
         }
         this.store(sessionId, entry)
@@ -254,6 +269,7 @@ export class SessionObservationReader {
         inheritedEventCount: entry.session.inheritedEventCount,
         events: entry.events,
         cursor: entry.events.at(-1)?.seq ?? -1,
+        savedCursor: entry.savedCursor,
         revision: entry.revision,
         ...projections === undefined ? {} : { projections },
         retain: () => {
@@ -279,6 +295,7 @@ export class SessionObservationReader {
     // The cut is the log length now. The log only appends, so the prefix
     // below `seq` is the same array whenever a consumer first reads `events`.
     const seq = session.seq
+    const cursor = seq === 0 ? -1 : SessionSeq(seq - 1)
     let materialized: readonly SessionEvent[] | undefined
     let projections: ProjectionSnapshot | undefined
     try {
@@ -303,7 +320,8 @@ export class SessionObservationReader {
           materialized ??= session.snapshotEvents(SessionLogOffset(0), seq)
           return materialized
         },
-        cursor: seq === 0 ? -1 : SessionSeq(seq - 1),
+        cursor,
+        savedCursor: cursor,
         ...projections === undefined ? {} : { projections },
         retain: () => {
           if (disposed) throw new Error(`session observation "${session.id}" is disposed`)

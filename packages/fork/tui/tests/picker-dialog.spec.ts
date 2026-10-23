@@ -162,3 +162,57 @@ describe('picker dialog rendering', () => {
     expect(scrolled).toContain('10/12')
   })
 })
+
+/** Rows where one entry another process owns cannot be chosen. */
+const DISABLED_ITEMS: readonly PickerItem[] = [
+  { value: 'session-free', label: 'Free Session', detail: 'session-free', group: 'Today' },
+  {
+    value: 'session-held',
+    label: 'Held Session',
+    detail: 'session-held',
+    group: 'Today',
+    disabled: { reason: 'another process holds the write lease' },
+  },
+]
+
+describe('picker dialog disabled rows', () => {
+  it('dims the label and shows the reason in place of the detail', () => {
+    const { dialog: component } = dialog(DISABLED_ITEMS)
+    const lines = component.render(70)
+    const held = lines.find(line => plain(line).includes('Held Session')) as string
+
+    expect(held).toContain(THEME.dim('Held Session'))
+    expect(plain(held)).toContain('another process holds the write lease')
+    expect(plain(held)).not.toContain('session-held')
+
+    const free = lines.find(line => plain(line).includes('Free Session')) as string
+    expect(free).not.toContain(THEME.dim('Free Session'))
+    expect(plain(free)).toContain('session-free')
+  })
+
+  it('refuses Enter with a notice and keeps the highlight', () => {
+    const { dialog: component, choose } = dialog(DISABLED_ITEMS)
+
+    component.handleInput('\x1b[B')
+    component.handleInput('\r')
+
+    expect(choose).not.toHaveBeenCalled()
+    expect(component.getState().index).toBe(1)
+    expect(plain(component.render(70).join('\n')))
+      .toContain('cannot select: another process holds the write lease')
+
+    component.handleInput('\x1b[A')
+    expect(plain(component.render(70).join('\n'))).not.toContain('cannot select')
+  })
+
+  it('chooses an enabled row after a refusal', () => {
+    const { dialog: component, choose } = dialog(DISABLED_ITEMS)
+
+    component.handleInput('\x1b[B')
+    component.handleInput('\r')
+    component.handleInput('\x1b[A')
+    component.handleInput('\r')
+
+    expect(choose).toHaveBeenCalledWith(DISABLED_ITEMS[0])
+  })
+})

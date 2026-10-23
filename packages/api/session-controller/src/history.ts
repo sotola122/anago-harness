@@ -3,6 +3,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Deque } from '@deepseek-ai/dsh-deque'
 import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent'
+import { errorChain } from '@deepseek-ai/dsh-llm'
 import {
   isAppendSurfaceEvent,
   SessionLogOffset,
@@ -15,6 +16,7 @@ import type {
   SessionLogOffset as SessionLogOffsetType,
   SessionSeqCursor,
 } from '@deepseek-ai/dsh-session'
+import type { SessionHandle, SessionPersistenceRevision } from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-subagent'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
@@ -38,6 +40,9 @@ import { SessionAssistantStreamAccumulator } from './assistant-stream.ts'
 const DEFAULT_MAX_MESSAGES = 50
 const MESSAGE_TYPES = new Set(['user/message', 'assistant/message'])
 
+/** Default milliseconds between foreign-follower revision polls; the Session Controller Config uses it as its schema default. */
+export const DEFAULT_FOREIGN_POLL_MS = 500
+
 /** Implements cold-safe history operations delegated by the Session Controller. */
 export class SessionHistoryController {
   private readonly closeFollowers = new Set<() => void>()
@@ -46,10 +51,14 @@ export class SessionHistoryController {
   /**
    * @param ctx - Host context carrying Session query and projection services.
    * @param promote - starts ordinary Session activation after snapshot delivery.
+   * @param foreignPollMs - positive milliseconds between persistence revision
+   *   polls for a read-only follower whose writer is another process; direct
+   *   construction outside the Controller keeps the deployment default.
    */
   constructor(
     private readonly ctx: Context,
     private readonly promote: (observation: SessionObservation) => void,
+    private readonly foreignPollMs: number = DEFAULT_FOREIGN_POLL_MS,
   ) {
     ctx.on('agent/assistant-stream', ({ agent, frame }) => {
       let stream = this.assistantStreams.get(agent.session.id)
@@ -113,9 +122,16 @@ export class SessionHistoryController {
 
   /**
    * Follow events appended after an initial cursor on one durable address.
-   * @param request - durable address and last committed sequence already held by the caller.
+   *
+   * An `activate` follow promotes a prepared Session and then reads live
+   * `session/event` publications. A `read` follow never promotes it: when no
+   * Agent of this process owns the Session, its appends reach this stream by
+   * polling the stored log's revision at the configured interval, because the
+   * writer publishes no in-process event here.
+   * @param request - durable address, `read`/`activate` mode, and last committed sequence already held by the caller.
    * @param signal - stream cancellation owned by the Remote carrier.
    * @returns a complete opening snapshot followed by gap-free durable events and opted-in assistant frames.
+   * @throws {RemoteError} `gateway/internal` when a foreign polling stat, open, or read fails; the Client reconnects.
    */
   async *follow(request: SessionFollowRequest, signal: AbortSignal): AsyncIterable<SessionFollowFrame> {
     validateHistoryWindow(request)
@@ -130,6 +146,7 @@ export class SessionHistoryController {
       }
     >()
     let snapshotCursor: SessionSeqCursor | undefined
+    let stopForeignPoll: (() => void) | undefined
     let assistantStreamOrdinal = 0
     let wake: (() => void) | undefined
     const notify = (): void => {
@@ -176,10 +193,16 @@ export class SessionHistoryController {
     const onAbort = (): void => { notify() }
     signal.addEventListener('abort', onAbort, { once: true })
     try {
+      const readOnly = request.mode === 'read'
       using source = await this.sourceFor(address, signal, true)
-      const events = source.events
+      const events = readOnly
+        // A repair closer is a display device, not durable history: a read-only
+        // follower starts at the last persisted event so the writer's real
+        // event at that seq is still delivered.
+        ? source.events.filter(event => event.seq <= source.savedCursor)
+        : source.events
       signal.throwIfAborted()
-      const cursor = source.cursor
+      const cursor = readOnly ? source.savedCursor : source.cursor
       snapshotCursor = cursor
       const page = paginate(events, undefined, request.maxMessages ?? DEFAULT_MAX_MESSAGES, cursor, request.turnWindow)
       const assistantStream = request.assistantStream === true
@@ -201,7 +224,9 @@ export class SessionHistoryController {
           : projectionBlock(source.projections),
         ...assistantStream === undefined ? {} : { assistantStream },
       }
-      if (address.kind === 'session' && source.source === 'prepared') {
+      // Viewing must not take the Session's writer lease: activation is an
+      // explicit `activate` follow, and a read-only follower stays passive.
+      if (!readOnly && address.kind === 'session' && source.source === 'prepared') {
         const promotion = source.retain()
         try {
           this.promote(promotion)
@@ -211,9 +236,23 @@ export class SessionHistoryController {
         }
       }
       let nextOffset = SessionLogOffset(cursor + 1)
+      // A Session written by another process publishes nothing here. Keep
+      // polling its stored revision until this process gains an Agent for it
+      // or the follow ends; delivered duplicates are dropped by the seq guard.
+      let pollFailure: RemoteError | undefined
+      stopForeignPoll = !readOnly || this.ctx.agents.get(target) !== undefined
+        ? undefined
+        : this.pollForeign(target, nextOffset, (event) => {
+          buffered.pushBack({ type: 'event', event })
+          notify()
+        }, (error) => {
+          pollFailure = error
+          notify()
+        })
       while (!follower.closed && !signal.aborted) {
         const item = buffered.popFront()
         if (item === undefined) {
+          if (pollFailure !== undefined) throw pollFailure
           await new Promise<void>((resolve) => { wake = resolve })
           continue
         }
@@ -237,7 +276,97 @@ export class SessionHistoryController {
       disposeCreated()
       disposeEvent()
       disposeAssistantStream?.()
+      stopForeignPoll?.()
     }
+  }
+
+  /**
+   * Poll the stored log of a Session whose writer is another process.
+   *
+   * Each tick compares the opaque persistence revision with the one it last
+   * read and opens a read handle only after a change. The first tick always
+   * reads, so an append that races the opening observation is still delivered.
+   * A tick is scheduled only after its predecessor settles, so reads never
+   * overlap. The poll ends on the returned stop function, which the follow
+   * calls when it ends, and by itself when this process gains an Agent for the
+   * Session; from then on live events come from the in-process source.
+   * @param target - Session the follower reads.
+   * @param from - first event seq the follower has not delivered.
+   * @param deliver - enqueue one newly persisted event for the follow stream.
+   * @param fail - report the `gateway/internal` failure that ends the stream.
+   * @returns stop function that clears the pending tick, aborts in-flight
+   *   reads, closes an open handle, and stops observing Agent creation.
+   */
+  private pollForeign(
+    target: SessionId,
+    from: SessionLogOffsetType,
+    deliver: (event: SessionEvent) => void,
+    fail: (error: RemoteError) => void,
+  ): () => void {
+    const persistence = this.ctx.sessionPersistence
+    const reads = new AbortController()
+    let cursor = from
+    let revision: SessionPersistenceRevision | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let handle: SessionHandle | undefined
+    let stopped = false
+    const stop = (): void => {
+      if (stopped) return
+      stopped = true
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        timer = undefined
+      }
+      disposeAgentCreated()
+      reads.abort()
+      const open = handle
+      handle = undefined
+      open?.close().catch((error: unknown) => {
+        this.ctx.logger.warn(`session-controller: closing the read handle of foreign follow "${target}" failed: ${errorChain(error)}`)
+      })
+    }
+    const tick = async (): Promise<void> => {
+      try {
+        const snapshot = await persistence.stat(target, { signal: reads.signal })
+        if (stopped) return
+        if (snapshot === undefined) throw new Error('the stored Session no longer exists')
+        if (snapshot.revision === revision) {
+          schedule()
+          return
+        }
+        revision = snapshot.revision
+        const opened = await persistence.open(target, 'read', { signal: reads.signal })
+        handle = opened
+        try {
+          // Aborting between open and read still closes the just-opened handle.
+          reads.signal.throwIfAborted()
+          const { events } = await opened.read(cursor, undefined, { signal: reads.signal })
+          for (const event of events) {
+            deliver(event)
+            cursor = SessionLogOffset(event.seq + 1)
+          }
+        } finally {
+          handle = undefined
+          await opened.close()
+        }
+        schedule()
+      } catch (error: unknown) {
+        if (stopped) return
+        fail(foreignFollowFailure(target, error))
+      }
+    }
+    const schedule = (): void => {
+      timer = setTimeout(() => {
+        timer = undefined
+        void tick()
+      }, this.foreignPollMs)
+      timer.unref()
+    }
+    const disposeAgentCreated = this.ctx.on('agent/created', ({ agent }) => {
+      if (agent.id === target) stop()
+    }, { global: true })
+    schedule()
+    return stop
   }
 
   private async sourceFor(
@@ -278,6 +407,22 @@ export class SessionHistoryController {
 
 function cursorBeforeNext(nextSeq: SessionLogOffsetType): SessionSeqCursor {
   return nextSeq === 0 ? -1 : SessionSeq(nextSeq - 1)
+}
+
+/**
+ * Map a foreign-follower persistence failure to the one stream failure a
+ * Client can act on by reconnecting.
+ * @param target - Session being followed.
+ * @param error - underlying stat, open, read, or close failure.
+ * @returns the `gateway/internal` failure the follow stream throws.
+ */
+function foreignFollowFailure(target: SessionId, error: unknown): RemoteError {
+  return new RemoteError(
+    'gateway/internal',
+    `read-only follow of session "${target}" failed while polling its writer: ${errorChain(error)}`,
+    {},
+    { cause: error },
+  )
 }
 
 function wireAssistantStreamFrame(

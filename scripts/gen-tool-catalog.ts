@@ -701,6 +701,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     requires: [
       'ctx.tools',
       'ctx.commands',
+      'ctx.agents',
       'ctx.approval (optional, read per call)',
       'ctx.llm (optional, turn-end review)',
       'an owning Agent session at execution time',
@@ -709,7 +710,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       'tool/call',
       'tool/result',
       '$DSH_HOME/memories/MEMORY.md or $DSH_HOME/memories/USER.md',
-      '<projectRoot>/.dsh/memory/MEMORY.md and its managed .gitignore block',
+      'the project root .dsh/memory/MEMORY.md and its managed .gitignore block',
       '$DSH_HOME/memories/pending/ for a staged batch',
       'user/message carrying the frozen snapshot (agent/pre-step)',
     ],
@@ -719,6 +720,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       // service is mounted. Every config key has a default, so the schema
       // harvested here is the shipped one.
       await ctx.plugin(CommandRuntime)
+      await ctx.plugin(AgentRegistry)
       await ctx.plugin(MemoryPlugin)
     },
     note:

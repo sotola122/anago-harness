@@ -34,6 +34,7 @@ fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` �
 | [`web-search-credentials`](web-search-credentials/README.zh.md) | 搜索提供方共享的 API 密钥查找顺序 | （库） |
 | [`client-ui-settings-web-search`](client-ui-settings-web-search/README.zh.md) | Plugins 页面上的 Exa 与 Brave 搜索设置卡片 | `ui-settings-web-search-providers` |
 | [`client-ui-fonts-anago`](client-ui-fonts-anago/README.zh.md) | 日语优先的 Web UI 字体 | `anago-fonts` |
+| [`client-ui-session-share`](client-ui-session-share/README.zh.md) | 把被其他进程写入的会话显示为只读输入区 | `ui-session-share` |
 | [`tui`](tui/README.zh.md) | 基于 pi 终端 UI 库的终端应用插件 | `tui-startup`、`tui-app` |
 | [`anago-core`](anago-core/README.zh.md) | 配置捆绑包：上述主机行 | （捆绑包） |
 | [`anago-web`](anago-web/README.zh.md) | 配置捆绑包：上述浏览器行 | （捆绑包） |

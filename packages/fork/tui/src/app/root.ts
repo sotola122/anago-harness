@@ -73,7 +73,12 @@ export interface TuiHost {
   readonly selectModel: (route: ModelRoute) => Promise<void>
   /** List the profile's stored Sessions, newest first. */
   readonly listSessions: () => Promise<readonly SessionOption[]>
-  /** Open a stored Session, or a new one when the id is `null`. */
+  /**
+   * Open a stored Session, or a new one when the id is `null`.
+   *
+   * Rejects when the Session cannot be opened; the Session the screen already
+   * shows then stays open.
+   */
   readonly openSession: (sessionId: string | null) => Promise<void>
 }
 

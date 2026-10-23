@@ -32,7 +32,9 @@
   },
   "dependencies": {
     "@anago-harness/client-ui-fonts-anago": "workspace:*",
+    "@anago-harness/client-ui-session-share": "workspace:*",
     "@anago-harness/client-ui-settings-web-search": "workspace:*",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:*",
     "@deepseek-ai/dsh-client-locale": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-web-search": "workspace:*"
   },

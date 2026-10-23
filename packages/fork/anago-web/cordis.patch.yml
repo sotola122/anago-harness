@@ -2,6 +2,8 @@
 - insert:
     # A client half attaches only to the row whose specifier is the bare
     # package name.
+    - id: ui-session-share
+      name: '@anago-harness/client-ui-session-share'
     - id: ui-settings-web-search-providers
       name: '@anago-harness/client-ui-settings-web-search'
 
@@ -23,6 +25,15 @@
 - insert:
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'
+
+# An idle Agent hands its Session write ownership back so the TUI can open the
+# same stored Session. The controller keeps the Agent while a turn, queued
+# inbox work, a live child Agent, or a background hold is outstanding.
+- id: session-controller
+  name: '@deepseek-ai/dsh-api-session-controller'
+  config:
+    releaseOnIdle: true
+    releaseIdleDelayMs: 250
 
 # The account and message-feedback UI link to DeepSeek CN endpoints from the
 # browser, which the Node egress guard cannot intercept.

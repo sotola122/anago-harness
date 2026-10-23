@@ -629,10 +629,17 @@ describe('tui-app boot', () => {
 
     expect(row.written.join('')).toContain('failed to close the previous Session: the old log is locked')
     expect(row.resumed).toEqual(['session-9'])
+    emitSession(row.ctx, 'session-9', {
+      type: 'assistant/message',
+      seq: 2,
+      time: 3,
+      data: { message: { content: [{ type: 'text', text: 'the switch survived' }] } },
+    })
+    expect(lastBlock()).toMatchObject({ kind: 'assistant', text: 'the switch survived' })
     await row.ctx.fiber.dispose()
   })
 
-  it('leaves no Agent and falls back to the startup route after a failed switch', async () => {
+  it('keeps the previous Session and its Agent after a failed switch', async () => {
     const row = boot({
       startup: { ...STARTUP, provider: 'deepseek', model: 'deepseek-v4' },
       selection: DEFAULT_SELECTION,
@@ -642,99 +649,140 @@ describe('tui-app boot', () => {
     })
     await settle()
     const terminal = row.terminal()
+    const previous = row.handles[0] as FakeHandle
 
     terminal.send('\x12')
     await settle()
     terminal.send('\r')
     await settle()
+
     expect(lastBlock()).toMatchObject({ kind: 'error', text: 'the Session is locked' })
+    expect(previous.dispose).not.toHaveBeenCalled()
 
-    terminal.send('\x10')
-    await settle()
-    terminal.send('\r')
-    await settle()
+    type(terminal, 'still here')
+    enter(terminal)
+    expect(previous.agent.followup).toHaveBeenCalledTimes(1)
 
-    terminal.send('\x12')
-    await settle()
     terminal.send('\x1b')
-    await settle()
-
-    type(terminal, '/clear')
-    enter(terminal)
-    await settle()
-    expect(row.created).toHaveLength(2)
-    await row.ctx.fiber.dispose()
-  })
-
-  it('reports submissions and model picks made while no Agent is open', async () => {
-    const row = boot({
-      selection: DEFAULT_SELECTION,
-      llm: 'catalog',
-      sessionQuery: { list: [{ header: { id: SessionId('session-9'), createdAt: 1 } }] },
-      resume: async () => { throw new Error('the Session is locked') },
-    })
-    await settle()
-    const terminal = row.terminal()
-
-    terminal.send('\x12')
-    await settle()
-    terminal.send('\r')
-    await settle()
-
-    type(terminal, 'still there?')
-    enter(terminal)
-    expect(lastBlock()).toMatchObject({ kind: 'error', text: 'no Agent is open yet' })
+    expect(previous.agent.cancel).toHaveBeenCalledWith({ kind: 'user' }, { keepInbox: true })
 
     terminal.send('\x10')
     await settle()
     terminal.send('\r')
     await settle()
-    expect(lastBlock()).toMatchObject({ kind: 'error', text: 'no Agent is open yet' })
+    expect(lastBlock()).toMatchObject({ kind: 'notice', text: 'model → deepseek · deepseek-v4' })
+
+    emitSession(row.ctx, 'session-1', {
+      type: 'assistant/message',
+      seq: 2,
+      time: 3,
+      data: { message: { content: [{ type: 'text', text: 'still rendered' }] } },
+    })
+    expect(lastBlock()).toMatchObject({ kind: 'assistant', text: 'still rendered' })
 
     type(terminal, '/clear')
     enter(terminal)
     await settle()
     expect(row.created).toHaveLength(2)
+    expect(previous.dispose).toHaveBeenCalledTimes(1)
     await row.ctx.fiber.dispose()
   })
 
-  it('aborts and submits during a switch that is still disposing the previous Agent', async () => {
-    const dispose = Promise.withResolvers<undefined>()
+  it('replaces the previous Agent only after the next Session opens', async () => {
+    const opened = Promise.withResolvers<FakeHandle>()
+    const row = boot({
+      selection: DEFAULT_SELECTION,
+      sessionQuery: { list: [{ header: { id: SessionId('session-9'), createdAt: 1 } }] },
+      resume: () => opened.promise,
+    })
+    await settle()
+    const terminal = row.terminal()
+    const previous = row.handles[0] as FakeHandle
+
+    type(terminal, 'before the switch')
+    enter(terminal)
+    terminal.send('\x12')
+    await settle()
+    terminal.send('\r')
+    await settle()
+
+    expect(previous.dispose).not.toHaveBeenCalled()
+    type(terminal, 'during the open')
+    enter(terminal)
+    expect(previous.agent.followup).toHaveBeenCalledTimes(2)
+
+    const next = makeHandle(makeAgent('agent-2', 'session-9'))
+    opened.resolve(next)
+    await settle()
+
+    expect(previous.dispose).toHaveBeenCalledTimes(1)
+    expect(row.resumed).toEqual(['session-9'])
+    expect(lastBlock()).toMatchObject({ kind: 'notice', text: 'resumed Session session-' })
+
+    emitSession(row.ctx, 'session-1', {
+      type: 'assistant/message',
+      seq: 2,
+      time: 3,
+      data: { message: { content: [{ type: 'text', text: 'stale' }] } },
+    })
+    expect(lastBlock()).toMatchObject({ kind: 'notice' })
+    emitSession(row.ctx, 'session-9', {
+      type: 'assistant/message',
+      seq: 2,
+      time: 3,
+      data: { message: { content: [{ type: 'text', text: 'fresh' }] } },
+    })
+    expect(lastBlock()).toMatchObject({ kind: 'assistant', text: 'fresh' })
+
+    type(terminal, 'after the switch')
+    enter(terminal)
+    expect(next.agent.followup).toHaveBeenCalledTimes(1)
+    await row.ctx.fiber.dispose()
+  })
+
+  it('serves the new Agent while the previous Session is still closing', async () => {
+    const closing = Promise.withResolvers<undefined>()
     const row = boot({
       selection: DEFAULT_SELECTION,
       sessionQuery: { list: [{ header: { id: SessionId('session-9'), createdAt: 1 } }] },
     })
     await settle()
     const terminal = row.terminal()
-    row.handles[0]?.dispose.mockReturnValue(dispose.promise)
+    const previous = row.handles[0] as FakeHandle
+    previous.dispose.mockReturnValue(closing.promise)
+
+    terminal.send('\x12')
+    await settle()
+    terminal.send('\r')
+    await settle()
+    const next = row.handles[1] as FakeHandle
 
     type(terminal, 'start a turn')
     enter(terminal)
-    terminal.send('\x12')
-    await settle()
-    terminal.send('\r')
-    await settle()
+    expect(next.agent.followup).toHaveBeenCalledTimes(1)
+    expect(previous.agent.followup).not.toHaveBeenCalled()
 
     terminal.send('\x1b')
-    type(terminal, 'queued follow-up')
-    enter(terminal)
-    expect(lastBlock()).toMatchObject({ kind: 'error', text: 'no Agent is open yet' })
+    expect(next.agent.cancel).toHaveBeenCalledWith({ kind: 'user' }, { keepInbox: true })
+    expect(previous.agent.cancel).not.toHaveBeenCalled()
 
-    dispose.resolve(undefined)
+    closing.resolve(undefined)
     await settle()
     expect(row.resumed).toEqual(['session-9'])
     await row.ctx.fiber.dispose()
   })
 
-  it('never continues a switch that shutdown interrupted', async () => {
-    const dispose = Promise.withResolvers<undefined>()
+  it('discards a Session that opens after shutdown interrupted the switch', async () => {
+    const opened = Promise.withResolvers<FakeHandle>()
+    const readSession = vi.fn(async () => ({ events: [] }))
     const row = boot({
       selection: DEFAULT_SELECTION,
       sessionQuery: { list: [{ header: { id: SessionId('session-9'), createdAt: 1 } }] },
+      resume: () => opened.promise,
+      readSession,
     })
     await settle()
     const terminal = row.terminal()
-    row.handles[0]?.dispose.mockReturnValue(dispose.promise)
 
     terminal.send('\x12')
     await settle()
@@ -743,11 +791,57 @@ describe('tui-app boot', () => {
 
     row.signalHandler()?.()
     await settle()
-    dispose.resolve(undefined)
+    const late = makeHandle(makeAgent('agent-2', 'session-9'))
+    opened.resolve(late)
     await settle()
 
     expect(row.exits).toEqual([0])
-    expect(row.resumed).not.toContain('session-9')
+    expect(late.dispose).toHaveBeenCalledTimes(1)
+    expect(readSession).not.toHaveBeenCalled()
+    await row.ctx.fiber.dispose()
+  })
+
+  it('skips the replay when shutdown lands while the previous Session closes', async () => {
+    const closing = Promise.withResolvers<undefined>()
+    const readSession = vi.fn(async () => ({ events: [] }))
+    const row = boot({
+      selection: DEFAULT_SELECTION,
+      sessionQuery: { list: [{ header: { id: SessionId('session-9'), createdAt: 1 } }] },
+      readSession,
+    })
+    await settle()
+    const terminal = row.terminal()
+    const previous = row.handles[0] as FakeHandle
+    previous.dispose.mockReturnValue(closing.promise)
+
+    terminal.send('\x12')
+    await settle()
+    terminal.send('\r')
+    await settle()
+
+    row.signalHandler()?.()
+    await settle()
+    closing.resolve(undefined)
+    await settle()
+
+    expect(row.exits).toEqual([0])
+    expect(readSession).not.toHaveBeenCalled()
+    expect(row.handles[1]?.dispose).toHaveBeenCalledTimes(1)
+    await row.ctx.fiber.dispose()
+  })
+
+  it('reports a resume that cannot be opened and exits 1', async () => {
+    const row = boot({
+      startup: { ...STARTUP, resume: 'session-7' },
+      selection: DEFAULT_SELECTION,
+      resume: async () => { throw new Error('the Session is locked') },
+    })
+    await settle()
+
+    expect(row.exits).toEqual([1])
+    expect(row.written.join('')).toContain('tui: the Session is locked')
+    expect(row.handles).toHaveLength(0)
+    expect(started).toHaveLength(0)
     await row.ctx.fiber.dispose()
   })
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionStore, { SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import type { Session, SessionEvent, SessionHeader, SessionId as SessionIdType } from '@deepseek-ai/dsh-session'
+import type { Session, SessionEvent, SessionHeader, SessionId as SessionIdType, SessionOwnership } from '@deepseek-ai/dsh-session'
 import SessionPersistence, {
   SessionPersistenceNotFoundError,
   SessionPersistenceRevision,
@@ -120,6 +120,10 @@ class TracePersistence extends SessionPersistence {
       header: structuredClone(entry.meta),
       revision: SessionPersistenceRevision(`events:${entry.events.length}`),
     })
+  }
+
+  ownership(id: SessionIdType): Promise<SessionOwnership> {
+    return Promise.resolve(TracePersistence.entries.has(id) ? 'free' : 'missing')
   }
 
   list(): Promise<readonly SessionPersistenceSnapshot[]> {

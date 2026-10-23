@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fork/anago-web/README.md
 /:
-  en: 345a741e221e6c17
-  zh: 0f3255c2d04b683e
+  en: fc1fff1133229611
+  zh: 9ba6064f960fd62f
 /anago-harness-anago-web:
   en: 3f925191be123109
   zh: 8e9103f6e682a2ba
 /anago-harness-anago-web/summary:
-  en: 5f5b2b633671bb93
-  zh: e96f40f4a5c683c5
+  en: ac5a3bbf02d7d744
+  zh: 77230e535fe2ec44
 /anago-harness-anago-web/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /anago-harness-anago-web/use-this-package:
-  en: e963d35627ecbc67
-  zh: 12805ecdfaa288dc
+  en: 85e0bf1b6394a02d
+  zh: a3feff669608138d
 /anago-harness-anago-web/understand-the-implementation:
   en: 93800ec4a7199159
   zh: ca4a38ee1f65f1e6

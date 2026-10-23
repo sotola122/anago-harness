@@ -108,6 +108,23 @@ describe('Session picker rows', () => {
     expect(items[2]?.group).toBe('2026-09-01')
   })
 
+  it('carries the refusal reason for a Session another process holds', () => {
+    const options: readonly SessionOption[] = [
+      { id: 'session-free', createdAt: now, current: false },
+      {
+        id: 'session-held',
+        createdAt: now,
+        current: false,
+        disabledReason: 'another process holds the write lease',
+      },
+    ]
+
+    const [free, held] = sessionPickerItems(options, now)
+
+    expect(free?.disabled).toBeUndefined()
+    expect(held?.disabled).toEqual({ reason: 'another process holds the write lease' })
+  })
+
   it('formats relative ages at each boundary', () => {
     expect(formatRelativeTime(now - 30_000, now)).toBe('just now')
     expect(formatRelativeTime(now - 59 * 60_000, now)).toBe('59m ago')

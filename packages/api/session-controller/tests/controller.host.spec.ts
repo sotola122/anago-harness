@@ -197,6 +197,42 @@ describe('SessionController facade', () => {
     },
   )
 
+  it('observes a prepared Session without activating it in read mode', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    const sessionId = SessionId('read-only-follow')
+    const header: SessionHeader = {
+      version: SESSION_FORMAT_VERSION, id: sessionId, createdAt: 1, cwd: '/workspace', isSeeded: false,
+    }
+    ctx.provide('sessionPersistence', testSessionPersistence(ctx, {
+      list: () => Promise.resolve([header]),
+      inspect: () => Promise.resolve({
+        meta: header,
+        inheritedEventCount: SessionLogOffset(0),
+        events: [],
+      }),
+    }) as never)
+    const controller = createSessionTestController(ctx, defaults)
+    const agents = (controller as unknown as { agents: ApiSessionAgentController }).agents
+    const resolve = vi.spyOn(agents, 'resolveObservedAgent')
+    const abort = new AbortController()
+    const iterator = controller.follow({
+      address: { kind: 'session', sessionId },
+      mode: 'read',
+    }, abort.signal)[Symbol.asyncIterator]()
+
+    await expect(iterator.next()).resolves.toMatchObject({
+      done: false,
+      value: { type: 'snapshot', cursor: -1 },
+    })
+    // Viewing must not resume an Agent: the writer lease stays free.
+    expect(resolve).not.toHaveBeenCalled()
+    abort.abort()
+    await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined })
+    await ctx.fiber.dispose()
+  })
+
   it('waits for an admitted background promotion during teardown', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)

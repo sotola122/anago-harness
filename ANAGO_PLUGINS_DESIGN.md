@@ -138,6 +138,7 @@ Supporting facts:
 | `knowledge-common` | `@anago-harness/knowledge-common` | Library | `knowledge-common` (unscoped) | — |
 | `web-search-credentials` | `@anago-harness/web-search-credentials` | Library (new) | Shared key lookup for both providers | — |
 | `client-ui-settings-web-search` | `@anago-harness/client-ui-settings-web-search` | Client package (empty host `apply`) | §6.5 plus the Brave card, merged | `ui-settings-web-search-providers` |
+| `client-ui-session-share` | `@anago-harness/client-ui-session-share` | Client package (empty host `apply`) | New: blocks the composer for a Session another DSH process holds | `client-ui-session-share` |
 | `tui` | `@anago-harness/tui` | Application plugin (exports `./startup`) | New (inherits pi-tui) | `tui-startup`, `tui-app` |
 | `anago-core` | `@anago-harness/anago-core` | Bundle | New | — |
 | `anago-web` | `@anago-harness/anago-web` | Bundle | New | — |

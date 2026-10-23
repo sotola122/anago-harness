@@ -44,6 +44,8 @@ Use `ctx.sessionQuery` from application code when you need to read or search ses
 
 Body-free records expose only `SessionHeader.isSeeded`. Reads that return event bodies (`readSession`, `readSurface`, `readEvent`) and retained `SessionObservation` values also carry the exact `inheritedEventCount`, so callers can distinguish inherited and owned events without inferring a cut from the log.
 
+A retained `SessionObservation` separates its display cursor from its durable cut. `cursor` is the last event of the balanced view, including the synthetic repair closers a cold read appends in memory; `savedCursor` is the seq of the last physically persisted event, or `-1` for an empty stored log. A live observation reports the same seq for both, because the live Session is this process's authoritative view of the log.
+
 ### Filters
 
 `SessionResultFilter` narrows sessions by id, nullable cwd, created-at range, nullable parent, or source availability; `SessionEventResultFilter` narrows events by seq/time range, event type, surface, or literal text. Filter arrays are ANDed and list values within one clause are ORed; empty list values match nothing, ranges are inclusive, and malformed ranges or unknown closed-union values fail with `SESSION_QUERY_INVALID_FILTER`.

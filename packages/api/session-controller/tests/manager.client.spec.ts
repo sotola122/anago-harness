@@ -862,6 +862,7 @@ describe('subagent catalogs', () => {
           mode: 'continuable',
         },
         assistantStream: true,
+        mode: 'read',
         maxMessages: 500,
         turnWindow: { minMessages: 50, minTurns: 2 },
       },

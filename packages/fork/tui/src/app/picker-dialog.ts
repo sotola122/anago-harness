@@ -41,6 +41,10 @@ export interface PickerDialogOptions {
 
 /**
  * Render one row, marking the highlighted entry.
+ *
+ * A disabled row keeps its position and highlight but dims the label and shows
+ * its refusal reason in the detail column, so the reason is readable without
+ * choosing the row.
  * @param item - row to render.
  * @param selected - whether the row is highlighted.
  * @param width - available columns.
@@ -49,6 +53,11 @@ export interface PickerDialogOptions {
  */
 function renderRow(item: PickerItem, selected: boolean, width: number, theme: Theme): string {
   const marker = selected ? theme.accent('❯ ') : '  '
+  if (item.disabled !== undefined) {
+    const label = theme.dim(item.label)
+    const reason = theme.dim(` · ${item.disabled.reason}`)
+    return truncateToWidth(`${marker}${label}${reason}`, width)
+  }
   const label = selected ? theme.accent(item.label) : item.label
   const detail = item.detail === undefined ? '' : theme.dim(` · ${item.detail}`)
   return truncateToWidth(`${marker}${label}${detail}`, width)
@@ -59,6 +68,7 @@ export class PickerDialog implements Component {
   private readonly options: PickerDialogOptions
   private readonly theme: Theme
   private state: PickerState
+  private refusal: string | undefined
 
   /**
    * @param options - dialog content and callbacks.
@@ -84,9 +94,14 @@ export class PickerDialog implements Component {
   /**
    * Route keys: arrows move, Enter selects, Escape cancels, and printable text
    * filters the list.
+   *
+   * Enter on a disabled row keeps the dialog open, replaces the callback with
+   * a refusal notice, and leaves the highlight in place; any later key clears
+   * the notice.
    * @param data - raw terminal input.
    */
   handleInput(data: string): void {
+    this.refusal = undefined
     if (matchesKey(data, 'escape')) {
       this.options.onCancel()
       return
@@ -101,7 +116,12 @@ export class PickerDialog implements Component {
     }
     if (matchesKey(data, 'return')) {
       const selection = pickerSelection(this.state)
-      if (selection !== undefined) this.options.onChoose(selection)
+      if (selection === undefined) return
+      if (selection.disabled !== undefined) {
+        this.refusal = `cannot select: ${selection.disabled.reason}`
+        return
+      }
+      this.options.onChoose(selection)
       return
     }
     if (matchesKey(data, 'backspace')) {
@@ -114,7 +134,8 @@ export class PickerDialog implements Component {
   }
 
   /**
-   * Render the dialog.
+   * Render the dialog, including a refusal notice after a disabled row was
+   * chosen.
    * @param width - overlay width.
    * @returns panel lines, each at most `width` columns.
    */
@@ -145,6 +166,10 @@ export class PickerDialog implements Component {
       if (visible.length > MAX_VISIBLE_ROWS) {
         content.push(this.theme.dim(`${String(index + 1)}/${String(visible.length)}`))
       }
+    }
+    if (this.refusal !== undefined) {
+      content.push('')
+      content.push(this.theme.error(this.refusal))
     }
     content.push('')
     content.push(dialogHint(this.options.hint, inner, this.theme))
