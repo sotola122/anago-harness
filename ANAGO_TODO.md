@@ -114,6 +114,7 @@
   - `~/.dsh/profiles/tui-pi` = `dsh-base` + `anago-core` + `anago-tui` + `commandcode`（109 行、pi-tui ベース）
   - `~/.dsh/profiles/tui-oc` = 旧 dsh-oc-tui プロファイル（退避）
 - 中国語表示の修正: `lib/types/i18n.js` の `cmd-desc-*` 60 キーに英語がなく、英語モードで中国語へフォールバックしていた。`scripts/fork/patch-dsh-tui-i18n.mjs` が `commands.js` の英語説明から `en` を補完する（冪等、更新後に再実行）。本番・検証の両プロファイルに適用済みで、`en` 欠落キーは 0。
+- ステータスバーの中国語: `dsh-working-activity` の言語解決が `DSH_TUI_LANG` → `~/.dsh-tui/lang.json` → OS ロケール → **zh** の順で、この環境は `LANG=ja_JP.UTF-8` のため中国語に落ちていた（プラグインの進捗コピーと、モデルに注入する `⏵` 自己ナレーション指示の両方）。`~/.dsh-tui/lang.json` に `{"lang":"en"}` を置いて英語に固定。確認: 進捗行は `Executing sleep 6; echo finished · 5s`、完了時は `Finished`。`⏵` の内容自体は response-language により日本語。`ash` のインストーラでも未作成時にこのファイルを書く。
 
 ## 実機検証（3081）— サーバ側は完了
 
