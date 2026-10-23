@@ -881,10 +881,15 @@ function toolSource(entry: ToolPackage, toolName: string): string {
   return source
 }
 
+/** Escape angle brackets VitePress would read as HTML, leaving code spans untouched. */
+function escapeOutsideCode(text: string): string {
+  return text.split('`').map((part, index) => index % 2 === 0 ? part.replaceAll('<', '&lt;') : part).join('`')
+}
+
 /** Render one tool's entry: name, description, JSON-Schema parameters, source. */
 function renderTool(schema: ToolSchema, source: string): string[] {
   const out = [`### \`${schema.name}\``, '']
-  if (schema.description) out.push(schema.description, '')
+  if (schema.description) out.push(escapeOutsideCode(schema.description), '')
   out.push('```json', JSON.stringify(schema.parameters, null, 2), '```', '')
   out.push(`Source: [\`${source}\`](../${source})`, '')
   return out
@@ -928,7 +933,7 @@ export function render(catalog: ToolCatalog): string {
       const source = entry.sources[schema.name] as string
       lines.push(...renderTool(schema, source))
     }
-    if (entry.note) lines.push(entry.note, '')
+    if (entry.note) lines.push(escapeOutsideCode(entry.note), '')
   }
   return lines.join('\n')
 }
