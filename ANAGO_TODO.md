@@ -107,6 +107,8 @@
   - `/compact`: 「Session summary is ready」→ コンテキストが 14k → 6.2k に減少
   - anago-core 併用時は日本語で応答（response-language が有効）
 - 起動: `DSH_HOME=~/.dsh-anago-trial node apps/cli/lib/bin.js --profile dsh-tui`
+- DeepSeek API キーは不要。初回ウィザードは `~/.dsh-tui/onboarding.json` に `{"completed":true,"version":1}` を置くと永続的にスキップでき、起動直後に入力欄が出る（コード修正は不要）。将来的に `ash` のインストーラでこのファイルを未作成時のみ書けば、利用者はウィザードを見ずに済む。
+- モデルはプロファイル patch の `agent-default-model`（commandcode）で固定。`/setup` を実行しない限り DeepSeek の経路は使われない。
 - 残る判断: 本番の `tui` を dsh-TUI に置き換えるか、`anago-tui`（pi-tui ベース）を `tui-pi` として残すか。
 
 ## 実機検証（3081）— サーバ側は完了
