@@ -194,3 +194,16 @@
   - `dsh-web-url` … 互換シム。`anago-web.service` が active なら `anago-web-url`、そうでなければ `dsh-web-url.legacy`（旧 journal 版）へ委譲。旧サービスへのロールバックでもそのまま使える。
 - ロールバック: `systemctl --user disable --now anago-web.service; systemctl --user enable --now dsh-web.service`
 - 注意: 前回の切り替えは `dsh-web.service` の `Restart=always` が旧 dsh を再起動して失敗していた。今回のようにユニットごと移行するのが正しい手順。
+
+## Web / TUI セッション共有（2026-10-23）
+
+- 閲覧は書き込みにしない: `session/follow` に `mode: 'activate' | 'read'` を追加。Web クライアントは常に `read` で開き、Agent を resume しない。`SessionObservation.savedCursor` を保存済み末尾の基準にし、合成 closer を cursor に使わない。
+- 所有権は advisory: `SessionPersistence.ownership()` が `free` / `owned-here` / `held-elsewhere` / `missing` / `unknown` を返す（ディレクトリもロックファイルも作らない）。最終判定は従来の flock。
+- ターン外解放: `releaseOnIdle` / `releaseIdleDelayMs` / `releaseRetryMs`。idle + inbox 空 + 子 Agent なし + `ctx.agents.hold()` 0 + admission なしで `AgentHandle` を dispose。memory review と goal round driver は hold を取る。`anago-web` で 250ms 遅延の有効化。
+- 切り離しと削除の分離: `api-session/detached` を追加し、通常セッションの Agent 終了では行・履歴・draft を保持。durable subagent 行のみ `removed`。
+- Web read-only: 新 `@anago-harness/client-ui-session-share` が 1 秒ごとに ownership を確認し、`held-elsewhere` で composer を `lock: 'all'`（モデル席も停止）。`remote` と `remote.session` の両 inject が必須（property proxy の規則）。
+- TUI: `/resume` の行をグレー表示＋理由、選択拒否。`--resume` は同一理由で exit 1。切替は「新セッションを開いてから旧 Agent を破棄」に変更。
+- ライブ追従: read モードの follower が `stat().revision` を 500ms で確認し、変化時のみ既存 read で差分取得。実測: 検知 3 ms / 差分 read 1 ms。
+- 実機検証: 3080 が保持するセッションを 3081 の Web UI（Chromium）で開き、read-only 理由の表示と composer 不活性を確認。TUI `--resume` も同じ理由で拒否。3080 のセッションには影響なし。
+- コミット: `8890d47b80`（機能）、`581d6e9352`（docs:build）、`aa8f8d786c`（テスト）、`9729cc3cab`（policy）、`71b3478886`（remote inject）、`0767309a7e`（TUI 拒否）。
+- 残作業（環境要因）: `anago-web` 再起動後に TUI 保持 → Web read-only → TUI 終了で解禁 → Web ターン終了後の `flock` 解放を手動確認。5 件の headless スナップショットは HEAD `36580d63d1` のリマインダー追加に伴い再録音が必要（API キー必須）。`vendor rescope` は fork 移植時の既存 20 箇所。
