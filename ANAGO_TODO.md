@@ -26,7 +26,10 @@
   - プロバイダ未対応（`agentOptions` なし）はロード時に fail loud
 - 組成: `anago-core` の `tool-subagent-pi` / `tool-subagent-cursor` に `providerOwnedRoute: true`。
 - 実機確認: headless で provider `command-code` / model `deepseek/deepseek-v4.1-flash` / effort `high` を渡し、子の出力 **`RUNTIME_OK`** を取得。
-- テスト: `tool-subagent` 141 件（新規 4 件含む）、カバレッジ 100%。`subagent-cursor` は model のみ対応（provider は登録名一致時のみ、effort/maxTokens は明示拒否）。
+- 追加修正（実機フィードバック）:
+  - **provider / model のペア必須を解除**: `providerOwnedRoute` では 3 フィールドを独立に受け付ける（model のみ・provider のみ・effort のみ可）。空文字はツール境界で拒否。`providerOwnedAgentOptions()` を追加し、テスト 4 件を追加。
+  - **失敗診断の改善**: 子が assistant メッセージなしで終了した場合、`parse.ts` の `failure()` が stderr 末尾（`truncateUtf8Tail`、マスク済み、1 KiB、全体 4 KiB 上限）を diagnostic に付加。実機で `Unknown provider "commandcode"` がモデルに届くことを確認。
+  - テスト: pi 98 件・`tool-subagent` 145 件、両方カバレッジ 100%。
 
 ### 3. UI の表示言語が中国語になる
 

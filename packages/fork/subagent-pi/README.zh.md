@@ -63,7 +63,7 @@ kind: "package-reference"
 
 argv 顺序为 `--print --mode json [--provider <p> --model <m>] [--thinking <level>] [--tools <csv> | --no-tools] [--exclude-tools <csv>] [--approve | --no-approve] [--session-dir <dir> | --no-session] -- <task>`。任务位于 `--` 之后，因此以 `-` 开头的文本仍会作为 prompt 传递。
 
-行的 `provider` 与 `model` 设置本提供方的默认路由，且必须成对设置（Pi 只用 `--provider` 查找 `--model`）。`tool-subagent-pi` 行设置了 `providerOwnedRoute: true`，因此模型可以在每次 `subagent_pi` 调用中传入 `provider`、`model`、`reasoning_effort`；提供方把它们映射为 `--provider`、`--model`、`--thinking`。请求中的 `agentOptions.maxTokens` 会被拒绝，因为 Pi CLI 没有该选项；不在 Pi 级别内的推理强度也会被拒绝，而不是被忽略。
+行的 `provider` 与 `model` 设置本提供方的默认路由；当调用方指定路由时，两个字段相互独立（只给 model 时使用行的 provider，或 Pi 自身的默认值）。`tool-subagent-pi` 行设置了 `providerOwnedRoute: true`，因此模型可以在每次 `subagent_pi` 调用中传入 `provider`、`model`、`reasoning_effort`；提供方把它们映射为 `--provider`、`--model`、`--thinking`。请求中的 `agentOptions.maxTokens` 会被拒绝，因为 Pi CLI 没有该选项；不在 Pi 级别内的推理强度也会被拒绝，而不是被忽略。运行失败时，诊断会引用子进程 stderr 的末尾（已脱敏），因此被拒绝的 provider 或选项会到达调用方，而不是只得到一条空回答消息。
 
 ### 安全姿态
 

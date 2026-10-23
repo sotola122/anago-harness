@@ -79,6 +79,32 @@ export function hasDelegationModelRequest(request: DelegationModelRequest): bool
     || request.reasoning_effort !== undefined
 }
 
+/**
+ * Build agent options from a call route for a provider that owns its route
+ * namespace. Unlike the DSH route merge, the fields are independent: a caller
+ * may name only a model (the provider supplies the provider half from its
+ * configuration) or only a provider. Empty strings are rejected at the tool
+ * JSON boundary.
+ * @param request - Model-facing route fields from the tool call.
+ * @returns The options to forward, or undefined when the call names none.
+ */
+export function providerOwnedAgentOptions(request: DelegationModelRequest): AgentOptions | undefined {
+  if (!hasDelegationModelRequest(request)) return undefined
+  for (const field of ['provider', 'model', 'reasoning_effort'] as const) {
+    const value = request[field]
+    if (value !== undefined && value.length === 0) {
+      throw new Error(`provider-owned route \`${field}\` must be non-empty`)
+    }
+  }
+  return {
+    ...request.provider === undefined ? {} : { provider: request.provider },
+    ...request.model === undefined ? {} : { model: request.model },
+    ...request.reasoning_effort === undefined
+      ? {}
+      : { reasoningEffort: ReasoningEffortId(request.reasoning_effort) },
+  }
+}
+
 /** Reject an empty model-facing route value at the tool JSON boundary. */
 function assertNonEmpty(value: string | undefined, field: keyof DelegationModelRequest): void {
   if (value !== undefined && value.length === 0) {

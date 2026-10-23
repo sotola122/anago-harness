@@ -27,6 +27,7 @@ import {
   hasConfiguredLlmSelection,
   hasDelegationModelRequest,
   preflightChildLlmRoute,
+  providerOwnedAgentOptions,
   requestedAgentOptions,
 } from './model-selection.ts'
 import type { DelegationModelRequest, ModelSelectionPolicy } from './model-selection.ts'
@@ -258,7 +259,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             provider: {
               type: 'string' as const,
               description: providerOwnedRoute
-                ? 'Route in the child provider\'s own namespace (for an external CLI, its provider id). Supply together with model; omit both to use configured defaults.'
+                ? 'Route in the child provider\'s own namespace (for an external CLI, its provider id). Optional and independent of model; omit to use the provider\'s configured default.'
                 : providerRouteDefaults !== undefined
                   ? 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or this provider\'s route defaults.'
                   : 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or inherit the parent route.',
@@ -266,7 +267,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             model: {
               type: 'string' as const,
               description: providerOwnedRoute
-                ? 'Model id interpreted by the child provider (for an external CLI, its model name). Omit to use configured defaults.'
+                ? 'Model id interpreted by the child provider (for an external CLI, its model name). Optional and independent of provider; omit to use the provider\'s configured default.'
                 : providerRouteDefaults !== undefined
                   ? 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or this provider\'s route defaults.'
                   : 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or inherit the parent route.',
@@ -309,12 +310,14 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           const configuredChildAgentOptions = requiresRoutePreflight && providerRouteDefaults !== undefined
             ? { ...providerRouteDefaults, ...config.agentOptions }
             : config.agentOptions
-          const requestedChildAgentOptions = requestedAgentOptions(
-            parentOptions,
-            configuredChildAgentOptions,
-            modelRequest,
-            modelSelectionEnabled || providerOwnedRoute,
-          )
+          const requestedChildAgentOptions = providerOwnedRoute
+            ? providerOwnedAgentOptions(modelRequest)
+            : requestedAgentOptions(
+              parentOptions,
+              configuredChildAgentOptions,
+              modelRequest,
+              modelSelectionEnabled,
+            )
           if (!providerOwnedRoute) {
             assertAllowedModelSelection(
               modelSelectionPolicy,

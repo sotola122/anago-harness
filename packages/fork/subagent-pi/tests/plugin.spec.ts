@@ -588,13 +588,15 @@ describe('published run lifecycle', () => {
     await run.dispose()
   })
 
-  it('keeps raw stderr out of the diagnostic and masks it in the log line', async () => {
+  it('quotes the masked stderr tail in the diagnostic and the log line', async () => {
     const harness = createHarness()
     const { run } = await startRun(harness)
     harness.stderr.text = 'fatal: PI_API_KEY=sk-live-secret rejected'
     harness.complete(1)
     const result = await run.result
     expect(result.diagnostic).toContain('category: exit-code')
+    expect(result.diagnostic).toContain('stderr tail:')
+    expect(result.diagnostic).toContain('[redacted]')
     expect(result.diagnostic).not.toContain('sk-live-secret')
     expect(harness.logs.join('\n')).toContain('[redacted]')
     expect(harness.logs.join('\n')).not.toContain('sk-live-secret')

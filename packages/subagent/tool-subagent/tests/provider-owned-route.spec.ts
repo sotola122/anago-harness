@@ -38,6 +38,43 @@ describe('providerOwnedRoute', () => {
     })
   })
 
+  it('accepts a model without a provider', async () => {
+    let seen: SubagentStartRequest | undefined
+    const ctx = await setup(
+      { provider: 'mock', providerOwnedRoute: true },
+      { onStart: (request) => { seen = request } },
+    )
+    await callSubagent(ctx, { prompt: 'delegate', description: 'model only', model: 'fast-model' })
+    expect(seen?.agentOptions).toEqual({ model: 'fast-model' })
+  })
+
+  it('accepts a provider without a model', async () => {
+    let seen: SubagentStartRequest | undefined
+    const ctx = await setup(
+      { provider: 'mock', providerOwnedRoute: true },
+      { onStart: (request) => { seen = request } },
+    )
+    await callSubagent(ctx, { prompt: 'delegate', description: 'provider only', provider: 'alpha' })
+    expect(seen?.agentOptions).toEqual({ provider: 'alpha' })
+  })
+
+  it('accepts a reasoning effort alone', async () => {
+    let seen: SubagentStartRequest | undefined
+    const ctx = await setup(
+      { provider: 'mock', providerOwnedRoute: true },
+      { onStart: (request) => { seen = request } },
+    )
+    await callSubagent(ctx, { prompt: 'delegate', description: 'effort only', reasoning_effort: 'low' })
+    expect(seen?.agentOptions).toEqual({ reasoningEffort: ReasoningEffortId('low') })
+  })
+
+  it('rejects an empty route value at the tool boundary', async () => {
+    const ctx = await setup({ provider: 'mock', providerOwnedRoute: true })
+    const result = await callSubagent(ctx, { prompt: 'delegate', description: 'empty model', model: '' })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('must be non-empty')
+  })
+
   it('passes no agentOptions when the call names no route', async () => {
     let seen: SubagentStartRequest | undefined
     const ctx = await setup(

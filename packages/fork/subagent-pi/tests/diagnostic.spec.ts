@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { truncateUtf8Tail } from '../src/diagnostic.ts'
 import {
   MAX_DIAGNOSTIC_BYTES,
   failureDiagnostic,
@@ -97,5 +98,20 @@ describe('failureDiagnostic', () => {
     })
     expect(Buffer.byteLength(diagnostic, 'utf8')).toBeLessThanOrEqual(MAX_DIAGNOSTIC_BYTES)
     expect(diagnostic.length).toBeLessThan(300)
+  })
+})
+
+describe('truncateUtf8Tail', () => {
+  it('keeps the end of the text within the byte budget', () => {
+    expect(truncateUtf8Tail('0123456789abcdef', 4)).toBe('cdef')
+  })
+
+  it('does not split a multibyte code point', () => {
+    // Each kana is three bytes; a four-byte budget starts inside one.
+    expect(truncateUtf8Tail('あいうえ', 4)).toBe('え')
+  })
+
+  it('returns an empty string for a non-positive budget', () => {
+    expect(truncateUtf8Tail('abc', 0)).toBe('')
   })
 })

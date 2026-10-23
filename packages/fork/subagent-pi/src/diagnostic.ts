@@ -59,6 +59,25 @@ export function truncateUtf8(text: string, maxBytes: number): string {
 }
 
 /**
+ * Keep the trailing `maxBytes` of a UTF-8 string without splitting a code
+ * point. Diagnostics quote the end of a failed child's stderr, where the error
+ * text lives.
+ * @param text - raw candidate text.
+ * @param maxBytes - byte budget.
+ * @returns the trailing text, or an empty string for a non-positive budget.
+ */
+export function truncateUtf8Tail(text: string, maxBytes: number): string {
+  if (maxBytes <= 0) return ''
+  const bytes = encoder.encode(text)
+  if (bytes.byteLength <= maxBytes) return text
+  let start = bytes.byteLength - maxBytes
+  while (start < bytes.byteLength && ((bytes[start] as number) & 0b1100_0000) === 0b1000_0000) {
+    start += 1
+  }
+  return decoder.decode(bytes.subarray(start))
+}
+
+/**
  * Replace credential-shaped fragments with a fixed marker.
  * @param text - raw candidate text.
  * @returns the masked text.

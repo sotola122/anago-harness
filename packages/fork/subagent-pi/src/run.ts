@@ -249,17 +249,16 @@ export async function startPiRun(
       throw error
     }
   }
-  const attempt = async (): Promise<SubagentResult> => {
-    outcome = await observeProcess()
-    stream.end()
-    const result = stream.outcome(outcome)
-    if (result.diagnostic !== undefined) diagnostic = result.diagnostic
-    return result
-  }
-
   const stderrTail = (): string => {
     const reader = child.collected.stderr
     return reader === undefined ? '' : reader.readFrom(0).text.trim()
+  }
+  const attempt = async (): Promise<SubagentResult> => {
+    outcome = await observeProcess()
+    stream.end()
+    const result = stream.outcome({ ...outcome, stderr: stderrTail() })
+    if (result.diagnostic !== undefined) diagnostic = result.diagnostic
+    return result
   }
   const logSettlement = (settled: SubagentResult): void => {
     const fields = [

@@ -12,7 +12,7 @@
  */
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { SubagentResult } from '@deepseek-ai/dsh-subagent'
-import { failureDiagnostic } from './diagnostic.ts'
+import { failureDiagnostic, maskSecrets, truncateUtf8Tail } from './diagnostic.ts'
 
 /** One assistant message recovered from a `message_end` event. */
 export interface PiAssistantMessage {
@@ -30,7 +30,10 @@ export interface PiProcessOutcome {
   readonly exitCode: number | null
   /** Terminating signal, when one ended the process. */
   readonly signal: NodeJS.Signals | null
+  /** Raw stderr text collected for the failure diagnostic. */
+  readonly stderr?: string
 }
+
 
 /** Whether a parsed JSONL value is a non-null object. */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -140,15 +143,22 @@ export class PiJsonlStream {
 
   /** Record an error result carrying the collected output. */
   private failure(category: string, message: string, process: PiProcessOutcome): SubagentResult {
+    const base = failureDiagnostic({
+      stage: 'run',
+      category,
+      exitCode: process.exitCode,
+      signal: process.signal,
+      message,
+    })
+    // The model sees only this diagnostic, so quote the end of the child's
+    // stderr here: an unknown provider or a rejected flag otherwise looks like
+    // an empty answer. Masking and the byte budget run before the append.
+    const tail = process.stderr === undefined
+      ? ''
+      : truncateUtf8Tail(maskSecrets(process.stderr), 1_024)
     return {
       output: this.output(),
-      diagnostic: failureDiagnostic({
-        stage: 'run',
-        category,
-        exitCode: process.exitCode,
-        signal: process.signal,
-        message,
-      }),
+      diagnostic: tail.length === 0 ? base : `${base}\nstderr tail: ${tail}`,
       stopReason: 'error',
     }
   }

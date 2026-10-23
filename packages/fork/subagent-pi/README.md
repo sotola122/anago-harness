@@ -63,7 +63,7 @@ Set `config` on the `subagent-pi` row. Every field is validated at plugin load w
 
 The argv order is `--print --mode json [--provider <p> --model <m>] [--thinking <level>] [--tools <csv> | --no-tools] [--exclude-tools <csv>] [--approve | --no-approve] [--session-dir <dir> | --no-session] -- <task>`. The task follows `--`, so text that begins with `-` is still delivered as the prompt.
 
-The row's `provider` and `model` set this provider's default route, and both must be set together (Pi uses `--provider` only to look up `--model`). The `tool-subagent-pi` row sets `providerOwnedRoute: true`, so the model can pass `provider`, `model`, and `reasoning_effort` on each `subagent_pi` call; the provider maps them onto `--provider`, `--model`, and `--thinking`. A requested `agentOptions.maxTokens` is rejected, because the Pi CLI has no such flag, and a reasoning effort outside Pi's levels is rejected instead of ignored.
+The row's `provider` and `model` set this provider's default route; when a call names a route, the two fields are independent (a model-only call uses the row's provider, or Pi's own default). The `tool-subagent-pi` row sets `providerOwnedRoute: true`, so the model can pass `provider`, `model`, and `reasoning_effort` on each `subagent_pi` call; the provider maps them onto `--provider`, `--model`, and `--thinking`. A requested `agentOptions.maxTokens` is rejected, because the Pi CLI has no such flag, and a reasoning effort outside Pi's levels is rejected instead of ignored. When a run fails, the diagnostic quotes the masked tail of the child's stderr, so a rejected provider or flag reaches the caller instead of an empty-answer message.
 
 ### Security posture
 
