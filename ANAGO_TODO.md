@@ -162,6 +162,14 @@
 - 起動コマンド: `node apps/cli/lib/bin.js --profile web-anago --host 100.110.252.31 --port 3080 --no-open`
 - ロールバック: `~/.local/bin/dsh --profile web --host 100.110.252.31 --no-open`
 
+## subagent_claude_code の導入（2026-10-23）
+
+- `web-anago` と検証 `headless` に導入し、実機で `CLAUDE-E2E-OK` を確認。
+- コマンド（**バージョン固定が必須**。npm の `latest` は 0.0.1-rc.1 で 0.2.1-rc.2 非対応、`next` が 0.2.1-rc.2）:
+  - `dsh plugin --profile web-anago add @deepseek-ai/dsh-subagent-claude-code@0.2.1-rc.2`
+  - `dsh plugin --profile web-anago add @mars-sea/dsh-commandcode-provider@0.14.1`（プロファイルの依存として明示。未宣言だと plugin install で消える）
+- `subagent-claude-code` / `tool-subagent-claude-code` 行が組成に追加され、`claude` CLI 2.1.309 を使用。
+
 ## 日本語注入の強化（2026-10-23）
 
 - 中国語の応答を確認。セッションログでは日本語指示は各リクエストに含まれていた（注入自体は機能）。静的セクションだけでは、中国語の過去応答を含む文脈に負けることがある。
