@@ -94,6 +94,21 @@
 - 到達可能なコードはすべてテスト済み（fork 全体で **1736 テスト成功**）。残っていたのは静的に到達不能な防御コードで、削除を基本とし、fs 境界・未信頼 JSON・ライフサイクル不変条件の 5 箇所だけ根拠付き `/* v8 ignore next -- ... */` を付けた。
 - 併せて、既存の型エラー（committed fork テスト 21 件）を修正し、`tsc -b host+client` も 0 エラーにした。
 
+## TUI: dsh-TUI（ccch1mneyyy）の検証 — 完了
+
+- 検証ホームに `profiles/dsh-tui` を作成: `dsh-base` + `@deepseek-harness-tui/dsh-tui` 0.16.1 + `@mars-sea/dsh-commandcode-provider` + `@anago-harness/anago-core`（126 行）。
+- インストールは `pnpm` が PATH に必要だったため、corepack 版への一時シムを用意した。
+- 実 PTY（tmux）で確認:
+  - 初回ウィザード（API キー/言語/モデル/ショートカット）→ Esc でスキップ
+  - `/help` に `/compact` ほかのコマンド一覧
+  - `/plugin list`（インストール済みバンドルのみ表示、プラグイン管理の入口）
+  - `/settings`（49 ページ。Command Code の接続/モデル、dsh-tui の外観・言語・Launchpad など）
+  - ツール呼び出し: `Bash(echo dsh-tui-ok)` のカードと結果を表示
+  - `/compact`: 「Session summary is ready」→ コンテキストが 14k → 6.2k に減少
+  - anago-core 併用時は日本語で応答（response-language が有効）
+- 起動: `DSH_HOME=~/.dsh-anago-trial node apps/cli/lib/bin.js --profile dsh-tui`
+- 残る判断: 本番の `tui` を dsh-TUI に置き換えるか、`anago-tui`（pi-tui ベース）を `tui-pi` として残すか。
+
 ## 実機検証（3081）— サーバ側は完了
 
 検証環境: `~/.dsh-anago-trial` / `--profile web` / `--port 3081`。現行 3080 は無変更。
