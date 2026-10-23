@@ -147,7 +147,7 @@ Agent 从配置的 `agentDefaultModel` provider 与模型启动；每个参数�
 - **Session 切换只列头部元数据。** `/resume` 显示时间、目录与 id，最多列出最新的 50 个 Session，不显示标题，也不支持删除、重命名与搜索。
 - **恢复重放依赖 `sessionQuery`。** 缺少该服务的 profile 会在恢复时向 stderr 报错而不是显示历史；`dsh-base` 已挂载该服务，因此随附的 `tui` profile 不受影响。
 - **切换 Session 失败时保留当前 Agent。** `/resume` 与 `/clear` 先打开下一个 Agent，再释放当前的；打开失败时只显示错误，屏幕上已有的 Session 仍可继续使用。启动时的 `--resume` 失败仍以状态 1 退出，因为此时还没有打开的 Session。
-- **禁用的 Session 行来自写入租约。** `listSessionOptions` 会为每个列出的 Session 探测 `SessionPersistence.ownership`；被另一个 DSH 进程持有的行会变暗并显示原因，且无法选中。该探测只是建议性的——如果在列出与打开之间丢失租约，同一条打开路径会拒绝它。
+- **禁用的 Session 行来自写入租约。** `listSessionOptions` 会为每个列出的 Session 探测 `SessionPersistence.ownership`；被另一个 DSH 进程持有的行会变暗并显示原因，且无法选中。该探测只是建议性的——如果在列出与打开之间丢失租约，同一条打开路径会拒绝它；对被持有的 Session 使用 `--resume` 会以相同原因退出。
 - **工具卡片覆盖已知工具族。** `tool/result.meta` 只按结构读取路径、读取窗口、diff、任务与退出码；未知负载回退到结果文本。diff 只统计行数，不渲染 hunk；没有图片或语法高亮输出。
 - **没有图片。** 不支持 `Image`、剪贴板图片粘贴与附件渲染；记录会忽略图片内容。
 - **主题只有 dark 与 light，且在启动时选择。** 没有 `/theme` 切换、`SettingsList` 或自定义配色；dark/light 之外的主题延期。

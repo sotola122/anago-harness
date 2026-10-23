@@ -74,6 +74,19 @@ describe('Agent factory retry', () => {
     expect(fake.attempts()).toBe(1)
   })
 
+  it('reports the picker reason when another process holds the Session', async () => {
+    const held = Object.assign(
+      new Error('session "session-1" is already owned by an active write handle'),
+      { name: 'SessionAlreadyOwnedError' },
+    )
+    const fake = harness([held])
+    contexts.push(fake.ctx)
+
+    await expect(openAgentSession(fake.ctx, { resume: 'session-1', provider: ROUTE.provider, model: ROUTE.model }))
+      .rejects.toThrow('Another DSH instance is running this Session')
+    expect(fake.attempts()).toBe(1)
+  })
+
   it('gives up once the factory wait window closes', async () => {
     const fake = harness([
       new Error('no agent factory registered'),

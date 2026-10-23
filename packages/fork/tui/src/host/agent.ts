@@ -10,6 +10,7 @@ import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { HELD_ELSEWHERE_REASON } from './sessions.ts'
 
 /** How long to wait for the agent-loop row to publish its factory. */
 const FACTORY_RETRY_MS = 2_000
@@ -108,10 +109,19 @@ export async function openAgentSession(ctx: Context, options: SessionOpenOptions
         agentOptions: route,
       })
     }
-    return ctx.agents.resume({
-      resumeSessionId: SessionId(options.resume),
-      agentOptions: route,
-    })
+    try {
+      return await ctx.agents.resume({
+        resumeSessionId: SessionId(options.resume),
+        agentOptions: route,
+      })
+    } catch (error) {
+      // Another process holds the Session's writer lease: report the same
+      // reason the picker shows instead of the raw kernel error.
+      if (error instanceof Error && error.name === 'SessionAlreadyOwnedError') {
+        throw new Error(HELD_ELSEWHERE_REASON, { cause: error })
+      }
+      throw error
+    }
   })
   return { handle, route }
 }

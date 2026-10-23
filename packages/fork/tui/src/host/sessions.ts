@@ -18,7 +18,7 @@ import type { SessionOption } from '../app/pickers.ts'
 const SESSION_LIST_LIMIT = 50
 
 /** Why a Session another process holds cannot be opened here. */
-const HELD_ELSEWHERE_REASON = 'Another DSH instance is running this Session'
+export const HELD_ELSEWHERE_REASON = 'Another DSH instance is running this Session'
 
 /**
  * List resumable Sessions in the profile's store.
