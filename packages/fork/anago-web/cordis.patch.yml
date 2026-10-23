@@ -23,3 +23,14 @@
 - insert:
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'
+
+# The account and message-feedback UI link to DeepSeek CN endpoints from the
+# browser, which the Node egress guard cannot intercept.
+- id: ui-settings-account
+  disabled: true
+- id: account-controller
+  disabled: true
+- id: ui-message-feedback
+  disabled: true
+- id: ui-deepseek-model-label-1017
+  disabled: true

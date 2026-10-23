@@ -162,6 +162,14 @@
 - 起動コマンド: `node apps/cli/lib/bin.js --profile web-anago --host 100.110.252.31 --port 3080 --no-open`
 - ロールバック: `~/.local/bin/dsh --profile web --host 100.110.252.31 --no-open`
 
+## Web UI の DeepSeek 依存除去（2026-10-23）
+
+- ブラウザから CN ドメインへアクセスする行を構成から削除（Node の egress guard はブラウザ通信を遮断できないため）。
+  - ホスト（anago-core）: `deepseek-account` / `llm-deepseek-account` / `message-feedback` / `command-feedback` / `session-telemetry-otel` / `plugin-package-inventory-deepseek` / `web-search-deepseek` / `web-deepseek-api` / `deepseek-llm-api-extensions` / `llm-deepseek`
+  - Web（anago-web）: `ui-settings-account` / `account-controller` / `ui-message-feedback` / `ui-deepseek-model-label-1017`
+- 検証: 更新後の構成を 3082 で起動し、ヘッドレス Chrome で確認 → ログイン/アカウント/フィードバックの操作要素 0、`deepseek.com` リンク 0。
+- 反映には `anago-web.service` の再起動が必要（再起動後に `anago-web-url` で新しい URL を取得）。
+
 ## 3080 切り替え — 完了（systemd 移行込み）
 
 - 2026-10-23 15:54 に切り替え完了。3080 はフォーク（`web-anago` プロファイル）で稼働。

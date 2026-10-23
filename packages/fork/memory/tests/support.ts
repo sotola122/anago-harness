@@ -398,9 +398,6 @@ export function fakeContext(value: object): Context {
   return value as Context
 }
 
-/** One listener a fake context stores; the waterfall and plain events share it. */
-export type WiredListener = (payload: unknown, second?: unknown) => unknown
-
 /**
  * Type one hand-built double as a tool execution.
  * @param value - the double.
@@ -418,3 +415,6 @@ export function fakeToolRunContext(value: object): ToolRunContext {
 export function fakeCommandInvocation(value: object): CommandInvocation {
   return value as CommandInvocation
 }
+
+/** One listener a fake context stores; the waterfall and plain events share it. */
+export type WiredListener = (payload: unknown, second?: unknown) => unknown

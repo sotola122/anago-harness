@@ -47,3 +47,27 @@
   config:
     searchProvider: exa
     fetchProvider: http
+
+# Remove DeepSeek account, feedback, telemetry, and upload rows. The browser
+# cannot use the Node egress guard, so a row that links to platform.deepseek.com
+# or api.deepseek.com must be absent from the composition, not merely blocked.
+- id: deepseek-account
+  disabled: true
+- id: llm-deepseek-account
+  disabled: true
+- id: message-feedback
+  disabled: true
+- id: command-feedback
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- id: web-search-deepseek
+  disabled: true
+- id: web-deepseek-api
+  disabled: true
+- id: deepseek-llm-api-extensions
+  disabled: true
+- id: llm-deepseek
+  disabled: true
