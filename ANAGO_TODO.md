@@ -16,6 +16,14 @@
 - 受入: 「Answer in English only」→ 英語で回答。「指定なし」→ 日本語で回答（3081 の headless で確認）。
 - 備考: 本セッションの中国語応答そのものは、モデル側の一度の逸脱として扱う。以後は上記の規則で運用する。
 
+### 2b. pi-subagent のモデル未指定（再発）— 修正
+
+- 症状: 一部プロファイルで `subagent_pi` が Pi 既定の `opencode-go` に落ち、429 で失敗。
+- 原因: プロバイダ自体は `provider`/`model` 設定と per-call `agentOptions` に対応済みだったが、プロファイルの `subagent-pi` 行に経路が固定されていなかった。
+- 対応: anago-core をマウントする全プロファイル（本番 `tui` / `tui-pi` / `web-anago`、検証 `web` / `headless` / `tui` / `dsh-tui`）に `provider: command-code` / `model: deepseek/deepseek-v4.1-flash` を設定。
+- 検証: `pi --provider command-code --model deepseek/deepseek-v4.1-flash` → `CODE_OK`、`subagent_pi` → `PI_OK`。
+- 制約: per-call のモデル引数は Host 設定 `subagent-model-selection` を有効にすると使えるが、マウント中の全サブエージェントプロバイダが `agentOptions` 対応である必要があり、`subagent-cursor` が未対応のため既定では有効化していない（必要なら cursor を model のみ対応に拡張する）。
+
 ### 2. pi-subagent にモデル指定がなく実行できない
 
 - 指摘: `subagent_pi` がモデル引数を持たず失敗する。
