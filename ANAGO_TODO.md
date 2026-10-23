@@ -22,7 +22,9 @@
 - 原因: プロバイダ自体は `provider`/`model` 設定と per-call `agentOptions` に対応済みだったが、プロファイルの `subagent-pi` 行に経路が固定されていなかった。
 - 対応: anago-core をマウントする全プロファイル（本番 `tui` / `tui-pi` / `web-anago`、検証 `web` / `headless` / `tui` / `dsh-tui`）に `provider: command-code` / `model: deepseek/deepseek-v4.1-flash` を設定。
 - 検証: `pi --provider command-code --model deepseek/deepseek-v4.1-flash` → `CODE_OK`、`subagent_pi` → `PI_OK`。
-- 制約: per-call のモデル引数は Host 設定 `subagent-model-selection` を有効にすると使えるが、マウント中の全サブエージェントプロバイダが `agentOptions` 対応である必要があり、`subagent-cursor` が未対応のため既定では有効化していない（必要なら cursor を model のみ対応に拡張する）。
+- 制約の再確認: 上流 `tool-subagent` の `modelSelectionSettings` は **preset スコープ内のツール行**でのみ動作する（top-level の行では `standing modelSelectionSettings requires a scoped preset Context` でロード失敗）。このフォークの `tool-subagent-pi` / `tool-subagent-cursor` は top-level のため、per-call のモデル引数は使えない。プロファイル行の `provider` / `model` 固定が正規の設定方法。
+- `subagent-cursor` は model のみの per-call 選択に対応（`agentOptions: true`、`provider` は登録名一致時のみ許可、`reasoningEffort` / `maxTokens` は明示拒否）。preset スコープで使う場合に備えた拡張で、テスト 92 件・カバレッジ 100%。
+- web（preset スコープを持つ）でも、このフォークの top-level ツール行には適用できないことを実測で確認。
 
 ### 2. pi-subagent にモデル指定がなく実行できない
 

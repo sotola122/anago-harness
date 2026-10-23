@@ -64,6 +64,12 @@ kind: "package-reference"
 | `env` | `{}` | 叠加在已清洗父环境之上的额外环境变量。不要在此放置凭据；Cursor CLI 把自己的状态放在 `$HOME` 下。 |
 | `extraArgs` | `[]` | 额外 CLI 参数。任何重复提供方自有 flag 的元素都会在 spawn 前被拒绝：`--print`、`--output-format`、`--sandbox`、`--force`、`--mode`、`--workspace`、`--trust`、`--model`、`--yolo`、`--endpoint`、`--api-key`、`--header`、`--add-dir`、`--worktree`、`--plugin-dir`、`--approve-mcps`、`--continue`、`--resume`，以及别名 `-p`、`-f`、`-e`、`-H`、`-w`，包括 `-pf` 这样的连写形式。 |
 
+
+
+行的 `model` 设置默认路由。当 Host 启用 `subagent-model-selection` 并列出该路由时，调用方可以为单次委派选择其他 Cursor 模型：提供方把请求中的 `agentOptions.model` 映射为 `--model`，仅当 `agentOptions.provider` 等于本提供方的注册名时接受（Cursor 模型目录没有提供方命名空间），并拒绝请求中的 `reasoningEffort` 或 `maxTokens`，因为 Cursor CLI 没有这些选项。
+
+
+行的 `model` 设置默认路由。当 Host 启用 `subagent-model-selection` 并列出该路由时，调用方可以为单次委派选择其他 Cursor 模型：提供方把请求中的 `agentOptions.model` 映射为 `--model`，仅当 `agentOptions.provider` 等于本提供方的注册名时接受（Cursor 模型目录没有提供方命名空间），并拒绝请求中的 `reasoningEffort` 或 `maxTokens`，因为 Cursor CLI 没有这些选项。
 argv 顺序为 `--print --output-format <fmt> --sandbox <mode> [--trust] --workspace <cwd> [--mode …] [--model …] [--force] [extraArgs…] agent <task>`。显式的 `agent` 命令词填入 CLI 根命令的 `[command]` 槽位，使任务文本只能被解析为 prompt。若任务恰好等于某个 CLI 子命令名（忽略大小写和首尾空白），`start()` 还会额外拒绝它。
 
 ### 安全姿态

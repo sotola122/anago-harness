@@ -11,8 +11,9 @@ import type {
   SubprocessOutputReader,
   SubprocessSpawnSpec,
 } from '@deepseek-ai/dsh-subprocess'
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
-import { Config, apply } from '../src/index.ts'
+import { Config, apply, resolveCursorRoute } from '../src/index.ts'
 
 /** Absolute, existing directory used as the delegating workspace. */
 const WORKSPACE = process.cwd()
@@ -192,7 +193,7 @@ describe('plugin registration', () => {
     expect(provider.name).toBe('cursor')
     expect(provider.inheritsParentContext).toBe(false)
     expect(provider.capabilities).toEqual({
-      agentOptions: false,
+      agentOptions: true,
       agentPreset: false,
       outputSchema: false,
       depthLimit: false,
@@ -533,5 +534,34 @@ describe('published run lifecycle', () => {
     expect(harness.counts.explicitTerminations).toBe(1)
     expect(harness.counts.waits).toBe(1)
     await expect(run.result).resolves.toMatchObject({ stopReason: 'aborted' })
+  })
+})
+
+describe('per-call route', () => {
+  it('keeps the configured model when the call names none', () => {
+    expect(resolveCursorRoute({ model: 'gpt-5.3-codex' }, 'cursor', undefined)).toEqual({ model: 'gpt-5.3-codex' })
+  })
+
+  it('lets the call override the model', () => {
+    expect(resolveCursorRoute({ model: 'gpt-5.3-codex' }, 'cursor', { model: 'auto' })).toEqual({ model: 'auto' })
+  })
+
+  it('accepts a provider that names this instance', () => {
+    expect(resolveCursorRoute({}, 'cursor', { provider: 'cursor', model: 'auto' })).toEqual({ model: 'auto' })
+  })
+
+  it('rejects a foreign provider instead of ignoring it', () => {
+    expect(() => resolveCursorRoute({}, 'cursor', { provider: 'openai', model: 'auto' }))
+      .toThrow(/no provider selector/)
+  })
+
+  it('rejects a reasoning effort the CLI cannot honor', () => {
+    expect(() => resolveCursorRoute({}, 'cursor', { reasoningEffort: ReasoningEffortId('high') }))
+      .toThrow(/no reasoning-effort flag/)
+  })
+
+  it('rejects a max-tokens request the CLI cannot honor', () => {
+    expect(() => resolveCursorRoute({}, 'cursor', { maxTokens: 1_000 }))
+      .toThrow(/no max-tokens flag/)
   })
 })

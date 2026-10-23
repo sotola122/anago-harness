@@ -18,6 +18,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
+import type { AgentOptions } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import z from '@deepseek-ai/schemastery'
 import {
@@ -29,6 +30,7 @@ import {
 } from '@deepseek-ai/dsh-subagent'
 import type {
   ResolvedSubagentStartRequest,
+  SubagentCapabilities,
   SubagentProvider,
   SubagentResult,
   SubagentRun,
@@ -190,10 +192,58 @@ function assertByteLimit(fieldName: string, value: number): void {
   }
 }
 
+/** The route a Cursor run resolves to. */
+export interface CursorRoute {
+  readonly model?: string | undefined
+}
+
+/**
+ * Merge the request's per-call route over the configured model.
+ *
+ * The Cursor CLI has no provider selector and no reasoning-effort or
+ * max-token flags, so those requests are rejected rather than ignored. A
+ * requested provider is accepted only when it names this provider instance,
+ * which lets a deployment list `{ provider: 'cursor', model: 'auto' }` in the
+ * Host's allowed-model routes without pretending the CLI understands it.
+ * @param configured - the provider row's model, when set.
+ * @param providerName - this instance's registry name.
+ * @param requested - the start request's Agent options, when a caller selected one.
+ * @returns the model this run uses.
+ * @throws when a requested field cannot be honored.
+ */
+export function resolveCursorRoute(
+  configured: { readonly model?: string | undefined },
+  providerName: string,
+  requested: AgentOptions | undefined,
+): CursorRoute {
+  if (requested?.provider !== undefined && requested.provider !== providerName) {
+    throw new Error(
+      `${PREFIX}: the Cursor CLI has no provider selector; provider "${requested.provider}" cannot be honored `
+      + `(this instance is "${providerName}")`,
+    )
+  }
+  if (requested?.reasoningEffort !== undefined) {
+    throw new Error(`${PREFIX}: the Cursor CLI has no reasoning-effort flag, so a requested reasoningEffort cannot be honored`)
+  }
+  if (requested?.maxTokens !== undefined) {
+    throw new Error(`${PREFIX}: the Cursor CLI has no max-tokens flag, so a requested agentOptions.maxTokens cannot be honored`)
+  }
+  return { model: requested?.model ?? configured.model }
+}
+
 /** One-shot Cursor CLI backend. */
+/**
+ * The Cursor child is a separate process, so parent-enforced start features
+ * stay unsupported except the model, which maps onto `--model`.
+ */
+const CURSOR_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
+  ...NO_START_CAPABILITIES,
+  agentOptions: true,
+})
+
 class CursorProvider implements SubagentProvider {
   readonly name: string
-  readonly capabilities = NO_START_CAPABILITIES
+  readonly capabilities = CURSOR_START_CAPABILITIES
   readonly inheritsParentContext = false
 
   constructor(
@@ -218,6 +268,7 @@ class CursorProvider implements SubagentProvider {
     const cwd = assertUsableCwd(PREFIX, 'child cwd', request.cwd)
     const binary = await this.resolveBinary(config.agentBinary, request.signal)
     const task = flattenPrompt(request.prompt)
+    const route = resolveCursorRoute(config, config.providerName, request.agentOptions)
     const argv = buildArgv(
       {
         outputFormat: config.outputFormat,
@@ -225,7 +276,7 @@ class CursorProvider implements SubagentProvider {
         trust: config.trust,
         force: config.force,
         mode: config.mode,
-        model: config.model,
+        model: route.model,
         extraArgs: config.extraArgs,
       },
       task,
