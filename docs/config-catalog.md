@@ -200,7 +200,7 @@ export interface Config {
 ## `@anago-harness/subagent-cursor`
 
 - `inject`: `subagents` · `subprocess`
-- `source`: [`packages/fork/subagent-cursor/src/index.ts:75`](../packages/fork/subagent-cursor/src/index.ts)
+- `source`: [`packages/fork/subagent-cursor/src/index.ts:77`](../packages/fork/subagent-cursor/src/index.ts)
 
 ```ts config-catalog
 /**
@@ -4445,6 +4445,14 @@ export interface Config extends PresetSelectionConfig {
    * Session and inherit that decision in its child Sessions.
    */
   modelSelectionSettings?: boolean
+  /**
+   * Fork extension: the provider interprets `provider` / `model` /
+   * `reasoning_effort` itself (an external CLI with its own route
+   * namespace). The tool exposes those arguments without the Host
+   * model-selection policy or the DSH LLM-catalog preflight, and passes them
+   * as `agentOptions` to the provider.
+   */
+  providerOwnedRoute?: boolean
   /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */

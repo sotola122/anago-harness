@@ -16,13 +16,17 @@
 - 受入: 「Answer in English only」→ 英語で回答。「指定なし」→ 日本語で回答（3081 の headless で確認）。
 - 備考: 本セッションの中国語応答そのものは、モデル側の一度の逸脱として扱う。以後は上記の規則で運用する。
 
-### 2b. pi-subagent のモデル未指定 — 調査のみ（経路固定はユーザー指示で撤回）
+### 2b. pi-subagent のモデル・effort 実行時指定 — 実装完了
 
-- 症状: 一部プロファイルで `subagent_pi` が Pi 既定の `opencode-go` に落ち、429 で失敗。
-- 原因: プロバイダ自体は `provider`/`model` 設定と per-call `agentOptions` に対応しているが、プロファイルの `subagent-pi` 行に経路を固定していなかった。
-- 経路固定（command-code）はユーザー指示により**撤回**。プロファイルは元の状態（`tui`/`tui-pi` は未設定、`web-anago` と検証 `web`/`headless`/`tui` は以前の `openai`/`gpt-6-astra`）に戻した。
-- 上流の制約: `tool-subagent` の `modelSelectionSettings` は preset スコープ内のツール行でのみ動作し、top-level の行では `standing modelSelectionSettings requires a scoped preset Context` でロード失敗する。したがって per-call のモデル引数はこのフォークの `subagent_pi` / `subagent_cursor` では使えず、プロファイル行の設定が唯一の制御点。
-- `subagent-cursor` は model のみの per-call 選択に対応（`agentOptions: true`、provider は登録名一致時のみ、`reasoningEffort`/`maxTokens` は拒否）。テスト 92 件・カバレッジ 100%。
+- 要件: **エージェントが `subagent_pi` 呼び出し時に model / effort を指定できること**。
+- 経緯: 当初はプロバイダ側の対応のみでツールに引数がなく、次に上流の `subagent-model-selection` へ乗せようとしたが、これは preset スコープと DSH の LLM カタログを前提とするため外部 CLI には使えなかった。
+- 設計（フォーク差分）: `tool-subagent` に `providerOwnedRoute: true` を追加。
+  - ツールスキーマに `provider` / `model` / `reasoning_effort` を出す（Host 設定・preset スコープ不要）
+  - 実行時に `agentOptions` としてプロバイダへ渡す。モデル選択ポリシーと DSH ルートの preflight はスキップ
+  - プロバイダ未対応（`agentOptions` なし）はロード時に fail loud
+- 組成: `anago-core` の `tool-subagent-pi` / `tool-subagent-cursor` に `providerOwnedRoute: true`。
+- 実機確認: headless で provider `command-code` / model `deepseek/deepseek-v4.1-flash` / effort `high` を渡し、子の出力 **`RUNTIME_OK`** を取得。
+- テスト: `tool-subagent` 141 件（新規 4 件含む）、カバレッジ 100%。`subagent-cursor` は model のみ対応（provider は登録名一致時のみ、effort/maxTokens は明示拒否）。
 
 ### 3. UI の表示言語が中国語になる
 

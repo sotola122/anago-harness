@@ -21,6 +21,7 @@
         provider: cursor
         toolName: subagent_cursor
         maxDepth: provider-managed
+        providerOwnedRoute: true
     - id: subagent-pi
       name: '@anago-harness/subagent-pi'
     - id: tool-subagent-pi
@@ -29,6 +30,7 @@
         provider: pi
         toolName: subagent_pi
         maxDepth: provider-managed
+        providerOwnedRoute: true
     - id: web-search-exa
       name: '@anago-harness/web-search-exa'
       config:

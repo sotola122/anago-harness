@@ -66,10 +66,9 @@ kind: "package-reference"
 
 
 
-行的 `model` 设置默认路由。当 Host 启用 `subagent-model-selection` 并列出该路由时，调用方可以为单次委派选择其他 Cursor 模型：提供方把请求中的 `agentOptions.model` 映射为 `--model`，仅当 `agentOptions.provider` 等于本提供方的注册名时接受（Cursor 模型目录没有提供方命名空间），并拒绝请求中的 `reasoningEffort` 或 `maxTokens`，因为 Cursor CLI 没有这些选项。
+行的 `model` 设置默认路由。`tool-subagent-cursor` 行设置了 `providerOwnedRoute: true`，因此模型可以在每次 `subagent_cursor` 调用中传入 `model`；提供方把它映射为 `--model`，仅当 `provider` 等于本提供方的注册名时接受（Cursor 模型目录没有提供方命名空间），并拒绝请求中的 `reasoning_effort` 或 `maxTokens`，因为 Cursor CLI 没有这些选项。
 
 
-行的 `model` 设置默认路由。当 Host 启用 `subagent-model-selection` 并列出该路由时，调用方可以为单次委派选择其他 Cursor 模型：提供方把请求中的 `agentOptions.model` 映射为 `--model`，仅当 `agentOptions.provider` 等于本提供方的注册名时接受（Cursor 模型目录没有提供方命名空间），并拒绝请求中的 `reasoningEffort` 或 `maxTokens`，因为 Cursor CLI 没有这些选项。
 argv 顺序为 `--print --output-format <fmt> --sandbox <mode> [--trust] --workspace <cwd> [--mode …] [--model …] [--force] [extraArgs…] agent <task>`。显式的 `agent` 命令词填入 CLI 根命令的 `[command]` 槽位，使任务文本只能被解析为 prompt。若任务恰好等于某个 CLI 子命令名（忽略大小写和首尾空白），`start()` 还会额外拒绝它。
 
 ### 安全姿态

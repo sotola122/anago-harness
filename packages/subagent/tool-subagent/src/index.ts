@@ -61,6 +61,14 @@ export interface Config extends PresetSelectionConfig {
    */
   modelSelectionSettings?: boolean
   /**
+   * Fork extension: the provider interprets `provider` / `model` /
+   * `reasoning_effort` itself (an external CLI with its own route
+   * namespace). The tool exposes those arguments without the Host
+   * model-selection policy or the DSH LLM-catalog preflight, and passes them
+   * as `agentOptions` to the provider.
+   */
+  providerOwnedRoute?: boolean
+  /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */
   agentOptions?: AgentOptions
@@ -81,6 +89,7 @@ export const Config: z<Config> = z.object({
   provider: z.string().required(),
   toolName: z.string().default('subagent'),
   modelSelectionSettings: z.boolean().default(false),
+  providerOwnedRoute: z.boolean().default(false),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
   agentOptions: z.object({
     provider: z.string(),
@@ -159,6 +168,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
   const toolName = config.toolName ?? 'subagent'
 
   const modelSelectionCapable = config.modelSelectionSettings === true
+  const providerOwnedRoute = config.providerOwnedRoute === true
   ctx.sessionProjections.register(subagentModelSelectionProjectionDefinition)
 
   const assertSubagentProviderConfiguration = (subagentProvider: SubagentProvider): void => {
@@ -177,6 +187,11 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
     if (modelSelectionCapable && !subagentProvider.capabilities.agentOptions) {
       throw new Error(
         `tool-subagent: provider "${subagentProvider.name}" does not support child model selection`,
+      )
+    }
+    if (providerOwnedRoute && !subagentProvider.capabilities.agentOptions) {
+      throw new Error(
+        `tool-subagent: provider "${subagentProvider.name}" does not accept per-call agent options`,
       )
     }
 
@@ -239,24 +254,30 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
               description: presets.description,
             },
           },
-          ...modelSelectionEnabled ? {
+          ...(modelSelectionEnabled || providerOwnedRoute) ? {
             provider: {
               type: 'string' as const,
-              description: providerRouteDefaults !== undefined
-                ? 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or this provider\'s route defaults.'
-                : 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or inherit the parent route.',
+              description: providerOwnedRoute
+                ? 'Route in the child provider\'s own namespace (for an external CLI, its provider id). Supply together with model; omit both to use configured defaults.'
+                : providerRouteDefaults !== undefined
+                  ? 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or this provider\'s route defaults.'
+                  : 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or inherit the parent route.',
             },
             model: {
               type: 'string' as const,
-              description: providerRouteDefaults !== undefined
-                ? 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or this provider\'s route defaults.'
-                : 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or inherit the parent route.',
+              description: providerOwnedRoute
+                ? 'Model id interpreted by the child provider (for an external CLI, its model name). Omit to use configured defaults.'
+                : providerRouteDefaults !== undefined
+                  ? 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or this provider\'s route defaults.'
+                  : 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or inherit the parent route.',
             },
             reasoning_effort: {
               type: 'string' as const,
-              description: providerRouteDefaults !== undefined
-                ? 'Adapter-owned reasoning effort for the effective child route. Omit to use a compatible configured effort or the selected model\'s default.'
-                : 'Adapter-owned reasoning effort for the effective child route. Omit to inherit a compatible configured/parent effort or use a newly selected model\'s default.',
+              description: providerOwnedRoute
+                ? 'Reasoning effort for the child provider (for an external CLI, its thinking level). Omit to use configured defaults.'
+                : providerRouteDefaults !== undefined
+                  ? 'Adapter-owned reasoning effort for the effective child route. Omit to use a compatible configured effort or the selected model\'s default.'
+                  : 'Adapter-owned reasoning effort for the effective child route. Omit to inherit a compatible configured/parent effort or use a newly selected model\'s default.',
             },
           } : {},
 
@@ -283,8 +304,8 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           const agentPreset = presets.resolve(args as PresetSelectionRequest)
           const modelRequest = args as DelegationModelRequest
           const parentOptions = parentAgentOptionsForDelegation(parent)
-          const requiresRoutePreflight = hasDelegationModelRequest(modelRequest)
-            || hasConfiguredLlmSelection(config.agentOptions)
+          const requiresRoutePreflight = !providerOwnedRoute
+            && (hasDelegationModelRequest(modelRequest) || hasConfiguredLlmSelection(config.agentOptions))
           const configuredChildAgentOptions = requiresRoutePreflight && providerRouteDefaults !== undefined
             ? { ...providerRouteDefaults, ...config.agentOptions }
             : config.agentOptions
@@ -292,14 +313,16 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             parentOptions,
             configuredChildAgentOptions,
             modelRequest,
-            modelSelectionEnabled,
+            modelSelectionEnabled || providerOwnedRoute,
           )
-          assertAllowedModelSelection(
-            modelSelectionPolicy,
-            parentOptions,
-            requestedChildAgentOptions,
-            modelRequest,
-          )
+          if (!providerOwnedRoute) {
+            assertAllowedModelSelection(
+              modelSelectionPolicy,
+              parentOptions,
+              requestedChildAgentOptions,
+              modelRequest,
+            )
+          }
           if (requiresRoutePreflight) {
             const llm = runtimeCtx.get('llm')
             if (llm === undefined) {

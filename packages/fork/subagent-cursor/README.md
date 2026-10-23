@@ -66,7 +66,8 @@ Set `config` on the `subagent-cursor` row. Every field is validated at plugin lo
 
 
 
-The row's `model` sets the default route. A caller can select another Cursor model per delegation when the Host enables `subagent-model-selection` and lists the route: the provider maps the request's `agentOptions.model` onto `--model`, accepts `agentOptions.provider` only when it equals this provider's registry name (a Cursor catalog model has no provider namespace), and rejects a requested `reasoningEffort` or `maxTokens` because the Cursor CLI has no such flags.
+The row's `model` sets the default route. The `tool-subagent-cursor` row sets `providerOwnedRoute: true`, so the model can pass `model` on each `subagent_cursor` call; the provider maps it onto `--model`, accepts `provider` only when it equals this provider's registry name (a Cursor catalog model has no provider namespace), and rejects a requested `reasoning_effort` or `maxTokens` because the Cursor CLI has no such flags.
+
 The argv order is `--print --output-format <fmt> --sandbox <mode> [--trust] --workspace <cwd> [--mode …] [--model …] [--force] [extraArgs…] agent <task>`. The explicit `agent` command word fills the CLI root's `[command]` slot so the task can only ever be parsed as the prompt. A task that is exactly a CLI subcommand name (case-insensitive, surrounding whitespace ignored) is additionally rejected at `start()`.
 
 ### Security posture
