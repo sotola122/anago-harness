@@ -19,6 +19,12 @@ import { forkDefaultPatches, forkLockPatches, guard } from '@anago-harness/fork-
 const guardFile = fileURLToPath(new URL('../egress-guard.cjs', import.meta.url))
 const denylistFile = fileURLToPath(new URL('../denylist.json', import.meta.url))
 
+/** Spawned children must not inherit a guard preload from the surrounding
+ * harness: this repository's own web process sets NODE_OPTIONS, and the test
+ * installs the guard explicitly so the startup state is deterministic. */
+const spawnEnv: NodeJS.ProcessEnv = { ...process.env }
+delete spawnEnv.NODE_OPTIONS
+
 function errorText(error: unknown): string {
   if (typeof error !== 'object' || error === null) return String(error)
   const message = 'message' in error && typeof error.message === 'string' ? error.message : ''
@@ -323,7 +329,7 @@ describe('egress guard', () => {
         const out = execFileSync(process.execPath, ['-e', "fetch('https://platform.deepseek.com').then(() => console.log('CHILD NOT BLOCKED'), error => console.log('child:' + ((error.cause && error.cause.code) || error.code)))"], { encoding: 'utf8' })
         process.stdout.write(out)
         if (!(process.env.NODE_OPTIONS ?? '').includes('--import=file://')) process.stdout.write('\\nNODE_OPTIONS missing\\n')
-      `], { encoding: 'utf8' })
+      `], { encoding: 'utf8', env: spawnEnv })
       expect(child).toContain('EDSHFORKFORBIDDEN')
       expect(child).not.toContain('NODE_OPTIONS missing')
       expect(readFileSync(logFile, 'utf8')).toContain('platform.deepseek.com')
@@ -345,7 +351,7 @@ describe('egress guard', () => {
         const { execFileSync } = require('node:child_process')
         const out = execFileSync(process.execPath, ['-e', "fetch('https://platform.deepseek.com').then(() => console.log('CHILD NOT BLOCKED'), error => console.log('child:' + ((error.cause && error.cause.code) || error.code)))"], { encoding: 'utf8' })
         process.stdout.write(out)
-      `], { encoding: 'utf8' })
+      `], { encoding: 'utf8', env: spawnEnv })
       expect(child).toContain('EDSHFORKFORBIDDEN')
     } finally {
       rmSync(directory, { recursive: true, force: true })
@@ -366,7 +372,7 @@ describe('egress guard', () => {
         process.exit(3)
       })
       socket.on('connect', () => process.exit(2))
-    `], { encoding: 'utf8' })
+    `], { encoding: 'utf8', env: spawnEnv })
     expect(output).toBe('')
   })
 
@@ -384,7 +390,7 @@ describe('egress guard', () => {
         process.stderr.write(String(error.code))
         process.exit(3)
       })
-    `], { encoding: 'utf8' })
+    `], { encoding: 'utf8', env: spawnEnv })
     expect(output).toBe('')
   })
 })

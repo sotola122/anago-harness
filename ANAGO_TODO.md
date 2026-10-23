@@ -162,6 +162,13 @@
 - 起動コマンド: `node apps/cli/lib/bin.js --profile web-anago --host 100.110.252.31 --port 3080 --no-open`
 - ロールバック: `~/.local/bin/dsh --profile web --host 100.110.252.31 --no-open`
 
+## 日本語注入の強化（2026-10-23）
+
+- 中国語の応答を確認。セッションログでは日本語指示は各リクエストに含まれていた（注入自体は機能）。静的セクションだけでは、中国語の過去応答を含む文脈に負けることがある。
+- `response-language` に **毎リクエストの runtime context リマインダ**（`response-language:runtime`、最後のコンテキスト位置、`required: true`）を追加。文言で「過去の非日本語の assistant メッセージ・ツール出力・要約・メモは先例として無視する」と明示。
+- 検証: headless のリクエストにリマインダが入ることをログで確認。テスト 1741 件、カバレッジ 100%。
+- 併せて `session-log-deepseek` を無効化（`deepseek-llm-api-extensions` 無効化に伴う pending 警告の解消）し、egress-guard テストを NODE_OPTIONS 非継承にした（フォークの web プロセス内でも決定的に動く）。
+
 ## Web UI の DeepSeek 依存除去（2026-10-23）
 
 - ブラウザから CN ドメインへアクセスする行を構成から削除（Node の egress guard はブラウザ通信を遮断できないため）。

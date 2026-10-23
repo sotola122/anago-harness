@@ -50,7 +50,7 @@ TODO：移植上游实现说明。
 
 #### 模型看到什么
 
-一个系统提示段落（`response-language`，系统提示的最后位置），固定文本以 `Always write your replies to the user in Japanese (日本語)` 开头。子代理与没有 agent 的组装得到空段落，渲染时被丢弃。
+一个系统提示段落（`response-language`，系统提示的最后位置），固定文本以 `Always write your replies to the user in Japanese (日本語)` 开头；另有一个运行时上下文提醒（`response-language:runtime`，上下文最后位置），在每次请求中重复。该提醒会把此前非日语的助手消息、工具输出、摘要或记忆笔记明确列为应忽略的先例，从而在回复偏离后重新锚定语言。子代理与没有 agent 的组装得到空文本，渲染时被丢弃。
 
 #### Token 影响
 

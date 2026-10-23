@@ -71,3 +71,5 @@
   disabled: true
 - id: llm-deepseek
   disabled: true
+- id: session-log-deepseek
+  disabled: true

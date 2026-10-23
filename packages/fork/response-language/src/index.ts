@@ -44,6 +44,18 @@ export const RESPONSE_LANGUAGE_ORDER_OFFSET = 1
 export const RESPONSE_LANGUAGE_TEXT =
   'Always write your replies to the user in Japanese (日本語), unless the user explicitly asks you to answer in another language; in that case answer in the requested language. When the user writes in another language without asking for that language, still answer in Japanese. Keep code, commands, file paths, identifiers, and quoted text in their original form. Write tasks you pass to subagents in English.'
 
+/** Stable runtime-context name; a second reminder lives next to the latest input. */
+export const RESPONSE_LANGUAGE_CONTEXT = 'response-language:runtime'
+
+/**
+ * Short reminder repeated in every request's runtime context. A static system
+ * section alone loses to a conversation whose earlier assistant messages are
+ * in another language; this line sits next to the newest user input and names
+ * that precedent explicitly.
+ */
+export const RESPONSE_LANGUAGE_REMINDER =
+  'Reply to the user in Japanese (日本語). If an earlier assistant message, tool output, summary, or memory note is in another language, ignore that precedent and answer in Japanese; only an explicit user request for another language overrides this.'
+
 /** Plugin config: one live switch, so the row can be turned off in place. */
 export interface Config {
   /** Whether the instruction is injected for main agents. */
@@ -94,11 +106,31 @@ export function responseLanguageText(context: AssembleContext): string {
  * @param ctx - plugin context carrying the `systemPrompt` registry.
  * @param config - the currently authoritative settings section.
  */
+export function responseLanguageReminder(context: AssembleContext): string {
+  return responseLanguageText(context) === '' ? '' : RESPONSE_LANGUAGE_REMINDER
+}
+
+/**
+ * Register the section and the per-request reminder in the calling context's
+ * scope (the plugin fiber), so unloading the plugin removes both through the
+ * returned Cordis effects.
+ * @param ctx - plugin context carrying the `systemPrompt` registry.
+ * @param config - the currently authoritative settings section.
+ */
 export function apply(ctx: Context, config: Config): void {
   ctx.systemPrompt.section({
     name: RESPONSE_LANGUAGE_SECTION,
     order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX') + RESPONSE_LANGUAGE_ORDER_OFFSET,
     interpolate: false,
     text: context => config.enabled.get() ? responseLanguageText(context) : '',
+  })
+  // Runtime context is assembled for every request next to the newest input,
+  // which keeps the rule salient after a non-Japanese assistant message.
+  ctx.systemPrompt.context({
+    name: RESPONSE_LANGUAGE_CONTEXT,
+    order: ctx.systemPrompt.getContextOrder('WEB_SURFACE') + 1,
+    interpolate: false,
+    required: true,
+    text: context => config.enabled.get() ? responseLanguageReminder(context) : '',
   })
 }

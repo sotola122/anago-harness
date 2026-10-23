@@ -2,22 +2,25 @@ import { describe, expect, it } from 'vitest'
 import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type { AssembleContext } from '@deepseek-ai/dsh-system-prompt'
 import {
-  apply, Config, name, RESPONSE_LANGUAGE_ORDER_OFFSET, RESPONSE_LANGUAGE_SECTION, RESPONSE_LANGUAGE_TEXT,
-  responseLanguageText,
+  apply, Config, name, RESPONSE_LANGUAGE_CONTEXT, RESPONSE_LANGUAGE_ORDER_OFFSET, RESPONSE_LANGUAGE_REMINDER,
+  RESPONSE_LANGUAGE_SECTION, RESPONSE_LANGUAGE_TEXT, responseLanguageReminder, responseLanguageText,
 } from '../src/index.ts'
 
 interface PromptSection {
   name: string
   order: number
   interpolate: boolean
+  required?: boolean
   text: (context: AssembleContext) => string
 }
 
-function fakeContext(sections: PromptSection[]): Context {
+function fakeContext(sections: PromptSection[], contexts: PromptSection[] = []): Context {
   return {
     systemPrompt: {
       section: (section: PromptSection) => { sections.push(section); return () => {} },
+      context: (context: PromptSection) => { contexts.push(context); return () => {} },
       getSectionOrder: (order: string) => order === 'DEPLOYMENT_PERSONA_SUFFIX' ? 10_200 : 0,
+      getContextOrder: (order: string) => order === 'WEB_SURFACE' ? 10_100 : 0,
     },
   } as Context
 }
@@ -72,5 +75,33 @@ describe('response-language', () => {
     expect(section.text(mainAgent)).toBe('')
     enabled.set(true)
     expect(section.text(mainAgent)).toBe(RESPONSE_LANGUAGE_TEXT)
+  })
+})
+
+describe('response-language runtime reminder', () => {
+  it('registers a required context at the last runtime position', () => {
+    const sections: PromptSection[] = []
+    const contexts: PromptSection[] = []
+    apply(fakeContext(sections, contexts), Config({}))
+    expect(contexts).toHaveLength(1)
+    const context = contexts[0] as PromptSection
+    expect(context.name).toBe(RESPONSE_LANGUAGE_CONTEXT)
+    expect(context.order).toBe(10_101)
+    expect(context.required).toBe(true)
+    expect(context.interpolate).toBe(false)
+  })
+
+  it('repeats the reminder for main agents only and follows the switch', () => {
+    expect(responseLanguageReminder(mainAgent)).toBe(RESPONSE_LANGUAGE_REMINDER)
+    expect(responseLanguageReminder(childAgent)).toBe('')
+    expect(responseLanguageReminder({})).toBe('')
+    const sections: PromptSection[] = []
+    const contexts: PromptSection[] = []
+    const enabled = switchFor(true)
+    apply(fakeContext(sections, contexts), { enabled })
+    const context = contexts[0] as PromptSection
+    expect(context.text(mainAgent)).toBe(RESPONSE_LANGUAGE_REMINDER)
+    enabled.set(false)
+    expect(context.text(mainAgent)).toBe('')
   })
 })
