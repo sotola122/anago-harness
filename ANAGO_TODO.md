@@ -16,27 +16,13 @@
 - 受入: 「Answer in English only」→ 英語で回答。「指定なし」→ 日本語で回答（3081 の headless で確認）。
 - 備考: 本セッションの中国語応答そのものは、モデル側の一度の逸脱として扱う。以後は上記の規則で運用する。
 
-### 2b. pi-subagent のモデル未指定（再発）— 修正
+### 2b. pi-subagent のモデル未指定 — 調査のみ（経路固定はユーザー指示で撤回）
 
 - 症状: 一部プロファイルで `subagent_pi` が Pi 既定の `opencode-go` に落ち、429 で失敗。
-- 原因: プロバイダ自体は `provider`/`model` 設定と per-call `agentOptions` に対応済みだったが、プロファイルの `subagent-pi` 行に経路が固定されていなかった。
-- 対応: anago-core をマウントする全プロファイル（本番 `tui` / `tui-pi` / `web-anago`、検証 `web` / `headless` / `tui` / `dsh-tui`）に `provider: command-code` / `model: deepseek/deepseek-v4.1-flash` を設定。
-- 検証: `pi --provider command-code --model deepseek/deepseek-v4.1-flash` → `CODE_OK`、`subagent_pi` → `PI_OK`。
-- 制約の再確認: 上流 `tool-subagent` の `modelSelectionSettings` は **preset スコープ内のツール行**でのみ動作する（top-level の行では `standing modelSelectionSettings requires a scoped preset Context` でロード失敗）。このフォークの `tool-subagent-pi` / `tool-subagent-cursor` は top-level のため、per-call のモデル引数は使えない。プロファイル行の `provider` / `model` 固定が正規の設定方法。
-- `subagent-cursor` は model のみの per-call 選択に対応（`agentOptions: true`、`provider` は登録名一致時のみ許可、`reasoningEffort` / `maxTokens` は明示拒否）。preset スコープで使う場合に備えた拡張で、テスト 92 件・カバレッジ 100%。
-- web（preset スコープを持つ）でも、このフォークの top-level ツール行には適用できないことを実測で確認。
-
-### 2. pi-subagent にモデル指定がなく実行できない
-
-- 指摘: `subagent_pi` がモデル引数を持たず失敗する。
-- 原因: プロバイダが `agentOptions` 非対応（`NO_START_CAPABILITIES`）で、per-call の provider/model を受け取れなかった。加えて既定では Pi 自身の既定モデル（この環境では 429 のルート）を使っていた。
-- 対応:
-  - `capabilities.agentOptions: true` にし、`agentOptions.provider` / `model` / `reasoningEffort` を `--provider` / `--model` / `--thinking` に写像。
-  - `agentOptions.maxTokens`（Pi に該当フラグなし）と、Pi の語彙外の reasoningEffort は**黙って無視せず拒否**。
-  - 行の `provider` / `model` を既定ルートとして併用可（両方そろったときだけ `agentRouteDefaults` を公開）。
-  - 検証環境の `subagent-pi` 行に `provider: openai` / `model: gpt-6-astra` を設定。
-- 受入: `subagent_pi` に「PI_OK を返せ」と委譲 → 子の出力 `PI_OK` を取得（3081 の headless で確認）。
-- 備考: モデルの per-call 選択を UI から使うには Host 設定 `subagent-model-selection`（`enabled: true` と `allowedModels`）が必要。行の config だけでも既定ルートとして機能する。
+- 原因: プロバイダ自体は `provider`/`model` 設定と per-call `agentOptions` に対応しているが、プロファイルの `subagent-pi` 行に経路を固定していなかった。
+- 経路固定（command-code）はユーザー指示により**撤回**。プロファイルは元の状態（`tui`/`tui-pi` は未設定、`web-anago` と検証 `web`/`headless`/`tui` は以前の `openai`/`gpt-6-astra`）に戻した。
+- 上流の制約: `tool-subagent` の `modelSelectionSettings` は preset スコープ内のツール行でのみ動作し、top-level の行では `standing modelSelectionSettings requires a scoped preset Context` でロード失敗する。したがって per-call のモデル引数はこのフォークの `subagent_pi` / `subagent_cursor` では使えず、プロファイル行の設定が唯一の制御点。
+- `subagent-cursor` は model のみの per-call 選択に対応（`agentOptions: true`、provider は登録名一致時のみ、`reasoningEffort`/`maxTokens` は拒否）。テスト 92 件・カバレッジ 100%。
 
 ### 3. UI の表示言語が中国語になる
 
