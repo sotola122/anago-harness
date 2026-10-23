@@ -109,7 +109,11 @@
 - 起動: `DSH_HOME=~/.dsh-anago-trial node apps/cli/lib/bin.js --profile dsh-tui`
 - DeepSeek API キーは不要。初回ウィザードは `~/.dsh-tui/onboarding.json` に `{"completed":true,"version":1}` を置くと永続的にスキップでき、起動直後に入力欄が出る（コード修正は不要）。将来的に `ash` のインストーラでこのファイルを未作成時のみ書けば、利用者はウィザードを見ずに済む。
 - モデルはプロファイル patch の `agent-default-model`（commandcode）で固定。`/setup` を実行しない限り DeepSeek の経路は使われない。
-- 残る判断: 本番の `tui` を dsh-TUI に置き換えるか、`anago-tui`（pi-tui ベース）を `tui-pi` として残すか。
+- 本番ホームを置き換え済み（2026-10-23）:
+  - `~/.dsh/profiles/tui` = `dsh-base` + `@deepseek-harness-tui/dsh-tui` + `commandcode` + `anago-core`（126 行）
+  - `~/.dsh/profiles/tui-pi` = `dsh-base` + `anago-core` + `anago-tui` + `commandcode`（109 行、pi-tui ベース）
+  - `~/.dsh/profiles/tui-oc` = 旧 dsh-oc-tui プロファイル（退避）
+- 中国語表示の修正: `lib/types/i18n.js` の `cmd-desc-*` 60 キーに英語がなく、英語モードで中国語へフォールバックしていた。`scripts/fork/patch-dsh-tui-i18n.mjs` が `commands.js` の英語説明から `en` を補完する（冪等、更新後に再実行）。本番・検証の両プロファイルに適用済みで、`en` 欠落キーは 0。
 
 ## 実機検証（3081）— サーバ側は完了
 
