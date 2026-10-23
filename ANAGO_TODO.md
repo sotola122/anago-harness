@@ -162,13 +162,12 @@
 - 起動コマンド: `node apps/cli/lib/bin.js --profile web-anago --host 100.110.252.31 --port 3080 --no-open`
 - ロールバック: `~/.local/bin/dsh --profile web --host 100.110.252.31 --no-open`
 
-## 3080 切り替え（ユーザー確認待ち）
+## 3080 切り替え — 完了（systemd 移行込み）
 
-手順（現行を止める前に、必ず 3081 で見た目を確認する）:
-
-1. 現行プロファイルを退避: `cp -a ~/.dsh/profiles/web ~/.dsh/profiles/web.pre-anago`
-2. 切り替え: `~/.dsh` をそのまま使う場合、`profiles/web` を anago 構成へ移行する（`dsh rescue --from-default-profile web` 相当 + 設定の再適用）。別ホーム運用なら `DSH_HOME=~/.dsh` のまま新プロファイル `web-anago` を作り、`--profile web-anago` で起動する。
-3. 停止と起動: 現行 PID を停止 → `node apps/cli/lib/bin.js --profile web-anago --host 100.110.252.31 --port 3080 --no-open`
-4. ロールバック: 旧コマンド `~/.local/bin/dsh --profile web --host 100.110.252.31 --no-open` を再実行し、退避したプロファイルを戻す。
-
-注意: 3080 の停止は**このセッションと GUI を切断する**。実施はユーザーの明示的な指示で行う。
+- 2026-10-23 15:54 に切り替え完了。3080 はフォーク（`web-anago` プロファイル）で稼働。
+- systemd: `anago-web.service`（`~/.local/bin/anago-web-tailnet` → チェックアウトの `apps/cli/lib/bin.js --profile web-anago`、`Restart=always`、ログは `/tmp/anago-web.log`）。旧 `dsh-web.service` は **disabled**。
+- URL コマンド:
+  - `anago-web-url` … `/tmp/anago-web.log` から最新トークンを読み、HTTP で検証して表示。`--restart` / `--qr` 対応。
+  - `dsh-web-url` … 互換シム。`anago-web.service` が active なら `anago-web-url`、そうでなければ `dsh-web-url.legacy`（旧 journal 版）へ委譲。旧サービスへのロールバックでもそのまま使える。
+- ロールバック: `systemctl --user disable --now anago-web.service; systemctl --user enable --now dsh-web.service`
+- 注意: 前回の切り替えは `dsh-web.service` の `Restart=always` が旧 dsh を再起動して失敗していた。今回のようにユニットごと移行するのが正しい手順。
