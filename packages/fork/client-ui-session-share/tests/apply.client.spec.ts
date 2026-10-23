@@ -41,7 +41,7 @@ function catalog(list: ReturnType<typeof createSnapshotStore<SessionListState>>,
   })
 }
 
-/** A browser bench: the real locale service plus the three faces the plugin injects. */
+/** A browser bench: the real locale service plus the faces the plugin injects. */
 function bench() {
   const ctx = new Context()
   const locale = new LocaleRuntime(ctx)
@@ -68,7 +68,9 @@ describe('client-ui-session-share apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['sessions', 'conversation', 'remote.session', 'locale'])
+    // `remote` itself is required: the property proxy rejects `ctx.remote`
+    // without it, even when `remote.session` is also injected.
+    expect(inject).toEqual(['remote', 'remote.session', 'sessions', 'conversation', 'locale'])
   })
 
   it('registers both dictionaries for the plugin lifetime', async () => {

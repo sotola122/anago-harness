@@ -36,7 +36,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Services required by the Session-sharing plugin. */
-export const inject = ['sessions', 'conversation', 'remote.session', 'locale']
+export const inject = ['remote', 'remote.session', 'sessions', 'conversation', 'locale']
 
 /** Browser-half runtime configuration. */
 export interface Config {
