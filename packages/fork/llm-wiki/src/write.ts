@@ -586,8 +586,8 @@ export function createWikiWriteTool(deps: WikiWriteDeps): ToolDefinition {
     async execute(args, exec) {
       try {
         return await executeWikiWrite(
-          args as unknown as WikiWriteArgs,
-          exec.agent as unknown as WikiAgent | undefined,
+          args as WikiWriteArgs,
+          exec.agent,
           deps,
           exec.signal,
         )

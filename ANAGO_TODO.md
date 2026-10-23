@@ -97,6 +97,21 @@
 - 到達可能なコードはすべてテスト済み（fork 全体で **1736 テスト成功**）。残っていたのは静的に到達不能な防御コードで、削除を基本とし、fs 境界・未信頼 JSON・ライフサイクル不変条件の 5 箇所だけ根拠付き `/* v8 ignore next -- ... */` を付けた。
 - 併せて、既存の型エラー（committed fork テスト 21 件）を修正し、`tsc -b host+client` も 0 エラーにした。
 
+## フォローアップ（2026-10-23）
+
+### no-unknown-casts — 完了
+
+- `packages/fork` の `as unknown` 42 件（src 12 / tests 30）を除去。テストのフェイクはパッケージごとの型付きヘルパーに集約し、src は構造的部分型・`unknown` 戻り値・`JSON.parse` の型注釈で解消。
+- ゲート: `no new assertions; 1361 existing assertions remain`。テスト 1739 件、カバレッジ 100%、lint/JSDoc/jscpd すべて通過。
+
+### dsh-TUI の運用組み込み — 完了
+
+- `scripts/fork/setup-dsh-tui.mjs` を追加。インストール済みパッケージに対して、初回ウィザードのスキップ（`~/.dsh-tui/onboarding.json`）、言語の英語固定（`lang.json`）、コマンド説明の英語補完（i18n パッチ）を冪等に実行する。`ash` インストーラから呼ぶ想定。
+
+### web-anago の subagent-pi 行 — 完了
+
+- per-call 指定が可能になったため、`web-anago` の `subagent-pi` 行の `provider`/`model` 固定を削除。
+
 ## TUI: dsh-TUI（ccch1mneyyy）の検証 — 完了
 
 - 検証ホームに `profiles/dsh-tui` を作成: `dsh-base` + `@deepseek-harness-tui/dsh-tui` 0.16.1 + `@mars-sea/dsh-commandcode-provider` + `@anago-harness/anago-core`（126 行）。

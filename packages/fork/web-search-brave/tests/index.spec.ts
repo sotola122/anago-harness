@@ -35,7 +35,7 @@ function stubContext(options: { environment?: Record<string, string>; credential
       }
       return undefined
     },
-  } as unknown as Context
+  } as Context
   return { ctx, registered }
 }
 

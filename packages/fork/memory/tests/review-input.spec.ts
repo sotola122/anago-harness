@@ -11,6 +11,7 @@ import type { StoreLocation } from '../src/store.ts'
 import {
   assistantMessage,
   cleanupTempDirs,
+  fakeMessage,
   fakeReviewAgent,
   snapshotMessage,
   toolMessage,
@@ -45,10 +46,10 @@ describe('transcriptChunk', () => {
   it('drops a message whose text blocks are empty', () => {
     expect(transcriptChunk(userMessage('   '))).toBeNull()
     expect(
-      transcriptChunk({
+      transcriptChunk(fakeMessage({
         ...userMessage('x'),
         content: [{ type: 'image', mediaType: 'image/png', data: 'AAAA' }],
-      } as unknown as Parameters<typeof transcriptChunk>[0]),
+      })),
     ).toBeNull()
   })
 })

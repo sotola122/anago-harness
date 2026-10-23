@@ -497,7 +497,7 @@ export async function runWikiCommand(
   invocation: CommandInvocation,
   deps: WikiCommandDeps,
 ): Promise<CommandResult> {
-  const agent = invocation.agent as unknown as WikiAgent
+  const agent: WikiAgent = invocation.agent
   // The dispatching UI owns the signal; every subcommand observes it for its
   // git calls and directory walks.
   const run: WikiCommandDeps = { ...deps, signal: invocation.signal }

@@ -209,7 +209,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
       spawn: options.real === true ? spawnReal : spawnFake,
     },
     logger: { info: record, warn: record, debug: record, error: record },
-  } as unknown as Context
+  } as Context
 
   return {
     ctx,
@@ -237,7 +237,7 @@ function makeRequest(
     parent: undefined,
     signal,
     ...overrides,
-  } as unknown as ResolvedSubagentStartRequest
+  } as ResolvedSubagentStartRequest
 }
 
 interface Started {

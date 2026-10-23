@@ -138,7 +138,7 @@ function createHarness(
       },
     },
     logger: { info: record, warn: record, debug: record, error: record },
-  } as unknown as Context
+  } as Context
   return {
     ctx,
     providers,
@@ -163,7 +163,7 @@ function makeRequest(
     parent: undefined,
     signal,
     ...overrides,
-  } as unknown as ResolvedSubagentStartRequest
+  } as ResolvedSubagentStartRequest
 }
 
 interface Started {

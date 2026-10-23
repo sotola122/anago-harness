@@ -982,8 +982,7 @@ export function createGlobalWikiState(deps: GlobalWikiStateDeps): GlobalWikiStat
     if (agent === undefined) {
       return { kind: 'disabled', detail: 'this call has no agent, so the session cannot be checked against the repository' }
     }
-    const key = agent as unknown as object
-    const cached = perAgent.get(key)
+    const cached = perAgent.get(agent)
     if (cached !== undefined && cached.generation === generation) return cached.view
     let sessionView: GlobalSessionView = view
     if (view.kind === 'found') {
@@ -1006,7 +1005,7 @@ export function createGlobalWikiState(deps: GlobalWikiStateDeps): GlobalWikiStat
         }
       }
     }
-    perAgent.set(key, { generation, view: sessionView })
+    perAgent.set(agent, { generation, view: sessionView })
     return sessionView
   }
 

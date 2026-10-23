@@ -197,7 +197,7 @@ describe('task validation', () => {
       { type: 'text', text: 'second' },
     ]
     expect(flattenPrompt(blocks)).toBe('first second')
-    const withImage = [{ type: 'text', text: 'a' }, { type: 'image' }] as unknown as ContentBlock[]
+    const withImage = [{ type: 'text', text: 'a' }, { type: 'image' }] as ContentBlock[]
     expect(() => flattenPrompt(withImage)).toThrow(/only text blocks/)
   })
 })

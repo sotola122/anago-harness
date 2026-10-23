@@ -18,6 +18,7 @@ import {
   type DshHome,
   fakeAgent,
   fakeApproval,
+  fakeContext,
   fakeExec,
   fakeInvocation,
   fakeReviewAgent,
@@ -28,6 +29,7 @@ import {
   recordingLogger,
   useDshHome,
   userMessage,
+  type WiredListener,
   writeStoreFile,
 } from './support.ts'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
@@ -60,7 +62,7 @@ interface Harness {
   readonly restrictions: ToolRestriction[]
   readonly warnings: string[]
   readonly debugs: string[]
-  readonly listeners: Map<string, (payload: unknown, next?: () => Promise<unknown>) => unknown>
+  readonly listeners: Map<string, WiredListener>
   /** Disposers `apply` registered through `ctx.effect`, in registration order. */
   readonly disposers: (() => unknown)[]
 }
@@ -85,7 +87,7 @@ function createHarness(
   const warnings: string[] = []
   const debugs: string[] = []
   const disposers: (() => unknown)[] = []
-  const listeners = new Map<string, (payload: unknown, next?: () => Promise<unknown>) => unknown>()
+  const listeners = new Map<string, WiredListener>()
   const tools = {
     register: (definition: ToolDefinition) => {
       registered.push(definition)
@@ -97,7 +99,7 @@ function createHarness(
       return () => {}
     },
   }
-  const ctx = {
+  const ctx = fakeContext({
     tools,
     commands: {
       register: (definition: CommandDefinition) => {
@@ -113,7 +115,7 @@ function createHarness(
         debugs.push(formatLog(message, args))
       },
     },
-    on: (event: string, listener: (payload: unknown, next?: () => Promise<unknown>) => unknown) => {
+    on: (event: string, listener: WiredListener) => {
       listeners.set(event, listener)
       return () => {}
     },
@@ -135,7 +137,7 @@ function createHarness(
       }
       return undefined
     },
-  } as unknown as Context
+  })
   return { ctx, registered, commands, restrictions, warnings, debugs, listeners, disposers }
 }
 
@@ -144,7 +146,7 @@ function agentAtDepth(depth: number, tools: unknown): Agent {
   return {
     session: { header: { delegationDepth: depth }, id: 'session-test' },
     ctx: { get: (key: string) => (key === 'tools' ? tools : undefined) },
-  } as unknown as Agent
+  } as Agent
 }
 
 /** Wait until a condition holds, bounded so a broken test fails instead of hanging. */
@@ -194,11 +196,8 @@ function hangingReviewLlm(calls: unknown[], signals: AbortSignal[]): unknown {
 
 /** Fire one completed turn and one idle through the harness's wired listeners. */
 function idleOnce(harness: Harness, agent: ReturnType<typeof fakeReviewAgent>): void {
-  // The wiring takes an event payload, not a `next`; the harness map is typed
-  // for the waterfall listeners it also holds.
-  const listeners = harness.listeners as unknown as Map<string, (payload: unknown, second?: unknown) => unknown>
-  const observe = listeners.get('session/event')
-  const status = listeners.get('agent/status')
+  const observe = harness.listeners.get('session/event')
+  const status = harness.listeners.get('agent/status')
   if (observe === undefined || status === undefined) throw new Error('the review listeners are not wired')
   observe(agent.session, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
   // The plugin never awaits the drain; the effect is what the test waits for.
@@ -263,7 +262,7 @@ describe('Config schema', () => {
 describe('headless detection (T15)', () => {
   /** A context whose only seam the detector reads is `get`. */
   const contextWith = (services: Record<string, unknown>): Context =>
-    ({ get: (key: string) => services[key] }) as unknown as Context
+    fakeContext({ get: (key: string) => services[key] })
 
   it('keys on the headless startup service, not on the profile name', () => {
     expect(isHeadlessRun(contextWith({ headlessStartup: { task: 't' }, profileContext: { name: 'itest' } }))).toBe(
@@ -437,7 +436,7 @@ describe('apply', () => {
     // tool body (S16), so the wiring test does the same.
     const exec = fakeExec(agent, undefined, args)
     type Listener = (exec: unknown, next: () => Promise<unknown>) => Promise<{ kind: string }>
-    const decision = await (listener as unknown as Listener)(exec, async () => ({ kind: 'allow' }))
+    const decision = await (listener as Listener)(exec, async () => ({ kind: 'allow' }))
     expect(decision.kind).toBe('allow')
     const value = (await tool.execute(args, exec)) as { status: string; staged?: string[] }
     expect(value.status).toBe('staged')

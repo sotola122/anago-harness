@@ -19,7 +19,7 @@ function fakeContext(sections: PromptSection[]): Context {
       section: (section: PromptSection) => { sections.push(section); return () => {} },
       getSectionOrder: (order: string) => order === 'DEPLOYMENT_PERSONA_SUFFIX' ? 10_200 : 0,
     },
-  } as unknown as Context
+  } as Context
 }
 
 /** A switch object a test can move; the loader supplies the writable form in production. */
@@ -28,9 +28,21 @@ function switchFor(initial: boolean): Volatile<boolean> & { set(value: boolean):
   return { get: () => value, set: (next: boolean) => { value = next } }
 }
 
-const mainAgent = { agent: { session: { header: undefined } } } as unknown as AssembleContext
-const shallowAgent = { agent: { session: {} } } as unknown as AssembleContext
-const childAgent = { agent: { session: { header: { delegationDepth: 1 } } } } as unknown as AssembleContext
+/**
+ * Type one hand-built assembly as the value the prompt registry passes.
+ *
+ * The section reads only `agent.session.header.delegationDepth`, so a test
+ * supplies just that chain rather than a whole live `Session`.
+ * @param value - the assembly double.
+ * @returns the same value, typed as the assembly context.
+ */
+function assemblyWith(value: object): AssembleContext {
+  return value
+}
+
+const mainAgent = assemblyWith({ agent: { session: { header: undefined } } })
+const shallowAgent = assemblyWith({ agent: { session: {} } })
+const childAgent = assemblyWith({ agent: { session: { header: { delegationDepth: 1 } } } })
 
 describe('response-language', () => {
   it('declares a stable row name and prompt position', () => {

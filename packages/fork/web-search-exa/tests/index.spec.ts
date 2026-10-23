@@ -79,7 +79,7 @@ function stubContext(options: StubOptions = {}): Stub {
       }
       return undefined
     },
-  } as unknown as Context
+  } as Context
   return { ctx, registered, credentials, unload: () =>{  unload() } }
 }
 

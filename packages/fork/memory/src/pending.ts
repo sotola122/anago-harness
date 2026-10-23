@@ -92,6 +92,13 @@ export interface PendingOp {
 }
 
 /**
+ * A parsed record before validation: every `PendingOp` field with an
+ * unverified type, so a validator that checked each one can return the
+ * operation it proved.
+ */
+type PendingOpCandidate = { readonly [K in keyof PendingOp]?: unknown }
+
+/**
  * The key that separates one repository's workspace pendings (DESIGN §4.5).
  * @param root - the canonical workspace root (DESIGN §5.1).
  * @returns 64 lower-case hex characters.
@@ -226,7 +233,7 @@ export function parsePendingOp(raw: unknown, expectedId: string, source: string)
     throw pendingUnknown(source, detail)
   }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) refuse('the JSON is not an object')
-  const record = raw as Record<string, unknown>
+  const record = raw as PendingOpCandidate
   const allowed = new Set(['id', 'createdAt', 'sessionId', 'source', 'target', 'op', 'text', 'old_text', 'baseEntry'])
   for (const key of Object.keys(record)) {
     if (!allowed.has(key)) refuse(`it carries the unknown key ${JSON.stringify(key)}`)
@@ -269,7 +276,7 @@ export function parsePendingOp(raw: unknown, expectedId: string, source: string)
   if (record.op === 'add' && record.baseEntry !== undefined) {
     refuse('an add carries no `baseEntry`')
   }
-  return record as unknown as PendingOp
+  return record as PendingOp
 }
 
 /**

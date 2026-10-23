@@ -26,6 +26,7 @@ import {
   cleanupTempDirs,
   type DshHome,
   fakeAgent,
+  fakeCommandInvocation,
   fakeInvocation,
   gitAvailable,
   initRepo,
@@ -124,7 +125,7 @@ function anonymousSessionAgent(header: MemorySessionHeader = {}): MemoryAgent {
  * same cast the package's own `fakeInvocation` fixture uses.
  */
 function invocationWithoutSignal(agent: MemoryAgent, line: string): CommandInvocation {
-  return { ...fakeInvocation(agent, line), signal: undefined } as unknown as CommandInvocation
+  return fakeCommandInvocation({ ...fakeInvocation(agent, line), signal: undefined })
 }
 
 describe('wrapDisplay', () => {

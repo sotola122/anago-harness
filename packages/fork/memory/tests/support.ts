@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import type { CommandInvocation } from '@deepseek-ai/dsh-commands'
 import type { Message, ToolCallId, UserMessage } from '@deepseek-ai/dsh-llm'
 import { createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -294,13 +295,13 @@ export function fakeInvocation(
   rawInput: string,
   signal?: AbortSignal,
 ): CommandInvocation {
-  return {
+  return fakeCommandInvocation({
     commandId: 'cmd-1',
-    agent: agent as unknown as CommandInvocation['agent'],
+    agent,
     rawInput,
     attachments: [],
     signal: signal ?? new AbortController().signal,
-  } as unknown as CommandInvocation
+  })
 }
 
 /** One plain user message. */
@@ -314,6 +315,19 @@ export function snapshotMessage(text = '<memory-snapshot>\nold\n</memory-snapsho
     content: [{ type: 'text', text }],
     source: { kind: 'memory', form: 'snapshot', sections: [{ name: 'global-memory', text }] },
   })
+}
+
+/**
+ * Type one message double as a message.
+ *
+ * A case that exercises what the review does with content the model layer would
+ * never produce still has to pass a message, so the double keeps only the
+ * members under test.
+ * @param value - the double.
+ * @returns the same value, typed as the message.
+ */
+export function fakeMessage(value: object): Message {
+  return value as Message
 }
 
 /** A logger that records what the plugin reported. */
@@ -361,7 +375,7 @@ export function fakeExec(
   signal?: AbortSignal,
   args: unknown = {},
 ): ToolRunContext {
-  return {
+  return fakeToolRunContext({
     callId: 'call-1',
     name: 'memory',
     arguments: args,
@@ -369,5 +383,38 @@ export function fakeExec(
     signal: signal ?? new AbortController().signal,
     deferContext: () => {},
     concludeTurn: () => {},
-  } as unknown as ToolRunContext
+  })
+}
+
+/**
+ * Type one hand-built double as the plugin context `apply` receives.
+ *
+ * A double carries only the members the code under test reads, so its parameter
+ * is the widest object type rather than the whole interface.
+ * @param value - the double.
+ * @returns the same value, typed as the context.
+ */
+export function fakeContext(value: object): Context {
+  return value as Context
+}
+
+/** One listener a fake context stores; the waterfall and plain events share it. */
+export type WiredListener = (payload: unknown, second?: unknown) => unknown
+
+/**
+ * Type one hand-built double as a tool execution.
+ * @param value - the double.
+ * @returns the same value, typed as the execution.
+ */
+export function fakeToolRunContext(value: object): ToolRunContext {
+  return value as ToolRunContext
+}
+
+/**
+ * Type one hand-built double as a command invocation.
+ * @param value - the double.
+ * @returns the same value, typed as the invocation.
+ */
+export function fakeCommandInvocation(value: object): CommandInvocation {
+  return value as CommandInvocation
 }

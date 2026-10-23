@@ -599,7 +599,7 @@ export async function runMemoryCommand(
   invocation: CommandInvocation,
   deps: MemoryCommandDeps,
 ): Promise<CommandResult> {
-  const agent = invocation.agent as unknown as MemoryAgent
+  const agent: MemoryAgent = invocation.agent
   // The dispatching UI owns the signal; every git read and locked write below
   // observes it (the same rule S16 states for tool execution).
   const run: MemoryCommandDeps = { ...deps, signal: invocation.signal }

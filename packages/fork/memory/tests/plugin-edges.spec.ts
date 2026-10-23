@@ -17,10 +17,12 @@ import { reviewSidecarPath } from '../src/review.ts'
 import {
   cleanupTempDirs,
   type DshHome,
+  fakeContext,
   fakeReviewAgent,
   memoryConfig,
   useDshHome,
   userMessage,
+  type WiredListener,
 } from './support.ts'
 
 const homes: DshHome[] = []
@@ -46,18 +48,18 @@ function formatLog(message: string, args: readonly unknown[]): string {
 interface Harness {
   readonly ctx: Context
   readonly warnings: string[]
-  readonly listeners: Map<string, (payload: unknown, next?: () => Promise<unknown>) => unknown>
+  readonly listeners: Map<string, WiredListener>
 }
 
 /** A fake context with the seams `apply` touches. */
 function createHarness(options: { readonly llm?: unknown } = {}): Harness {
   const warnings: string[] = []
-  const listeners = new Map<string, (payload: unknown, next?: () => Promise<unknown>) => unknown>()
+  const listeners = new Map<string, WiredListener>()
   const tools = {
     register: (_definition: ToolDefinition) => () => {},
     restrict: (_filter: ToolRestriction) => () => {},
   }
-  const ctx = {
+  const ctx = fakeContext({
     tools,
     commands: { register: (_definition: CommandDefinition) => () => {} },
     logger: {
@@ -66,7 +68,7 @@ function createHarness(options: { readonly llm?: unknown } = {}): Harness {
       },
       debug: () => {},
     },
-    on: (event: string, listener: (payload: unknown, next?: () => Promise<unknown>) => unknown) => {
+    on: (event: string, listener: WiredListener) => {
       listeners.set(event, listener)
       return () => {}
     },
@@ -79,7 +81,7 @@ function createHarness(options: { readonly llm?: unknown } = {}): Harness {
       if (key === 'llm') return options.llm
       return undefined
     },
-  } as unknown as Context
+  })
   return { ctx, warnings, listeners }
 }
 
@@ -135,10 +137,8 @@ function emit(harness: Harness, event: string, payload: unknown): void {
 /** Record one completed turn for an agent, as the session event carries it. */
 function completeTurn(harness: Harness, agent: ReturnType<typeof fakeReviewAgent>): void {
   // `session/event` takes the session and the event, not one payload object.
-  const observe = harness.listeners.get('session/event') as unknown as
-    | ((session: unknown, event: unknown) => void)
-    | undefined
-  observe?.(agent.session, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
+  harness.listeners.get('session/event')
+    ?.(agent.session, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
 }
 
 /** Wait for a sidecar outcome, reading it as the review would. */
@@ -211,7 +211,7 @@ describe('agent/disposed wiring', () => {
 describe('headless fallback', () => {
   /** A context whose only seam the detector reads is `get`. */
   const contextWith = (services: Record<string, unknown>): Context =>
-    ({ get: (key: string) => services[key] }) as unknown as Context
+    fakeContext({ get: (key: string) => services[key] })
 
   it('does not treat an empty or non-string profile name as headless', () => {
     expect(isHeadlessRun(contextWith({ profileContext: { name: '' } }))).toBe(false)

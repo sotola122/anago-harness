@@ -191,7 +191,7 @@ export function isHeadlessRun(ctx: Context): boolean {
  * @returns the service, or undefined when the composition has none.
  */
 function serviceOf(ctx: Context, name: string): unknown {
-  return ctx.get(name) as unknown
+  return ctx.get(name)
 }
 
 /**

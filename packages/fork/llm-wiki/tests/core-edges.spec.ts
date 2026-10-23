@@ -32,6 +32,7 @@ import {
   cleanupTempDirs,
   fakeAgent,
   fakeApproval,
+  fakeContext,
   fakeInvocation,
   fakeToolCall,
   gitAvailable,
@@ -85,7 +86,7 @@ function createHarness(services: Record<string, unknown> = {}): Harness {
   const listeners = new Map<string, Listener[]>()
   const warnings: string[] = []
   const format = (message: string, args: readonly unknown[]): string => `${message} ${args.join(' ')}`.trim()
-  const ctx = {
+  const ctx = fakeContext({
     tools: {
       register: (definition: ToolDefinition) => {
         tools.push(definition)
@@ -117,7 +118,7 @@ function createHarness(services: Record<string, unknown> = {}): Harness {
       return () => {}
     },
     get: (name: string) => services[name],
-  } as unknown as Context
+  })
   return {
     ctx,
     tools,

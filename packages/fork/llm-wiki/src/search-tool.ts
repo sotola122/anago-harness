@@ -233,7 +233,7 @@ export async function executeWikiSearch(
   exec: ToolRunContext,
   deps: WikiSearchToolDeps,
 ): Promise<WikiSearchValue> {
-  const agent = exec.agent as unknown as WikiAgent | undefined
+  const agent = exec.agent
   const cwd = agent === undefined ? undefined : cwdOf(agent)
   return await runWikiSearch({
     ...(cwd === undefined ? {} : { cwd }),
@@ -398,7 +398,7 @@ export function createWikiSearchTool(deps: WikiSearchToolDeps): ToolDefinition {
     },
     async execute(args, exec) {
       try {
-        return await executeWikiSearch(args as unknown as WikiSearchArgs, exec, deps)
+        return await executeWikiSearch(args as WikiSearchArgs, exec, deps)
       } catch (error) {
         deps.logger.debug('dsh-llm-wiki: %s', describeError(error))
         throw error

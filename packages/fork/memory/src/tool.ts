@@ -292,7 +292,7 @@ export async function executeMemoryTool(
   exec: ToolRunContext,
   deps: MemoryToolDeps,
 ): Promise<MemoryToolValue> {
-  const agent = exec.agent as unknown as MemoryAgent | undefined
+  const agent: MemoryAgent | undefined = exec.agent
   if (agent === undefined) {
     throw new Error(`${MEMORY_TOOL_NAME} requires a calling agent (no session to address)`)
   }

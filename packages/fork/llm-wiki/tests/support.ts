@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import type { CommandInvocation } from '@deepseek-ai/dsh-commands'
 import type { Message } from '@deepseek-ai/dsh-llm'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -322,7 +323,7 @@ export function fakeExec(
   signal?: AbortSignal,
   name = 'wiki_lint',
 ): ToolRunContext {
-  return {
+  return fakeToolRunContext({
     callId: 'call-1',
     name,
     arguments: {},
@@ -330,7 +331,7 @@ export function fakeExec(
     signal: signal ?? new AbortController().signal,
     deferContext: () => {},
     concludeTurn: () => {},
-  } as unknown as ToolRunContext
+  })
 }
 
 /** A command invocation carrying one raw line. */
@@ -339,13 +340,43 @@ export function fakeInvocation(
   rawInput: string,
   signal?: AbortSignal,
 ): CommandInvocation {
-  return {
+  return fakeCommandInvocation({
     commandId: 'cmd-1',
-    agent: agent as unknown as CommandInvocation['agent'],
+    agent,
     rawInput,
     attachments: [],
     signal: signal ?? new AbortController().signal,
-  } as unknown as CommandInvocation
+  })
+}
+
+/**
+ * Type one hand-built double as the plugin context `apply` receives.
+ *
+ * A double carries only the members the code under test reads, so its parameter
+ * is the widest object type rather than the whole interface.
+ * @param value - the double.
+ * @returns the same value, typed as the context.
+ */
+export function fakeContext(value: object): Context {
+  return value as Context
+}
+
+/**
+ * Type one hand-built double as a tool execution.
+ * @param value - the double.
+ * @returns the same value, typed as the execution.
+ */
+export function fakeToolRunContext(value: object): ToolRunContext {
+  return value as ToolRunContext
+}
+
+/**
+ * Type one hand-built double as a command invocation.
+ * @param value - the double.
+ * @returns the same value, typed as the invocation.
+ */
+export function fakeCommandInvocation(value: object): CommandInvocation {
+  return value as CommandInvocation
 }
 
 /** A fake `ctx.approval`, with whatever policy the test wants to resolve. */

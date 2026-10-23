@@ -17,7 +17,7 @@ import { WIKI_SEARCH_TOOL_NAME } from '../src/search-tool.ts'
 import { createSkillRegistration, loadSkillBody, SKILL_NAME, stripFrontmatter } from '../src/skill.ts'
 import { WIKI_LINT_TOOL_NAME } from '../src/tool.ts'
 import { WIKI_WRITE_TOOL_NAME } from '../src/write.ts'
-import { cleanupTempDirs, fakeAgent, fakeInvocation, wikiConfig } from './support.ts'
+import { cleanupTempDirs, fakeAgent, fakeContext, fakeInvocation, wikiConfig } from './support.ts'
 
 afterAll(cleanupTempDirs)
 
@@ -38,7 +38,7 @@ function createHarness(): Harness {
   const commands: CommandDefinition[] = []
   const listeners = new Map<string, (payload: unknown, next?: () => Promise<unknown>) => unknown>()
   const counts = new Map<string, number>()
-  const ctx = {
+  const ctx = fakeContext({
     tools: {
       register: (definition: ToolDefinition) => {
         registered.push(definition)
@@ -64,7 +64,7 @@ function createHarness(): Harness {
       return () => {}
     },
     get: () => undefined,
-  } as unknown as Context
+  })
   return {
     ctx,
     registered,

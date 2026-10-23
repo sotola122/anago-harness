@@ -84,6 +84,18 @@ async function refusal(
   throw new Error('the call was expected to fail')
 }
 
+/**
+ * Type one argument double as the arguments a validated call carries.
+ *
+ * A refusal case passes a value the schema would reject, so the double keeps
+ * only the members the refusal reads.
+ * @param value - the double.
+ * @returns the same value, typed as the arguments.
+ */
+function fakeArgs(value: object): Parameters<typeof executeMemoryTool>[0] {
+  return value as Parameters<typeof executeMemoryTool>[0]
+}
+
 /** A result value with every required field, overridable per test. */
 function resultValue(overrides: Partial<MemoryToolValue> = {}): MemoryToolValue {
   return {
@@ -107,7 +119,7 @@ describe('refusals before a store resolves', () => {
 
   it('refuses a target the model supplied that is not one of the three stores', async () => {
     await home()
-    const args = { target: 'everything' } as unknown as Parameters<typeof executeMemoryTool>[0]
+    const args = fakeArgs({ target: 'everything' })
     expect(await refusal(args)).toBe('MEMORY_INVALID_OPERATION')
   })
 

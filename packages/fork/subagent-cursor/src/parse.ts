@@ -151,7 +151,8 @@ export function parseOutcome(outputs: RunOutputs): SubagentResult {
 /** Parse stdout, treating any throw as "not JSON". */
 function tryParseJson(text: string): unknown {
   try {
-    return JSON.parse(text) as unknown
+    const parsed: unknown = JSON.parse(text)
+    return parsed
   } catch {
     return undefined
   }

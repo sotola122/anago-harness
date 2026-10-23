@@ -281,7 +281,7 @@ export async function executeWikiLint(
   exec: ToolRunContext,
   deps: WikiToolDeps,
 ): Promise<WikiLintValue> {
-  const agent = exec.agent as unknown as WikiAgent | undefined
+  const agent = exec.agent
   const cwd = agent === undefined ? undefined : cwdOf(agent)
   const checks = normalizeChecks(args.checks, deps.checks)
   const scope: LintScope = args.scope ?? 'project'
