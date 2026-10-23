@@ -214,8 +214,6 @@ describe('SessionController facade', () => {
       }),
     }) as never)
     const controller = createSessionTestController(ctx, defaults)
-    const agents = (controller as unknown as { agents: ApiSessionAgentController }).agents
-    const resolve = vi.spyOn(agents, 'resolveObservedAgent')
     const abort = new AbortController()
     const iterator = controller.follow({
       address: { kind: 'session', sessionId },
@@ -226,8 +224,9 @@ describe('SessionController facade', () => {
       done: false,
       value: { type: 'snapshot', cursor: -1 },
     })
-    // Viewing must not resume an Agent: the writer lease stays free.
-    expect(resolve).not.toHaveBeenCalled()
+    // Viewing must not resume an Agent: the registry stays empty, so no
+    // writer lease was taken.
+    expect(ctx.agents.list()).toEqual([])
     abort.abort()
     await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined })
     await ctx.fiber.dispose()
