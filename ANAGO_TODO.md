@@ -208,11 +208,16 @@
 - コミット: 機能本体、docs:build 修正、テスト修正、policy 分類、remote inject 修正、TUI 拒否の 6 件（`git log` を参照）。
 - 残作業（環境要因）: `anago-web` 再起動後に TUI 保持 → Web read-only → TUI 終了で解禁 → Web ターン終了後の `flock` 解放を手動確認。5 件の headless スナップショットは日本語リマインダー追加に伴い再録音が必要（API キー必須）。`vendor rescope` は fork 移植時の既存 20 箇所。
 
-## TUI の起動コマンド（2026-10-24）
+## TUI の起動（2026-10-24）
 
-- PATH 上の `dsh` は公開 CLI（`~/.local/lib/node_modules/@deepseek-ai/dsh`）で、フォークの private workspace bundle（`@anago-harness/*`）を解決できない。`dsh tui` は `@anago-harness/anago-core` を **skip** し、memory / wiki / Brave / Exa / response-language 抜きで起動する。
-- 対策: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec するラッパー）を追加。`anago tui` / `anago web-anago …` はフォーク CLI で起動し、bundle を解決する。チェックアウト内なら `pnpm dsh --profile tui` でも同じ。
-- `anago-core` が web 専用 row `message-feedback` を無効化していたため TUI 構成で「patch: entry not found」警告が出ていた。無効化を `anago-web` へ移し、`tui` / `web-anago` の dump で警告ゼロを確認（`dsh-tui` 自身の `tool-ralph` 警告のみ残るが、これは外部 bundle のもので無害）。
+- PATH 上の `dsh`（公開 CLI）でも、private bundle を **プロファイルの `link:` 依存**として宣言すれば解決できる。`~/.dsh/profiles/tui/package.json` に `@anago-harness/{anago-core,memory,llm-wiki,response-language,subagent-cursor,subagent-pi,web-search-brave,web-search-exa,web-search-credentials,knowledge-common}` を `link:` で宣言し、`pnpm add` で `node_modules` に外部ディレクトリへの symlink を作る。
+- 仕組み: `app-boot` の runtime resolution は、プロファイルの `node_modules` にある外部ディレクトリへの symlink を **linked root** として扱い、配下の import は realpath の祖先（リポジトリ）で解決しつつ、`@deepseek-ai/*` などの既知パッケージは公開インストール側へルーティングする。これにより公開 CLI とフォーク bundle を同一プロセスで安全に混在できる。
+- 再現コマンド（プロファイル内で、pnpm を PATH に用意して実行）:
+  `pnpm add --save-exact @mars-sea/dsh-commandcode-provider@0.14.1 link:<repo>/packages/fork/anago-core link:<repo>/packages/fork/memory ...`
+- 注意: `@mars-sea/dsh-commandcode-provider` は以前 `package.json` に未宣言で、`pnpm add` 時に prune された。現在は `0.14.1` を明示宣言済み。
+- 検証: `dsh tui --dump-default-config` で skip 0 件、pty 起動で pending/エラーなし、`--dump-config-schema` に memory / llm-wiki / response-language / subagent-cursor / subagent-pi / web-search-brave / web-search-exa が現れること。
+- 代替: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec）も残している。`dsh-tui` 自身の `tool-ralph` patch 警告のみ残るが、これは外部 bundle のもので無害。
+- `anago-core` の web 専用 row `message-feedback` の無効化は `anago-web` に移し、TUI 構成の patch 警告を解消済み。
 
 ## pi TUI 実装の削除（2026-10-24）
 
