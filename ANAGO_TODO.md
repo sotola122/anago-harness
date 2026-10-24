@@ -129,7 +129,7 @@
 - モデルはプロファイル patch の `agent-default-model`（commandcode）で固定。`/setup` を実行しない限り DeepSeek の経路は使われない。
 - 本番ホームを置き換え済み（2026-10-23）:
   - `~/.dsh/profiles/tui` = `dsh-base` + `@deepseek-harness-tui/dsh-tui` + `commandcode` + `anago-core`（126 行）
-  - `~/.dsh/profiles/tui-pi` = `dsh-base` + `anago-core` + `anago-tui` + `commandcode`（109 行、pi-tui ベース）
+  - `~/.dsh/profiles/tui-pi` = `dsh-base` + `anago-core` + `anago-tui` + `commandcode`（pi-tui ベース。2026-10-24 にプロファイルを削除。パッケージと `anago-tui` バンドルはリポジトリに残る）
   - `~/.dsh/profiles/tui-oc` = 旧 dsh-oc-tui プロファイル（退避）
 - 中国語表示の修正: `lib/types/i18n.js` の `cmd-desc-*` 60 キーに英語がなく、英語モードで中国語へフォールバックしていた。`scripts/fork/patch-dsh-tui-i18n.mjs` が `commands.js` の英語説明から `en` を補完する（冪等、更新後に再実行）。本番・検証の両プロファイルに適用済みで、`en` 欠落キーは 0。
 - ステータスバーの中国語: `dsh-working-activity` の言語解決が `DSH_TUI_LANG` → `~/.dsh-tui/lang.json` → OS ロケール → **zh** の順で、この環境は `LANG=ja_JP.UTF-8` のため中国語に落ちていた（プラグインの進捗コピーと、モデルに注入する `⏵` 自己ナレーション指示の両方）。`~/.dsh-tui/lang.json` に `{"lang":"en"}` を置いて英語に固定。確認: 進捗行は `Executing sleep 6; echo finished · 5s`、完了時は `Finished`。`⏵` の内容自体は response-language により日本語。`ash` のインストーラでも未作成時にこのファイルを書く。
@@ -211,5 +211,5 @@
 ## TUI の起動コマンド（2026-10-24）
 
 - PATH 上の `dsh` は公開 CLI（`~/.local/lib/node_modules/@deepseek-ai/dsh`）で、フォークの private workspace bundle（`@anago-harness/*`）を解決できない。`dsh tui` は `@anago-harness/anago-core` を **skip** し、memory / wiki / Brave / Exa / response-language 抜きで起動する。
-- 対策: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec するラッパー）を追加。`anago tui` / `anago tui-pi` / `anago web-anago …` はフォーク CLI で起動し、bundle を解決する。チェックアウト内なら `pnpm dsh --profile tui` でも同じ。
-- `anago-core` が web 専用 row `message-feedback` を無効化していたため TUI 構成で「patch: entry not found」警告が出ていた。無効化を `anago-web` へ移し、`tui` / `tui-pi` / `web-anago` の dump で警告ゼロを確認（`dsh-tui` 自身の `tool-ralph` 警告のみ残るが、これは外部 bundle のもので無害）。
+- 対策: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec するラッパー）を追加。`anago tui` / `anago web-anago …` はフォーク CLI で起動し、bundle を解決する。チェックアウト内なら `pnpm dsh --profile tui` でも同じ。
+- `anago-core` が web 専用 row `message-feedback` を無効化していたため TUI 構成で「patch: entry not found」警告が出ていた。無効化を `anago-web` へ移し、`tui` / `web-anago` の dump で警告ゼロを確認（`dsh-tui` 自身の `tool-ralph` 警告のみ残るが、これは外部 bundle のもので無害）。
