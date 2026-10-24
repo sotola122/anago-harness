@@ -37,6 +37,10 @@
 
 # The account and message-feedback UI link to DeepSeek CN endpoints from the
 # browser, which the Node egress guard cannot intercept.
+# The host feedback row mounts with web-app, not base; the TUI profile must
+# not warn about a row it never had.
+- id: message-feedback
+  disabled: true
 - id: ui-settings-account
   disabled: true
 - id: account-controller

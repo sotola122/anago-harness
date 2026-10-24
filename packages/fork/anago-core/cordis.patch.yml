@@ -55,8 +55,6 @@
   disabled: true
 - id: llm-deepseek-account
   disabled: true
-- id: message-feedback
-  disabled: true
 - id: command-feedback
   disabled: true
 - id: session-telemetry-otel

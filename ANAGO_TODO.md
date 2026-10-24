@@ -207,3 +207,9 @@
 - 実機検証: 3080 が保持するセッションを 3081 の Web UI（Chromium）で開き、read-only 理由の表示と composer 不活性を確認。TUI `--resume` も同じ理由で拒否。3080 のセッションには影響なし。
 - コミット: `8890d47b80`（機能）、`581d6e9352`（docs:build）、`aa8f8d786c`（テスト）、`9729cc3cab`（policy）、`71b3478886`（remote inject）、`0767309a7e`（TUI 拒否）。
 - 残作業（環境要因）: `anago-web` 再起動後に TUI 保持 → Web read-only → TUI 終了で解禁 → Web ターン終了後の `flock` 解放を手動確認。5 件の headless スナップショットは HEAD `36580d63d1` のリマインダー追加に伴い再録音が必要（API キー必須）。`vendor rescope` は fork 移植時の既存 20 箇所。
+
+## TUI の起動コマンド（2026-10-24）
+
+- PATH 上の `dsh` は公開 CLI（`~/.local/lib/node_modules/@deepseek-ai/dsh`）で、フォークの private workspace bundle（`@anago-harness/*`）を解決できない。`dsh tui` は `@anago-harness/anago-core` を **skip** し、memory / wiki / Brave / Exa / response-language 抜きで起動する。
+- 対策: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec するラッパー）を追加。`anago tui` / `anago tui-pi` / `anago web-anago …` はフォーク CLI で起動し、bundle を解決する。チェックアウト内なら `pnpm dsh --profile tui` でも同じ。
+- `anago-core` が web 専用 row `message-feedback` を無効化していたため TUI 構成で「patch: entry not found」警告が出ていた。無効化を `anago-web` へ移し、`tui` / `tui-pi` / `web-anago` の dump で警告ゼロを確認（`dsh-tui` 自身の `tool-ralph` 警告のみ残るが、これは外部 bundle のもので無害）。
