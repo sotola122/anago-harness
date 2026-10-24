@@ -139,10 +139,10 @@ Supporting facts:
 | `web-search-credentials` | `@anago-harness/web-search-credentials` | Library (new) | Shared key lookup for both providers | — |
 | `client-ui-settings-web-search` | `@anago-harness/client-ui-settings-web-search` | Client package (empty host `apply`) | §6.5 plus the Brave card, merged | `ui-settings-web-search-providers` |
 | `client-ui-session-share` | `@anago-harness/client-ui-session-share` | Client package (empty host `apply`) | New: blocks the composer for a Session another DSH process holds | `client-ui-session-share` |
-| `tui` | `@anago-harness/tui` | Application plugin (exports `./startup`) | New (inherits pi-tui) | `tui-startup`, `tui-app` |
+| `tui` | `@anago-harness/tui` | Application plugin (exports `./startup`) | New (inherits pi-tui)。2026-10-24 に実装・パッケージとも削除 | `tui-startup`, `tui-app` |
 | `anago-core` | `@anago-harness/anago-core` | Bundle | New | — |
 | `anago-web` | `@anago-harness/anago-web` | Bundle | New | — |
-| `anago-tui` | `@anago-harness/anago-tui` | Bundle | New | — |
+| `anago-tui` | `@anago-harness/anago-tui` | Bundle | New。2026-10-24 に実装・パッケージとも削除 | — |
 
 The Exa and Brave cards share one package and one controller, which avoids duplication (§5.2). It is fewer packages than §6.5 assumed and keeps both `jscpd` and maintenance costs down.
 
@@ -375,7 +375,9 @@ tui: {
 - Card rendering: the `plugins.item` registration, `whileServed` showing and hiding each card, and full locale-key coverage.
 - Use `packages/client/ui-settings-web-search/tests/` (controller, card, apply) as the template.
 
-## 6. TUI plugin (inheriting pi's TUI)
+## 6. TUI plugin (inheriting pi's TUI) — 実装は 2026-10-24 に削除
+
+> この章は設計時の記録。`packages/fork/tui` / `packages/fork/anago-tui`、`tui` プロファイルテンプレート、`tui-pi` / `tui-oc` プロファイルは 2026-10-24 に削除した。現在の端末 UI は外部の dsh-TUI バンドルを使う。
 
 ### 6.1 What is inherited and what is not
 

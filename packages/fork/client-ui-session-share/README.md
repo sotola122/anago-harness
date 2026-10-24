@@ -57,7 +57,6 @@ The node half is an empty `apply`, present so the package holds a Loader row who
 - [anago-web](../anago-web/README.md) — the bundle that inserts the row.
 - [session-controller](../../api/session-controller/README.md) — the Host ownership probe and the browser Session service.
 - [ui-conversation](../../client/ui-conversation/README.md) — the composer block registry this plugin writes.
-- [tui](../tui/README.md) — the terminal side that refuses to open a Session another process holds.
 - [Design of the bundled plugins](../../../ANAGO_PLUGINS_DESIGN.md) — package split and the sharing rules.
 
 -----

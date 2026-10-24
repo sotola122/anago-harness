@@ -191,9 +191,6 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless', '@anago-harness/anago-core'],
   },
-  tui: {
-    bundles: ['@deepseek-ai/dsh-base', '@anago-harness/anago-core', '@anago-harness/anago-tui'],
-  },
   sdk: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app'],
   },

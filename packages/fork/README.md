@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The fork group holds the packages this fork adds to the product: private policy, the host capabilities shipped in `anago-core`, the browser cards in `anago-web`, and the terminal application in `anago-tui`. `fork-policy` installs the Node egress guard and the profile patch lists the boot composer reads. The shipped `web`, `headless`, and `tui` profile templates select the `anago-*` bundles.
+The fork group holds the packages this fork adds to the product: private policy, the host capabilities shipped in `anago-core`, and the browser cards in `anago-web`. `fork-policy` installs the Node egress guard and the profile patch lists the boot composer reads. The shipped `web` and `headless` profile templates select the `anago-*` bundles; the terminal surface is the separately installed dsh-TUI bundle.
 
 ## Table of Contents
 
@@ -35,10 +35,8 @@ The fork group holds the packages this fork adds to the product: private policy,
 | [`client-ui-settings-web-search`](client-ui-settings-web-search/README.md) | Exa and Brave search settings cards on the Plugins page | `ui-settings-web-search-providers` |
 | [`client-ui-fonts-anago`](client-ui-fonts-anago/README.md) | Japanese-first Web UI fonts | `anago-fonts` |
 | [`client-ui-session-share`](client-ui-session-share/README.md) | Read-only composer for a Session another process is writing | `ui-session-share` |
-| [`tui`](tui/README.md) | Terminal UI application plugin built on the pi terminal UI library | `tui-startup`, `tui-app` |
 | [`anago-core`](anago-core/README.md) | Profile bundle: the host rows above | (bundle) |
 | [`anago-web`](anago-web/README.md) | Profile bundle: the browser rows above | (bundle) |
-| [`anago-tui`](anago-tui/README.md) | Profile bundle: the terminal rows above | (bundle) |
 
 <a id="related-documentation"></a>
 ## Related documentation

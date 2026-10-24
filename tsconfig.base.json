@@ -373,8 +373,6 @@
       "@anago-harness/web-search-brave": ["./packages/fork/web-search-brave/src"],
       "@anago-harness/web-search-exa": ["./packages/fork/web-search-exa/src"],
       "@anago-harness/web-search-credentials": ["./packages/fork/web-search-credentials/src"],
-      "@anago-harness/tui": ["./packages/fork/tui/src"],
-      "@anago-harness/tui/startup": ["./packages/fork/tui/src/startup.ts"],
       "@anago-harness/client-ui-settings-web-search": ["./packages/fork/client-ui-settings-web-search/src"],
       "@anago-harness/client-ui-settings-web-search/client": ["./packages/fork/client-ui-settings-web-search/src/client/index.ts"],
       "@anago-harness/client-ui-fonts-anago": ["./packages/fork/client-ui-fonts-anago/src"],
@@ -383,7 +381,6 @@
       "@anago-harness/client-ui-session-share/client": ["./packages/fork/client-ui-session-share/src/client/index.ts"],
       "@anago-harness/anago-core": ["./packages/fork/anago-core/src"],
       "@anago-harness/anago-web": ["./packages/fork/anago-web/src"],
-      "@anago-harness/anago-tui": ["./packages/fork/anago-tui/src"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

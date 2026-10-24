@@ -301,25 +301,6 @@ export type PiThinkingLevel = (typeof PI_THINKING_LEVELS)[number]
 ```
 <!-- END GENERATED config-catalog:@anago-harness/subagent-pi -->
 
-<!-- BEGIN GENERATED config-catalog:@anago-harness/tui -->
-<a id="anago-harnesstui"></a>
-
-## `@anago-harness/tui`
-
-- `inject`: `agents` · `tuiStartup` · `appReady` · `appExit`
-- `source`: [`packages/fork/tui/src/index.ts:40`](../packages/fork/tui/src/index.ts)
-
-```ts config-catalog
-/** Row config; command-line flags override both fields. */
-export interface Config {
-  /** Palette used when `--theme` is absent. */
-  theme: 'dark' | 'light'
-  /** Use the main screen when `--inline` is absent. */
-  inline: boolean
-}
-```
-<!-- END GENERATED config-catalog:@anago-harness/tui -->
-
 <!-- BEGIN GENERATED config-catalog:@anago-harness/web-search-brave -->
 <a id="anago-harnessweb-search-brave"></a>
 
@@ -5136,7 +5117,6 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `package` | `inject` | `source` |
 | --- | --- | --- |
 | `@anago-harness/anago-core` | — | [`packages/fork/anago-core/src/index.ts`](../packages/fork/anago-core/src/index.ts) |
-| `@anago-harness/anago-tui` | — | [`packages/fork/anago-tui/src/index.ts`](../packages/fork/anago-tui/src/index.ts) |
 | `@anago-harness/anago-web` | — | [`packages/fork/anago-web/src/index.ts`](../packages/fork/anago-web/src/index.ts) |
 | `@anago-harness/fork-policy` | — | [`packages/fork/fork-policy/src/index.ts`](../packages/fork/fork-policy/src/index.ts) |
 | `@anago-harness/knowledge-common` | — | [`packages/fork/knowledge-common/src/index.ts`](../packages/fork/knowledge-common/src/index.ts) |

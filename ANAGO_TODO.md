@@ -205,11 +205,17 @@
 - TUI: `/resume` の行をグレー表示＋理由、選択拒否。`--resume` は同一理由で exit 1。切替は「新セッションを開いてから旧 Agent を破棄」に変更。
 - ライブ追従: read モードの follower が `stat().revision` を 500ms で確認し、変化時のみ既存 read で差分取得。実測: 検知 3 ms / 差分 read 1 ms。
 - 実機検証: 3080 が保持するセッションを 3081 の Web UI（Chromium）で開き、read-only 理由の表示と composer 不活性を確認。TUI `--resume` も同じ理由で拒否。3080 のセッションには影響なし。
-- コミット: `8890d47b80`（機能）、`581d6e9352`（docs:build）、`aa8f8d786c`（テスト）、`9729cc3cab`（policy）、`71b3478886`（remote inject）、`0767309a7e`（TUI 拒否）。
-- 残作業（環境要因）: `anago-web` 再起動後に TUI 保持 → Web read-only → TUI 終了で解禁 → Web ターン終了後の `flock` 解放を手動確認。5 件の headless スナップショットは HEAD `36580d63d1` のリマインダー追加に伴い再録音が必要（API キー必須）。`vendor rescope` は fork 移植時の既存 20 箇所。
+- コミット: 機能本体、docs:build 修正、テスト修正、policy 分類、remote inject 修正、TUI 拒否の 6 件（`git log` を参照）。
+- 残作業（環境要因）: `anago-web` 再起動後に TUI 保持 → Web read-only → TUI 終了で解禁 → Web ターン終了後の `flock` 解放を手動確認。5 件の headless スナップショットは日本語リマインダー追加に伴い再録音が必要（API キー必須）。`vendor rescope` は fork 移植時の既存 20 箇所。
 
 ## TUI の起動コマンド（2026-10-24）
 
 - PATH 上の `dsh` は公開 CLI（`~/.local/lib/node_modules/@deepseek-ai/dsh`）で、フォークの private workspace bundle（`@anago-harness/*`）を解決できない。`dsh tui` は `@anago-harness/anago-core` を **skip** し、memory / wiki / Brave / Exa / response-language 抜きで起動する。
 - 対策: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec するラッパー）を追加。`anago tui` / `anago web-anago …` はフォーク CLI で起動し、bundle を解決する。チェックアウト内なら `pnpm dsh --profile tui` でも同じ。
 - `anago-core` が web 専用 row `message-feedback` を無効化していたため TUI 構成で「patch: entry not found」警告が出ていた。無効化を `anago-web` へ移し、`tui` / `web-anago` の dump で警告ゼロを確認（`dsh-tui` 自身の `tool-ralph` 警告のみ残るが、これは外部 bundle のもので無害）。
+
+## pi TUI 実装の削除（2026-10-24）
+
+- `packages/fork/tui`（`@anago-harness/tui`）と `packages/fork/anago-tui`（バンドル）を削除。`PROFILE_TEMPLATES` の `tui`、`apps/cli` の依存、tsconfig の alias/reference、README ゲートの allowlist、Cordis カタログの `tuiStartup` 分類も同時に削除した。
+- プロファイル `~/.dsh/profiles/tui-pi` / `~/.dsh/profiles/tui-oc` を削除。現在の端末 UI は `tui` プロファイル（外部 `@deepseek-harness-tui/dsh-tui` + `anago-core`）のみ。
+- 設計は `ANAGO_PLUGINS_DESIGN.md` §6 に記録として残し、削除済みであることを明記した。

@@ -17,7 +17,6 @@
 - [`dsh headless`](#dsh-headless)
 - [`dsh sdk`](#dsh-sdk)
 - [`dsh sdk-minimal`](#dsh-sdk-minimal)
-- [`dsh tui`](#dsh-tui)
 - [`dsh web`](#dsh-web)
 
 <a id="dsh"></a>
@@ -162,33 +161,6 @@ Options:
 
 Example:
   dsh --profile sdk-minimal     serve one SDK runtime until its client disconnects
-
-```
-
-<a id="dsh-tui"></a>
-## `dsh tui`
-
-调用方式: `dsh tui --help`, `dsh --profile tui --help`
-
-```text
-Usage: dsh --profile tui [options]
-
-Boot the DeepSeek Harness terminal UI.
-
-Options:
-  --resume <sessionId>   resume a persisted Session by id
-  --model <modelId>      model id for the new or resumed Agent
-  --provider <provider>  provider route for the new or resumed Agent
-  --theme <theme>        palette: dark or light
-  --inline               render into the main screen instead of the alternate
-                         screen
-  -h, --help             show this help
-
-Examples:
-  dsh --profile tui                        start a fresh Session
-  dsh --profile tui --resume <id>          resume a persisted Session
-  dsh --profile tui --theme light          use the light palette
-  dsh --profile tui --inline               keep the terminal scrollback
 
 ```
 
