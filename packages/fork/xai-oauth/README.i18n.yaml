@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fork/xai-oauth/README.md
 /:
-  en: 99f214fc08db5e90
-  zh: ae2cb9f4cfcbb2db
+  en: 8a4234cf1c3e36bd
+  zh: 01261462f53223a2
 /anago-harness-xai-oauth:
   en: de970df6f64ea453
   zh: 0d02062261dc6d92
 /anago-harness-xai-oauth/summary:
   en: 5dcaf2515ac9b3b7
-  zh: 23c4016bdd4df3b8
+  zh: ed07852c7e75c8e3
 /anago-harness-xai-oauth/table-of-contents:
   en: d152484eb41ac6b4
   zh: c9246108bd07f3aa
@@ -31,7 +31,7 @@
   zh: 892c09afa194f2c6
 /anago-harness-xai-oauth/known-limitations-and-deferred-work:
   en: 56678bcffcacc3ef
-  zh: c588a9d1ac4ad49d
+  zh: 1ed3e64e967d9c01
 /anago-harness-xai-oauth/known-limitations-and-deferred-work/dev-note:
   en: 456cb7d46967dca3
-  zh: 55372cb55142fdd7
+  zh: 2500dba4c878277a

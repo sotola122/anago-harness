@@ -1,13 +1,13 @@
 ---
 description: "通过 pi-ai OAuth 流程登录 xAI（SuperGrok / X Premium），无需 API key 即可使用 xAI 模型。"
-kind: "package-reference"
+kind: "package-bundle"
 ---
 
 # @anago-harness/xai-oauth
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 本插件通过 `llm-pi-ai` 已为其 `xai` 目录提供方注册的设备码 OAuth 流程，将 harness 安装登录到 xAI。它不注册自己的流程：每条命令都针对 `llm-pi-ai/xai` 凭据记录调用 `ctx.authorization.begin()`，因此 pi-ai 适配器仍是唯一的写入者，并由 pi-ai 在凭据存储内持续刷新令牌。
 
@@ -76,7 +76,7 @@ xAI 授权是无提问的设备码流程。插件的 interaction 记录每条通
 
 无，因为插件不组装也不发送任何提供方请求。
 
-## 已知限制与后续工作
+## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
@@ -85,7 +85,7 @@ xAI 授权是无提问的设备码流程。插件的 interaction 记录每条通
 - 同一记录的第二次登录在进行中会被拒绝；请先完成它或运行 `/xai-cancel`。
 
 <a id="dev-note"></a>
-### 开发者注记
+### 开发备注
 
 <details>
 <summary>维护者工作背景 — 点击展开</summary>

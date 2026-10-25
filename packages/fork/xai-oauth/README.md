@@ -1,6 +1,6 @@
 ---
 description: "Sign in to xAI (SuperGrok / X Premium) through the pi-ai OAuth flow and use xAI models without an API key."
-kind: "package-reference"
+kind: "package-bundle"
 ---
 
 # @anago-harness/xai-oauth

@@ -202,7 +202,7 @@ export interface Config {
 ## `@anago-harness/subagent-cursor`
 
 - `inject`: `subagents` · `subprocess`
-- `source`: [`packages/fork/subagent-cursor/src/index.ts:77`](../packages/fork/subagent-cursor/src/index.ts)
+- `source`: [`packages/fork/subagent-cursor/src/index.ts:76`](../packages/fork/subagent-cursor/src/index.ts)
 
 ```ts config-catalog
 /**
@@ -228,8 +228,8 @@ export interface Config {
   force: boolean
   /** Emit `--trust` to skip the workspace trust prompt in print mode. */
   trust: boolean
-  /** Per-run wall-clock budget in milliseconds. */
-  timeoutMs: number
+  /** Per-run wall-clock budget in milliseconds; absent leaves only the parent's cancellation. */
+  timeoutMs?: number
   /** SIGTERM-to-SIGKILL grace handed to the subprocess provider. */
   disposeGraceMs: number
   /** In-memory stdout cap; overflow keeps the tail only. */
@@ -4977,6 +4977,7 @@ export interface Config {
 | `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
 | `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
+| `@anago-harness/xai-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/xai-oauth/src/index.ts`](../packages/fork/xai-oauth/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | — | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
 | `@deepseek-ai/dsh-api-account-controller` | `deepseekAccount` · `agents` | [`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts) |
