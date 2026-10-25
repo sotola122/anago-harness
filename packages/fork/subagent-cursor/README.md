@@ -56,7 +56,7 @@ Set `config` on the `subagent-cursor` row. Every field is validated at plugin lo
 | `sandbox` | `true` | Emits `--sandbox enabled`; `false` (diagnostics only) emits `--sandbox disabled`. |
 | `force` | `false` | Emits `--force` (Run Everything); off by default. |
 | `trust` | `true` | Emits `--trust`, skipping the print-mode workspace trust prompt. |
-| `timeoutMs` | `600000` | Wall-clock budget for one run. Positive, finite, at most `2147483647`; invalid values throw. |
+| `timeoutMs` | (none) | Wall-clock budget for one run; omit it to leave only the parent's cancellation as the bound. A configured value must be positive, finite, and at most `2147483647`; invalid values throw. |
 | `disposeGraceMs` | `3000` | SIGTERM-to-SIGKILL grace handed to the subprocess provider; validated like `timeoutMs`. |
 | `stdoutMaxBytes` | `4194304` | In-memory stdout cap. On overflow only the tail is retained. |
 | `stdoutSpillMaxBytes` | `67108864` | Full-stdout spill cap used to recover a truncated JSON payload. |
@@ -86,7 +86,7 @@ The child runs as a host process outside the DSH file sandbox (the Cursor CLI ne
 | [`src/parse.ts`](src/parse.ts) | Collected-stream recovery and the exit-code/output-format to `stopReason` mapping. |
 | [`src/diagnostic.ts`](src/diagnostic.ts) | Credential masking and UTF-8 byte-bounded diagnostic formatting. |
 
-Everything before publication — cwd validation, executable resolution, task and `extraArgs` validation, and the spawn itself — rejects `start()` and leaves no live resource. Everything after publication settles through the returned run's `result`. One fused deadline composes the parent's cancellation with `timeoutMs` and drives the subprocess provider's SIGTERM → grace → SIGKILL ladder.
+Everything before publication — cwd validation, executable resolution, task and `extraArgs` validation, and the spawn itself — rejects `start()` and leaves no live resource. Everything after publication settles through the returned run's `result`. One fused deadline composes the parent's cancellation with `timeoutMs` when the deployment configures one and drives the subprocess provider's SIGTERM → grace → SIGKILL ladder; without it only the parent's cancellation bounds the run.
 
 The JSON schema of `agent --print --output-format json` is unverified. Only a parseable, non-error payload completes; a parse failure, `is_error`, or a non-zero exit becomes `error` while retaining the collected output. A truncated stdout is recovered from the spill file before parsing, because collection keeps only the tail.
 

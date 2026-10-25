@@ -224,3 +224,9 @@
 - `packages/fork/tui`（`@anago-harness/tui`）と `packages/fork/anago-tui`（バンドル）を削除。`PROFILE_TEMPLATES` の `tui`、`apps/cli` の依存、tsconfig の alias/reference、README ゲートの allowlist、Cordis カタログの `tuiStartup` 分類も同時に削除した。
 - プロファイル `~/.dsh/profiles/tui-pi` / `~/.dsh/profiles/tui-oc` を削除。現在の端末 UI は `tui` プロファイル（外部 `@deepseek-harness-tui/dsh-tui` + `anago-core`）のみ。
 - 設計は `ANAGO_PLUGINS_DESIGN.md` §6 に記録として残し、削除済みであることを明記した。
+
+## サブエージェントの実行時間制限（2026-10-25）
+
+- `subagent-cursor`: 既定 10 分（600,000 ms）を廃止。`timeoutMs` を省略すると **親のキャンセルのみ** が実行の境界になる。設定した場合だけ正の有限値（≤ `2147483647`）として検証する。
+- `subagent-pi`: 元から `timeoutMs` は任意・既定なしで、同じく親のキャンセルのみ。
+- `anago-core` の provider 行は設定なしのままなので、両サブエージェントとも壁時計の上限なし。反映には `anago-web` の再起動が必要（この会話は終了する）。

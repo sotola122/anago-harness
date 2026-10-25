@@ -212,7 +212,6 @@ describe('config schema', () => {
       sandbox: true,
       force: false,
       trust: true,
-      timeoutMs: 600_000,
       disposeGraceMs: 3_000,
       stdoutMaxBytes: 4_194_304,
       stdoutSpillMaxBytes: 67_108_864,

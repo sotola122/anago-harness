@@ -59,7 +59,6 @@ const DEFAULT_PROVIDER_NAME = 'cursor'
 const DEFAULT_AGENT_BINARY = 'agent'
 const DEFAULT_OUTPUT_FORMAT: OutputFormat = 'json'
 const DEFAULT_MODE: ExecutionMode = 'agent'
-const DEFAULT_TIMEOUT_MS = 600_000
 const DEFAULT_DISPOSE_GRACE_MS = 3_000
 const DEFAULT_STDOUT_MAX_BYTES = 4_194_304
 const DEFAULT_STDOUT_SPILL_MAX_BYTES = 67_108_864
@@ -91,8 +90,8 @@ export interface Config {
   force: boolean
   /** Emit `--trust` to skip the workspace trust prompt in print mode. */
   trust: boolean
-  /** Per-run wall-clock budget in milliseconds. */
-  timeoutMs: number
+  /** Per-run wall-clock budget in milliseconds; absent leaves only the parent's cancellation. */
+  timeoutMs?: number
   /** SIGTERM-to-SIGKILL grace handed to the subprocess provider. */
   disposeGraceMs: number
   /** In-memory stdout cap; overflow keeps the tail only. */
@@ -117,7 +116,7 @@ interface ResolvedConfig {
   readonly sandbox: boolean
   readonly force: boolean
   readonly trust: boolean
-  readonly timeoutMs: number
+  readonly timeoutMs?: number | undefined
   readonly disposeGraceMs: number
   readonly stdoutMaxBytes: number
   readonly stdoutSpillMaxBytes: number
@@ -136,7 +135,7 @@ export const Config = z.object({
   sandbox: z.boolean().default(true),
   force: z.boolean().default(false),
   trust: z.boolean().default(true),
-  timeoutMs: z.number().default(DEFAULT_TIMEOUT_MS),
+  timeoutMs: z.number(),
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
   stdoutMaxBytes: z.number().default(DEFAULT_STDOUT_MAX_BYTES),
   stdoutSpillMaxBytes: z.number().default(DEFAULT_STDOUT_SPILL_MAX_BYTES),
@@ -156,7 +155,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     sandbox: config.sandbox,
     force: config.force,
     trust: config.trust,
-    timeoutMs: config.timeoutMs,
+    ...(config.timeoutMs === undefined ? {} : { timeoutMs: config.timeoutMs }),
     disposeGraceMs: config.disposeGraceMs,
     stdoutMaxBytes: config.stdoutMaxBytes,
     stdoutSpillMaxBytes: config.stdoutSpillMaxBytes,
@@ -290,7 +289,7 @@ class CursorProvider implements SubagentProvider {
     // It drives the spawn signal, so the subprocess provider begins its
     // SIGTERM -> disposeGraceMs -> SIGKILL ladder even if nobody observes the
     // result first.
-    const watch = deadline(request.signal, config.timeoutMs, TIMEOUT_CODE)
+    const watch = deadline(request.signal, config.timeoutMs ?? 0, TIMEOUT_CODE)
     const controller = new AbortController()
     const onAbort = (): void => {
       // Aborting an already-aborted controller is a no-op, so this is safe to
@@ -482,7 +481,7 @@ function errorName(error: unknown): string {
  */
 export function apply(ctx: Context, config: Config): void {
   const resolved = resolveConfig(config)
-  assertTimerBound('timeoutMs', resolved.timeoutMs)
+  if (resolved.timeoutMs !== undefined) assertTimerBound('timeoutMs', resolved.timeoutMs)
   assertTimerBound('disposeGraceMs', resolved.disposeGraceMs)
   assertByteLimit('stdoutMaxBytes', resolved.stdoutMaxBytes)
   assertByteLimit('stdoutSpillMaxBytes', resolved.stdoutSpillMaxBytes)

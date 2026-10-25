@@ -56,7 +56,7 @@ kind: "package-reference"
 | `sandbox` | `true` | 发送 `--sandbox enabled`；`false`（仅诊断）发送 `--sandbox disabled`。 |
 | `force` | `false` | 发送 `--force`（Run Everything）；默认关闭。 |
 | `trust` | `true` | 发送 `--trust`，跳过 print 模式的工作区信任提示。 |
-| `timeoutMs` | `600000` | 单次运行的挂钟预算。必须为正有限值且不超过 `2147483647`；非法值抛错。 |
+| `timeoutMs` | （无） | 单次运行的挂钟预算；省略时只有父级取消作为边界。配置值必须为正有限值且不超过 `2147483647`；非法值抛错。 |
 | `disposeGraceMs` | `3000` | 交给 subprocess 提供方的 SIGTERM 到 SIGKILL 宽限；校验方式同 `timeoutMs`。 |
 | `stdoutMaxBytes` | `4194304` | stdout 的内存上限。溢出时只保留尾部。 |
 | `stdoutSpillMaxBytes` | `67108864` | stdout 全文 spill 上限，用于恢复被截断的 JSON 负载。 |
@@ -87,7 +87,7 @@ argv 顺序为 `--print --output-format <fmt> --sandbox <mode> [--trust] --works
 | [`src/parse.ts`](src/parse.ts) | 收集流恢复，以及退出码/输出格式到 `stopReason` 的映射。 |
 | [`src/diagnostic.ts`](src/diagnostic.ts) | 凭据掩码和受 UTF-8 字节上限约束的诊断格式化。 |
 
-发布之前的一切——cwd 校验、可执行文件解析、任务与 `extraArgs` 校验，以及 spawn 本身——都会拒绝 `start()` 且不留下存活资源。发布之后的一切通过返回 run 的 `result` 结算。一个融合截止时间把父级取消和 `timeoutMs` 组合起来，并驱动 subprocess 提供方的 SIGTERM → 宽限 → SIGKILL 阶梯。
+发布之前的一切——cwd 校验、可执行文件解析、任务与 `extraArgs` 校验，以及 spawn 本身——都会拒绝 `start()` 且不留下存活资源。发布之后的一切通过返回 run 的 `result` 结算。部署配置了 `timeoutMs` 时，一个融合截止时间把父级取消与它组合起来，并驱动 subprocess 提供方的 SIGTERM → 宽限 → SIGKILL 阶梯；未配置时只有父级取消构成边界。
 
 `agent --print --output-format json` 的 JSON schema 尚未验证。只有可解析且非错误的负载才会完成；解析失败、`is_error` 或非零退出都会变成 `error`，同时保留已收集的输出。stdout 被截断时，会在解析前从 spill 文件恢复完整内容，因为收集只保留尾部。
 
