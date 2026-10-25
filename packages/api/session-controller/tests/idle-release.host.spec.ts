@@ -25,6 +25,8 @@ interface StubAgent {
   readonly agent: Agent
   readonly inbox: StubInbox
   setStatus(status: AgentStatus): void
+  /** Hold whenIdle() pending to model a maintenance task (manual compaction). */
+  setIdleGate(gate: Promise<void> | undefined): void
 }
 
 /**
@@ -36,6 +38,7 @@ interface StubAgent {
 function stubAgent(ctx: Context, session: Session): StubAgent {
   const inbox: StubInbox = { nextTurn: [], nextStep: [] }
   let status: AgentStatus = 'idle'
+  let idleGate: Promise<void> | undefined
   const agent: Agent = {
     id: session.id,
     options: {},
@@ -49,9 +52,9 @@ function stubAgent(ctx: Context, session: Session): StubAgent {
     inject: () => {},
     cancel() {},
     runMaintenance: task => task(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
+    whenIdle: () => idleGate ?? Promise.resolve(),
   }
-  return { agent, inbox, setStatus: (next) => { status = next } }
+  return { agent, inbox, setStatus: (next) => { status = next }, setIdleGate: (gate) => { idleGate = gate } }
 }
 
 interface Fixture {
@@ -170,6 +173,29 @@ describe('idle Agent release', () => {
     const fixture = await composed({ failFirstDispose: true })
     await vi.waitFor(() => { expect(fixture.dispose).toHaveBeenCalledOnce() }, { timeout: 2000 })
     expect(fixture.ctx.agents.get(fixture.sessionId)).toBeUndefined()
+  })
+
+  it('waits for a maintenance task (manual compaction) before releasing', async () => {
+    const fixture = await composed()
+    const gate = Promise.withResolvers<undefined>()
+    fixture.agent.setIdleGate(gate.promise)
+    await new Promise(resolve => setTimeout(resolve, 40))
+    expect(fixture.dispose).not.toHaveBeenCalled()
+    gate.resolve(undefined)
+    await vi.waitFor(() => { expect(fixture.dispose).toHaveBeenCalledOnce() })
+  })
+
+  it('re-checks quiescence when a maintenance task releases a turn', async () => {
+    const fixture = await composed()
+    const gate = Promise.withResolvers<undefined>()
+    fixture.agent.setIdleGate(gate.promise)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    fixture.agent.setStatus('running')
+    gate.resolve(undefined)
+    await new Promise(resolve => setTimeout(resolve, 40))
+    expect(fixture.dispose).not.toHaveBeenCalled()
+    fixture.agent.setStatus('idle')
+    await vi.waitFor(() => { expect(fixture.dispose).toHaveBeenCalledOnce() })
   })
 
   it('keeps the Agent attached when release is disabled', async () => {

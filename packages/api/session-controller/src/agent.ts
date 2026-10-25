@@ -303,12 +303,22 @@ export class ApiSessionAgentController {
       this.lifecycles.delete(sessionId)
       return
     }
-    const busy = agent.status !== 'idle'
-      || agent.inbox.nextTurn.length > 0
-      || agent.inbox.nextStep.length > 0
-      || this.ctx.agents.holds(agent) > 0
-      || this.ctx.agents.list().some(child => this.ctx.agents.isOwnedBy(child.id, agent))
-    if (busy) {
+    if (!this.isQuiescent(agent)) {
+      this.scheduleRelease(sessionId, this.release.releaseRetryMs)
+      return
+    }
+    // A maintenance task (manual compaction, a command) runs in the Agent's
+    // `maintenance` phase, which reports `idle`. whenIdle() waits for that task
+    // and for any waking work it releases, so quiescence must be re-checked
+    // after it settles.
+    await agent.whenIdle()
+    const settled = this.ctx.agents.get(sessionId)
+    /* v8 ignore next 4 -- a concurrent close or replacement while whenIdle() awaited owns the new lifecycle */
+    if (settled !== agent) {
+      if (this.lifecycles.get(sessionId) === lifecycle) this.lifecycles.delete(sessionId)
+      return
+    }
+    if (!this.isQuiescent(agent)) {
       this.scheduleRelease(sessionId, this.release.releaseRetryMs)
       return
     }
@@ -321,6 +331,15 @@ export class ApiSessionAgentController {
     }
     /* v8 ignore next -- a re-adopt during disposal owns the new lifecycle and must keep it */
     if (this.lifecycles.get(sessionId) === lifecycle) this.lifecycles.delete(sessionId)
+  }
+
+  /** Whether the Agent has no turn, waking inbox, hold, or live child Agent. */
+  private isQuiescent(agent: Agent): boolean {
+    return agent.status === 'idle'
+      && agent.inbox.nextTurn.length === 0
+      && agent.inbox.nextStep.length === 0
+      && this.ctx.agents.holds(agent) === 0
+      && !this.ctx.agents.list().some(child => this.ctx.agents.isOwnedBy(child.id, agent))
   }
 
   /**
