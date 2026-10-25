@@ -240,3 +240,15 @@
 - 検証済み: コマンド登録とスラッシュメニュー表示、`/xai-login` の実フロー開始、二重起動の拒否表示、`/xai-cancel` と `Sign-in: cancelled.`、`/xai-status` の URL・コード表示、Models ページでの `xai` 追加（API key 空欄）。テスト 26 件・カバレッジ 100%。
 - ピッカー表示は実 UI で確認済み: `session/modelCatalog` の `routableProviders` に `xai` が入り、4 モデル（`grok-4.3` / `4.5` / `4.6` / `4.7`）がカタログに存在。モデルダイアログで `grok` 検索により表示されることも確認。
 - 受け入れ基準の残り（人間のブラウザ承認が必要）: xAI アカウントでの承認 → `llm-pi-ai/xai` レコード、実チャット、再起動後の維持とトークン更新、サインアウト。承認待ちの間は `/xai-login` のコードが失効するので、その都度 `/xai-cancel` → `/xai-login` で再発行する。
+
+### xAI OAuth 受け入れ基準の実機検証（2026-10-25 22:30-22:40）
+
+- レコード: `~/.dsh/.credentials.yaml` の `llm-pi-ai/xai` が `kind: grant` / `payload.type: oauth` で作成され、`expires` は約 354 分先。ファイルは 0600。
+- モデル: Models ページで id `xai`・API キー空欄のプロバイダを追加。`session/modelCatalog` の `routableProviders` に `xai`、`grok-4.3` / `4.5` / `4.6` / `4.7` が存在し、ピッカーに表示。
+- 実チャット: モデル `Grok 4.7` で 2 ターン実行し、いずれも `Completed`（14 秒 / 4 秒、Usage 62-63K tok）。応答本文を確認。
+- 再起動: 3083 ホストを再起動後も `/xai-status` が `Signed in to xAI.`、同じセッションでチャット成功。
+- トークン更新: 保存済み `expires` を過去に書き換えてからチャット → 成功し、`expires` が約 354 分先へ更新、access token のハッシュも変化（pi-ai の `modify()` による自動 refresh）。
+- サインアウト: `/xai-logout` で「Signed out of xAI (removed the llm-pi-ai/xai credential).」、`/xai-status` が「Not signed in」、レコード消滅を確認。検証後にバックアップから復元し、再び `Signed in` を確認。
+- キャンセル/エラー: `/xai-cancel` → `Sign-in: cancelled.`、二重起動の拒否表示、失効時の `xAI sign-in failed: Device flow timed out.` を確認。
+- 漏えい: `/tmp/anago-3083.log`、`~/.dsh/logs`、直近 3 時間のセッションログ 12 件（zstd 展開）を access/refresh トークンで走査し、ヒット 0 件。
+- 残: 稼働中の 3080 は再起動するまで旧構成（`systemctl --user restart anago-web` で反映）。
