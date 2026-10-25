@@ -230,3 +230,12 @@
 - `subagent-cursor`: 既定 10 分（600,000 ms）を廃止。`timeoutMs` を省略すると **親のキャンセルのみ** が実行の境界になる。設定した場合だけ正の有限値（≤ `2147483647`）として検証する。
 - `subagent-pi`: 元から `timeoutMs` は任意・既定なしで、同じく親のキャンセルのみ。
 - `anago-core` の provider 行は設定なしのままなので、両サブエージェントとも壁時計の上限なし。反映には `anago-web` の再起動が必要（この会話は終了する）。
+
+## xAI OAuth サインイン・プラグイン（2026-10-25）
+
+- 新規 `packages/fork/xai-oauth`（バンドル兼プラグイン）。`llm-pi-ai` が既に登録している `llm-pi-ai/xai` のデバイスコード OAuth を `ctx.authorization.begin()` で呼ぶだけで、フローは再登録しない。コマンドは `/xai-login` / `/xai-status` / `/xai-logout` / `/xai-cancel`。
+- インストール: `dsh plugin --profile <profile> add link:<repo>/packages/fork/xai-oauth` で依存に記録し、`dsh.profile.bundles` に `@anago-harness/xai-oauth` を追加する。`web-anago` には追加済み（3083 の検証ホストで稼働）。
+- サインイン: `/xai-login` の 1 行目に検証 URL とコードが出る（Web のコマンド行は 1 行目しか見えないため）。承認後はバックグラウンドでポーリングし、`/xai-status` で状態を確認できる。
+- モデル: Models ページで id が `xai`、API key 空欄のプロバイダを追加する（実 UI で追加・保存を確認済み）。レコードが入るとピッカーに `grok-4.3`〜`grok-4.7` が出る想定。
+- 検証済み: コマンド登録とスラッシュメニュー表示、`/xai-login` の実フロー開始、二重起動の拒否表示、`/xai-cancel` と `Sign-in: cancelled.`、`/xai-status` の URL・コード表示、Models ページでの `xai` 追加（API key 空欄）。テスト 26 件・カバレッジ 100%。
+- 受け入れ基準の残り（対話が必要）: xAI アカウントでの承認 → `llm-pi-ai/xai` レコード、ピッカーの grok、実チャット、再起動後の維持とトークン更新、サインアウト。
