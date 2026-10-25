@@ -4975,6 +4975,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
 | `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
+| `@anago-harness/copilot-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/copilot-oauth/src/index.ts`](../packages/fork/copilot-oauth/src/index.ts) |
 | `@anago-harness/xai-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/xai-oauth/src/index.ts`](../packages/fork/xai-oauth/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | — | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |

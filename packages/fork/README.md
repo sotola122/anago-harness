@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The fork group holds the packages this fork adds to the product: private policy, the host capabilities shipped in `anago-core`, the browser cards in `anago-web`, and the xAI sign-in bundle `xai-oauth`. `fork-policy` installs the Node egress guard and the profile patch lists the boot composer reads. The shipped `web` and `headless` profile templates select the `anago-*` bundles; the terminal surface is the separately installed dsh-TUI bundle.
+The fork group holds the packages this fork adds to the product: private policy, the host capabilities shipped in `anago-core`, the browser cards in `anago-web`, and the sign-in bundles `xai-oauth` and `copilot-oauth`. `fork-policy` installs the Node egress guard and the profile patch lists the boot composer reads. The shipped `web` and `headless` profile templates select the `anago-*` bundles; the terminal surface is the separately installed dsh-TUI bundle.
 
 ## Table of Contents
 
@@ -38,6 +38,7 @@ The fork group holds the packages this fork adds to the product: private policy,
 | [`anago-core`](anago-core/README.md) | Profile bundle: the host rows above | (bundle) |
 | [`anago-web`](anago-web/README.md) | Profile bundle: the browser rows above | (bundle) |
 | [`xai-oauth`](xai-oauth/README.md) | Profile bundle: `/xai-*` commands that sign in to xAI through the pi-ai OAuth flow | (bundle) |
+| [`copilot-oauth`](copilot-oauth/README.md) | Profile bundle: `/copilot-*` commands that sign in to GitHub Copilot through the pi-ai OAuth flow | (bundle) |
 
 <a id="related-documentation"></a>
 ## Related documentation

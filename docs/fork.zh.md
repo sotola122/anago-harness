@@ -14,7 +14,7 @@ Anago Harness 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-har
 
 `@anago-harness/fork-policy` 安装出站守卫，拒绝 harness 自行联系的主机；`api.deepseek.com` 保持可达。本仓库不运行上游的发布、预览、issue 与审批工作流。改动集中在 fork 私有文件与少量 hook 点，便于合并上游更新。
 
-fork 以 `packages/fork/` 下的私有包提供自己的能力，并通过三个捆绑包挂载：`@anago-harness/anago-core`（记忆、LLM wiki、日语响应指令、Cursor 子代理，以及 Exa 与 Brave 搜索提供方）、`@anago-harness/anago-web`（Exa 与 Brave 搜索设置卡片）以及 `@anago-harness/xai-oauth`（通过 pi-ai OAuth 流程登录 xAI 的 `/xai-*` 命令）。`web` 与 `headless` 配置模板选择核心捆绑包，`web` 还选择浏览器捆绑包；需要登录 xAI 的配置会选择 `xai-oauth`。终端界面由单独安装的 dsh-TUI 捆绑包提供，不是 fork 包。
+fork 以 `packages/fork/` 下的私有包提供自己的能力，并通过四个捆绑包挂载：`@anago-harness/anago-core`（记忆、LLM wiki、日语响应指令、Cursor 子代理，以及 Exa 与 Brave 搜索提供方）、`@anago-harness/anago-web`（Exa 与 Brave 搜索设置卡片）、`@anago-harness/xai-oauth`（通过 pi-ai OAuth 流程登录 xAI 的 `/xai-*` 命令）以及 `@anago-harness/copilot-oauth`（通过 pi-ai OAuth 流程登录 GitHub Copilot 的 `/copilot-*` 命令）。`web` 与 `headless` 配置模板选择核心捆绑包，`web` 还选择浏览器捆绑包；需要登录对应提供方的配置会选择 `xai-oauth` 或 `copilot-oauth`。终端界面由单独安装的 dsh-TUI 捆绑包提供，不是 fork 包。
 
 fork 组合由 `snapshots/session/` 下的无密钥快照记录：`anago-memory`、`anago-wiki` 与 `anago-search` 从已提交的 Session 回放注入的记忆快照与 `memory` 工具、wiki 存在性通知，以及 Brave 优先于 Exa 的搜索选择，因此无需模型密钥即可验证这些行。
 

@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` 同捆的主机能力、`anago-web` 的浏览器卡片，以及 xAI 登录捆绑包 `xai-oauth`。`fork-policy` 安装 Node 出站守卫，以及启动组合器读取的 profile patch 列表。随附的 `web` 与 `headless` 配置模板会选择这些 `anago-*` 捆绑包；终端界面由单独安装的 dsh-TUI 捆绑包提供。
+fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` 同捆的主机能力、`anago-web` 的浏览器卡片，以及登录捆绑包 `xai-oauth` 与 `copilot-oauth`。`fork-policy` 安装 Node 出站守卫，以及启动组合器读取的 profile patch 列表。随附的 `web` 与 `headless` 配置模板会选择这些 `anago-*` 捆绑包；终端界面由单独安装的 dsh-TUI 捆绑包提供。
 
 ## 目录
 
@@ -38,6 +38,7 @@ fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` �
 | [`anago-core`](anago-core/README.zh.md) | 配置捆绑包：上述主机行 | （捆绑包） |
 | [`anago-web`](anago-web/README.zh.md) | 配置捆绑包：上述浏览器行 | （捆绑包） |
 | [`xai-oauth`](xai-oauth/README.zh.md) | 配置捆绑包：通过 pi-ai OAuth 流程登录 xAI 的 `/xai-*` 命令 | （捆绑包） |
+| [`copilot-oauth`](copilot-oauth/README.zh.md) | 配置捆绑包：通过 pi-ai OAuth 流程登录 GitHub Copilot 的 `/copilot-*` 命令 | （捆绑包） |
 
 <a id="related-documentation"></a>
 ## 相关文档
