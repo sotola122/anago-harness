@@ -482,6 +482,7 @@
     { "path": "./packages/fork/web-search-credentials" },
     { "path": "./packages/fork/anago-core" },
     { "path": "./packages/fork/anago-web" },
+    { "path": "./packages/fork/xai-oauth" },
     { "path": "./packages/boot/cmdline" },
     { "path": "./packages/sdk/server" },
     { "path": "./packages/test-support/llm-replay" },

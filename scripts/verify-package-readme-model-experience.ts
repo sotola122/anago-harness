@@ -82,6 +82,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-jobs': { kind: 'none', reason: 'Browser-side presentation of host-observed output; touches no prompt, message, schema, stream, or tool result.' },
   'packages/fork/client-ui-settings-web-search': { kind: 'none', reason: 'The cards edit provider configuration for a human; the provider packages own the model-facing search result.' },
   'packages/fork/client-ui-session-share': { kind: 'none', reason: 'The plugin raises a browser composer block for a human and registers no prompt, tool schema, or session event.' },
+  'packages/fork/xai-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
   'packages/fork/anago-core': { kind: 'indirect', reason: 'The bundle mounts the packages that own each model-facing tool, prompt section, and search provider.' },
   'packages/fork/anago-web': { kind: 'indirect', reason: 'The bundle mounts browser-only settings cards; provider packages own the model-facing search result.' },
   'packages/fork/web-search-brave': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },

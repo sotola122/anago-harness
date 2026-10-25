@@ -247,6 +247,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@anago-harness/subagent-pi` | yes | Pi coding agent CLI one-shot subagent provider for the DSH subagent seam. |
 | `@anago-harness/web-search-brave` | yes | Brave Search provider for the ctx.web capability seam. |
 | `@anago-harness/web-search-exa` | yes | Exa search provider that resolves its key through the credentials service. |
+| `@anago-harness/xai-oauth` | no | Sign in to xAI (SuperGrok / X Premium) through the pi-ai OAuth flow and drive it from /xai-* commands. |
 
 ## fs
 

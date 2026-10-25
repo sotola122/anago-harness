@@ -17,7 +17,7 @@ Web UI 与终端 UI 共享同一个 `$DSH_HOME/sessions` 存储，但 Web 无法
 
 1. **查看是被动的。** `session/follow` 新增 `mode: 'activate' | 'read'`，默认为历史的 `activate`。`read` 永不 promote、永不 resume，从 `savedCursor`（最后一个物理落盘事件）开始，并省略合成的修复 closer。Web 客户端始终以 `read` 打开，只在显式写入操作时恢复。
 2. **Agent 退出不等于 Session 删除。** 普通会话的 `session/disposed` 发出 `api-session/detached`；可持久化子 Agent 行仍使用 `api-session/removed`，与其离开目录的生命周期一致。客户端保留普通会话的行、历史、草稿与引用，只清除 Agent 可用状态。
-3. **租约只在工作运行时持有。** `releaseOnIdle` 仅在收件箱为空、没有存活的子 Agent、`ctx.agents.holds(agent)` 为零且没有进行中的准入操作时 dispose 空闲 Agent。prompt、队列编辑、模型选择、重命名、fork 与附件准入共享同一个按 Session 的闸门，因此释放不会与已经解析出 Agent 的操作竞争。
+3. **租约只在工作运行时持有。** `releaseOnIdle` 仅在收件箱为空、没有存活的子 Agent、`ctx.agents.holds(agent)` 为零、没有进行中的准入操作，且没有待处理的维护活动（`whenIdle()` 已结算）时 dispose 空闲 Agent。prompt、队列编辑、模型选择、重命名、fork 与附件准入共享同一个按 Session 的闸门，因此释放不会与已经解析出 Agent 的操作竞争。
 4. **后台工作拥有自己的生命周期。** 回合结束后的 memory review 与 goal round driver 在本轮持有 `ctx.agents.hold(agent)`，并在所有退出路径释放；若持有被拒绝，则跳过该工作而不是与 dispose 竞争。
 5. **所有权是建议性的。** `SessionPersistence.ownership()` 使用相同的平台锁进行探测，但不创建目录或锁文件；`unknown` 绝不表示空闲。open 与 prompt 时的内核租约仍是唯一裁决者。Web 用 `lock: 'all'` 锁定输入区并轮询该探测；终端把被持有的行变暗、显示原因并拒绝打开。
 6. **只读实时查看复用现有读取器。** read 模式的 follower 轮询存储 revision 并通过既有读取 API 读取增量；没有新增第二套日志解析器或文件监视。

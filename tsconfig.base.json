@@ -381,6 +381,7 @@
       "@anago-harness/client-ui-session-share/client": ["./packages/fork/client-ui-session-share/src/client/index.ts"],
       "@anago-harness/anago-core": ["./packages/fork/anago-core/src"],
       "@anago-harness/anago-web": ["./packages/fork/anago-web/src"],
+      "@anago-harness/xai-oauth": ["./packages/fork/xai-oauth/src"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
