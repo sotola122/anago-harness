@@ -302,7 +302,15 @@ export class PiAiAdapter extends LlmAdapter {
         if (error instanceof LlmError && error.code === 'MISSING_CREDENTIAL') return []
         throw error
       }
-      return snapshot.models.getModels(provider).map(model => ({
+      const models = snapshot.models.getModels(provider)
+      // A stored grant can narrow the route (GitHub Copilot's available models);
+      // an unauthenticated route still advertises its catalog so a surface can
+      // show what signing in would offer.
+      const credential = await this.config.auth.credentials.read(provider)
+      const visible = credential === undefined
+        ? models
+        : profile.piProvider?.filterModels?.(models, credential) ?? models
+      return visible.map(model => ({
         provider,
         id: model.id,
         name: model.name,

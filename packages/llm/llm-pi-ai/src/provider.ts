@@ -151,6 +151,11 @@ function reuseCatalogProvider(base: Provider, spec: ProviderSpec): Provider {
     ...baseUrl === undefined ? {} : { baseUrl },
     auth: routeAuth(spec, base),
     getModels: () => spec.models,
+    // Credential-specific availability stays with the catalog provider: a
+    // subscription route (GitHub Copilot) filters its models by what the stored
+    // OAuth grant can use, and the adapter applies that filter when it lists.
+    ...base.filterModels === undefined ? {} : { filterModels: base.filterModels.bind(base) },
+    ...base.filterAllModels === undefined ? {} : { filterAllModels: base.filterAllModels.bind(base) },
     // Delegated rather than copied: the catalog provider stays the receiver, so
     // an implementation holding state on itself keeps working.
     stream: (model, context, options) => base.stream(model, context, options),
