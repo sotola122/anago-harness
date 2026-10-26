@@ -26,6 +26,16 @@
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'
 
+# Opt a new web Session into child model selection. The card stores the
+# allowed routes; this row flag makes the tool instance read them. TUI profiles
+# do not mount the settings service, so the flag stays in the browser bundle.
+- id: tool-subagent
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: spawn
+    toolName: subagent
+    modelSelectionSettings: true
+
 # An idle Agent hands its Session write ownership back so the TUI can open the
 # same stored Session. The controller keeps the Agent while a turn, queued
 # inbox work, a live child Agent, or a background hold is outstanding.
