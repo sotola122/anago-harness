@@ -252,3 +252,15 @@
 - キャンセル/エラー: `/xai-cancel` → `Sign-in: cancelled.`、二重起動の拒否表示、失効時の `xAI sign-in failed: Device flow timed out.` を確認。
 - 漏えい: `/tmp/anago-3083.log`、`~/.dsh/logs`、直近 3 時間のセッションログ 12 件（zstd 展開）を access/refresh トークンで走査し、ヒット 0 件。
 - 残: 稼働中の 3080 は再起動するまで旧構成（`systemctl --user restart anago-web` で反映）。
+
+## GitHub Copilot OAuth プラグイン検証（2026-10-26）
+
+- 実装: `packages/fork/copilot-oauth`（`/copilot-login` / `/copilot-status` / `/copilot-logout` / `/copilot-cancel`）。既存の `llm-pi-ai/github-copilot` フローのみ使用。コミット `46dc7178ee`。
+- レコード: `~/.dsh/.credentials.yaml` の `llm-pi-ai/github-copilot` が `kind: grant` / `payload.type: oauth` で作成され、`availableModelIds` は 24 件、`expires` は約 24 時間先。ファイルは 0600。
+- 実チャット: モデル `github-copilot/gpt-5.6-sol`（GPT-5.6 Sol）で 2 ターン成功（`Completed` 2 秒、応答 "OK" / "READY"、Usage 17.1K tok）。
+- 再起動: 3083 を再起動後もレコードが残り、同じモデルでチャット成功。
+- トークン更新: 保存 `expires` を過去に改変 → チャット成功、`expires` が約 24 時間先へ更新、access token のハッシュ変化を確認（Copilot の refresh が `modify()` 内で実行）。
+- キャンセル: `/copilot-login` → `/copilot-cancel` → `Sign-in: cancelled.`。二重起動は「A GitHub Copilot sign-in is already running…」で拒否。
+- サインアウト: `/copilot-logout` でレコード削除、「Signed out of GitHub Copilot…」、`/copilot-status` が「Not signed in」。検証後にバックアップから復元し「Signed in」を確認。
+- 漏えい: ホストログ・`~/.dsh/logs`・直近 3 時間のセッションファイル 18 件（zstd 展開）を access/refresh で走査しヒット 0。ストアは 0600。
+- **既知の不一致（要判断）**: ピッカーの `github-copilot` グループは 34 モデル（カタログ全体）を表示し、レコードの `availableModelIds` 24 件で絞られない。`packages/llm/llm-pi-ai/src/provider.ts` の `reuseCatalogProvider` が pi-ai の `filterModels` を引き継がず、`adapter.ts` の `listModels` も資格情報を渡さないため。ブリーフの「pi-ai filters the Copilot model list to availableModelIds」は実装版では成立していない。修正にはコアパッケージ `llm-pi-ai` の変更が必要で、今回の制約（コア変更禁止）では対応できない。
