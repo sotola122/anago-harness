@@ -264,3 +264,10 @@
 - サインアウト: `/copilot-logout` でレコード削除、「Signed out of GitHub Copilot…」、`/copilot-status` が「Not signed in」。検証後にバックアップから復元し「Signed in」を確認。
 - 漏えい: ホストログ・`~/.dsh/logs`・直近 3 時間のセッションファイル 18 件（zstd 展開）を access/refresh で走査しヒット 0。ストアは 0600。
 - **既知の不一致（要判断）**: ピッカーの `github-copilot` グループは 34 モデル（カタログ全体）を表示し、レコードの `availableModelIds` 24 件で絞られない。`packages/llm/llm-pi-ai/src/provider.ts` の `reuseCatalogProvider` が pi-ai の `filterModels` を引き継がず、`adapter.ts` の `listModels` も資格情報を渡さないため。ブリーフの「pi-ai filters the Copilot model list to availableModelIds」は実装版では成立していない。修正にはコアパッケージ `llm-pi-ai` の変更が必要で、今回の制約（コア変更禁止）では対応できない。
+
+### Copilot モデルフィルタの修正（2026-10-26）
+
+- `llm-pi-ai` の `reuseCatalogProvider` がカタログ provider の `filterModels`/`filterAllModels` を引き継ぎ、`listModels` が保存済み資格情報を読んで適用するよう修正（コミット `6c6c4b13b4`）。資格情報がないルートは従来どおりカタログ全件を表示する。
+- 検証: サインイン後のピッカーは `github-copilot` **21 モデル**（アカウントの `availableModelIds` 24 件 ∩ カタログ 34 件）に絞られ、`gpt-5.6-sol` を選択して実チャット成功（`Completed` 3 秒、応答 "COPILOT"）。追加テスト 3 件、`provider.ts`/`adapter.ts` のカバレッジ 100%。
+- 残る差: アカウントの 24 件のうち `claude-haiku-5.5` / `claude-opus-4.8-fast` / `gemini-4-argon` は pi-ai 1.1.0 の静的カタログに存在せず表示されない。pi-ai 1.4.0 では `claude-haiku-5.5` と `gemini-4-argon` が追加される（`claude-opus-4.8-fast` は依然なし）が、本リポジトリは 1.1.0 をピンしローカルパッチを当てているため、依存更新はパッチ再検証を含む別作業。
+- 3083 検証ホストは停止済み。
