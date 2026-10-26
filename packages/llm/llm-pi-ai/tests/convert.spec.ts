@@ -723,8 +723,10 @@ describe('toStreamChunks', () => {
     const requested = getBuiltinModels('anthropic').find(model => model.id === requestedModel)
     if (requested === undefined) throw new Error('missing Anthropic catalog model')
     expect(transformMessages(context.messages, requested)[0]).toMatchObject({ content: native.content })
+    // The installed pi-ai drops thinking another model produced instead of
+    // restating it as visible text, so the replay keeps no thinking block.
     expect(transformMessages(context.messages, { ...requested, id: 'other-model' })[0]).toMatchObject({
-      content: [{ type: 'text', text: 'reason' }],
+      content: [],
     })
   })
 
