@@ -122,8 +122,8 @@ describe('dsh-tool-subagent-control/list-agents', () => {
       const result = await callTool(ctx, 'list_agents', { scope }, parent)
       expect(result.isError).toBe(false)
       expect(text(result)).toBe(scope === 'children'
-        ? `${started.childId} [inactive] — workflow child`
-        : `${started.childId} [inactive] parent=${parent.id} depth=1 — workflow child`)
+        ? `${started.childId} [inactive] provider=mock model=mock — workflow child`
+        : `${started.childId} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — workflow child`)
     }
   })
 
@@ -212,7 +212,7 @@ describe('dsh-tool-subagent-control/list-agents', () => {
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${started.childId} [inactive] — real child\n`
+      `${started.childId} [inactive] provider=mock model=mock — real child\n`
       + 'running-child [running] — still working\n'
       + 'waiting-child [inactive] — waiting on descendants',
     )
@@ -244,7 +244,7 @@ describe('dsh-tool-subagent-control/list-agents', () => {
     await waitNoActivation(ctx, started.childId)
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
-    expect(text(result)).toBe(`${started.childId} [inactive] — summarize the doc`)
+    expect(text(result)).toBe(`${started.childId} [inactive] provider=mock model=mock — summarize the doc`)
   })
 
   it('describes inactive as turn availability and pins the status vocabulary', async () => {
@@ -259,6 +259,9 @@ describe('dsh-tool-subagent-control/list-agents', () => {
     const variants = ctx.tools.get('list_agents')?.output.schema.items?.oneOf ?? []
     const child = variants.find(variant => variant.properties?.kind?.enum?.includes('child'))
     expect(child?.properties?.status?.enum).toEqual(['running', 'inactive'])
+    expect(child?.properties?.provider?.type).toBe('string')
+    expect(child?.properties?.model?.type).toBe('string')
+    expect(child?.properties?.reasoningEffort?.type).toBe('string')
   })
 
   it('fails loud when invoked without a calling agent', async () => {
@@ -321,8 +324,8 @@ describe('dsh-tool-subagent-control/list-agents', () => {
     const result = await callTool(ctx, 'list_agents', { scope: 'descendants' }, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${started.childId} [inactive] parent=${parent.id} depth=1 — waiting branch\n`
-      + `${grandchild.childId} [running] parent=${started.childId} depth=2 — nested leaf`,
+      `${started.childId} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — waiting branch\n`
+      + `${grandchild.childId} [running] provider=mock model=mock parent=${started.childId} depth=2 — nested leaf`,
     )
 
     releaseGrandchild.resolve(undefined)

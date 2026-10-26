@@ -160,7 +160,8 @@ export function detailsCardModel(block: ToolCallBlock, t: Translate, locale: str
   const text = singleResultText(block)
   if (text === undefined) return null
   const value = detailJson(text)
-  const details = controlDetails(call.name, call.args, text, value, t) ?? inspectionDetails(call.name, call.args, text, value, t, locale)
+  const details = controlDetails(call.name, call.args, text, value, t, block.meta)
+    ?? inspectionDetails(call.name, call.args, text, value, t, locale)
   if (details !== null) return details
   if (value === undefined) return null
   switch (call.name) {

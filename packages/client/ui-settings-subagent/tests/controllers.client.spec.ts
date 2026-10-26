@@ -8,6 +8,13 @@ import {
   subagentModelCandidates,
   type SubagentModelSelectionSettings,
 } from '../src/client/subagent-model-selection-card-controller.ts'
+import {
+  SubagentPurposeRoutesCardController,
+  purposeRouteTableFromValue,
+  samePurposeRouteTable,
+  type PurposeRouteTableDraft,
+  type PurposeRoutesSettings,
+} from '../src/client/subagent-purpose-routes-card-controller.ts'
 
 /** Make the stub behave like a Host that accepts every write. */
 function acceptWrites<T>(host: StubConfigForm<T>): void {
@@ -48,7 +55,11 @@ function modelsApi(options: {
   groups?: readonly {
     id: string
     name: string
-    models: readonly { id: string; name: string }[]
+    models: readonly {
+      id: string
+      name: string
+      reasoning?: { efforts: readonly { id: string; name: string }[]; defaultEffort?: string }
+    }[]
   }[]
   failures?: readonly { id: string; name: string; message: string }[]
   error?: string
@@ -492,6 +503,36 @@ describe('SubagentModelSelectionCardController', () => {
   })
 })
 
+describe('model selection sibling revision', () => {
+  it('keeps a model draft when a sibling field advances the revision', () => {
+    const host = stubConfigForm<SubagentModelSelectionSettings>()
+    const controller = new SubagentModelSelectionCardController(host.scope, modelsApi().ctx)
+    host.publish({
+      status: 'ready', writable: true, revision: 4,
+      value: { enabled: false, allowedModels: [{ provider: 'alpha', model: 'fast' }] }, user: {},
+    })
+    const face = controller.inject()
+    face.toggleEnabled()
+    host.publish({
+      revision: 4,
+      value: { enabled: false, allowedModels: [{ provider: 'alpha', model: 'fast' }] },
+    })
+    expect(face.hooks.subagentModelSelectionCard.getSnapshot().dirty).toBe(true)
+    host.publish({
+      revision: 5,
+      value: { enabled: false, allowedModels: [{ provider: 'alpha', model: 'fast' }] },
+    })
+    expect(face.hooks.subagentModelSelectionCard.getSnapshot()).toMatchObject({
+      conflicted: false, dirty: true, enabled: true,
+    })
+    face.save()
+    expect(host.mutate).toHaveBeenCalledWith([
+      { op: 'set', path: ['enabled'], value: true },
+      { op: 'set', path: ['allowedModels'], value: [{ provider: 'alpha', model: 'fast' }] },
+    ], 5)
+  })
+})
+
 describe('SubagentLimitsCardController', () => {
   it('validates staged limits, saves them, and restores composed defaults', async () => {
     const host = stubConfigForm<SubagentLimitsSettings>()
@@ -538,10 +579,12 @@ describe('shared Subagent card actions', () => {
     })
     acceptWrites(limits)
     acceptWrites(models)
-    const face = subagentCardFace(limitFace, modelFace)
+    const purposeFace = new SubagentPurposeRoutesCardController(stubConfigForm<PurposeRoutesSettings>().scope, modelsApi().ctx).inject()
+    const face = subagentCardFace(limitFace, modelFace, purposeFace)
     const state = () => subagentCardShell(
       face.hooks.subagentLimitsCard.getSnapshot(),
       face.hooks.subagentModelSelectionCard.getSnapshot(),
+      face.hooks.subagentPurposeRoutesCard.getSnapshot(),
     )
     return { limits, models, face, state }
   }
@@ -622,5 +665,403 @@ describe('shared Subagent card actions', () => {
     await vi.waitFor(() => { expect(state()).toMatchObject({ saving: false, dirty: false, failed: false }) })
     expect(limits.mutate).toHaveBeenCalledOnce()
     expect(models.mutate).toHaveBeenCalledTimes(2)
+  })
+})
+
+const fast = {
+  id: 'fast',
+  name: 'Fast',
+  reasoning: {
+    efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }],
+    defaultEffort: 'low',
+  },
+}
+
+function route(provider: string, model: string, reasoningEffort: string) {
+  return { provider, model, reasoningEffort }
+}
+
+function purposeTable(review = [route('alpha', 'fast', 'high')]): PurposeRouteTableDraft {
+  return {
+    light: [route('alpha', 'fast', 'low')],
+    medium: [route('alpha', 'fast', 'high')],
+    deep: [route('alpha', 'fast', 'high')],
+    review,
+    writing: [route('alpha', 'fast', 'low')],
+    default: [route('alpha', 'fast', 'high')],
+  }
+}
+
+function purposeHost(value: PurposeRouteTableDraft | null, revision = 3) {
+  const host = stubConfigForm<PurposeRoutesSettings>()
+  const catalog = modelsApi({
+    groups: [{ id: 'alpha', name: 'Alpha', models: [fast] }],
+    failures: [{ id: 'beta', name: 'Beta', message: 'offline' }],
+  })
+  const controller = new SubagentPurposeRoutesCardController(host.scope, catalog.ctx)
+  host.publish({ status: 'ready', writable: true, revision, value: { purposeRoutes: value }, user: {} })
+  return { host, catalog, controller, face: controller.inject() }
+}
+
+describe('SubagentPurposeRoutesCardController', () => {
+  it('reads a missing table as routing off and ignores a non-object', () => {
+    expect(purposeRouteTableFromValue(undefined)).toBeNull()
+    expect(purposeRouteTableFromValue(null)).toBeNull()
+    expect(purposeRouteTableFromValue(['light'])).toBeNull()
+    expect(purposeRouteTableFromValue({
+      light: 'nope',
+      medium: [null, { provider: 1 }, { provider: 'a', model: 1 }, { provider: 'a', model: 'b', reasoningEffort: 1 }, { provider: 'a', model: 'b', reasoningEffort: 'c' }],
+    })?.medium).toEqual([{ provider: 'a', model: 'b', reasoningEffort: 'c' }])
+    expect(samePurposeRouteTable(null, null)).toBe(true)
+    expect(samePurposeRouteTable(null, purposeTable())).toBe(false)
+  })
+
+  it('shows the empty state for a null table and does not save one', async () => {
+    const { host, face } = purposeHost(null)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    expect(state()).toMatchObject({ configured: false, rows: [], dirty: false, invalid: false })
+    face.addReviewer()
+    face.editRoute('light', 0, 'provider', 'alpha')
+    face.save()
+    await Promise.resolve()
+    expect(host.mutate).not.toHaveBeenCalled()
+    expect(state().configured).toBe(false)
+  })
+
+  it('loads a table, edits one route, and saves the whole table', async () => {
+    const { host, face } = purposeHost(purposeTable([{ provider: 'legacy', model: 'old', reasoningEffort: 'high' }]), 8)
+    acceptWrites(host)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    expect(state().catalogPartial).toBe(true)
+    const review = state().rows.find(row => row.slot === 'review')
+    expect(review?.routes[0]).toMatchObject({ available: false, provider: 'legacy', model: 'old' })
+    face.editRoute('light', 0, 'provider', 'alpha')
+    expect(state().rows.find(row => row.slot === 'light')?.routes[0]).toMatchObject({
+      provider: 'alpha', model: 'fast', reasoningEffort: 'low',
+    })
+    face.editRoute('deep', 0, 'effort', 'low')
+    face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    expect(host.mutate).toHaveBeenCalledWith([{
+      op: 'set',
+      path: ['purposeRoutes'],
+      value: {
+        ...purposeTable([{ provider: 'legacy', model: 'old', reasoningEffort: 'high' }]),
+        light: [route('alpha', 'fast', 'low')],
+        deep: [route('alpha', 'fast', 'low')],
+      },
+    }], 8)
+  })
+
+  it('adds, reorders, and removes reviewers without dropping the last route', async () => {
+    const { host, face } = purposeHost(purposeTable())
+    acceptWrites(host)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    const efforts = () => state().rows.find(row => row.slot === 'review')?.routes.map(item => item.reasoningEffort)
+    face.addReviewer()
+    face.editRoute('review', 1, 'provider', 'alpha')
+    face.moveReviewer(1, 'later')
+    face.moveReviewer(1, 'earlier')
+    face.removeReviewer(5)
+    expect(efforts()).toEqual(['low', 'high'])
+    face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    expect(host.mutate.mock.calls[0]?.[0]).toEqual([{
+      op: 'set',
+      path: ['purposeRoutes'],
+      value: {
+        ...purposeTable(),
+        review: [route('alpha', 'fast', 'low'), route('alpha', 'fast', 'high')],
+      },
+    }])
+    face.removeReviewer(0)
+    expect(efforts()).toEqual(['high'])
+    face.removeReviewer(0)
+    expect(efforts()).toEqual(['high'])
+  })
+
+  it('refuses a duplicate, an unsupported effort, a missing field, and an empty slot', async () => {
+    const { host, face } = purposeHost(purposeTable())
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    face.addReviewer()
+    face.editRoute('review', 1, 'provider', 'alpha')
+    face.editRoute('review', 1, 'effort', 'high')
+    expect(state()).toMatchObject({ invalid: true, dirty: true })
+    expect(state().rows.find(row => row.slot === 'review')?.duplicate).toBe(true)
+    face.save()
+    await Promise.resolve()
+    expect(host.mutate).not.toHaveBeenCalled()
+
+    face.editRoute('review', 1, 'effort', 'max')
+    expect(state().rows.find(row => row.slot === 'review')?.routes[1]?.effortUnsupported).toBe(true)
+    face.editRoute('review', 1, 'model', '')
+    expect(state().rows.find(row => row.slot === 'review')?.routes[1]?.missing).toBe(true)
+    face.removeReviewer(1)
+
+    face.editRoute('writing', 0, 'provider', '')
+    expect(state().rows.find(row => row.slot === 'writing')?.routes[0]?.missing).toBe(true)
+    face.discard()
+    expect(state().dirty).toBe(false)
+  })
+
+  it('blocks a save while the catalogue is loading and still saves an unavailable saved route', async () => {
+    const pending = deferred<never>()
+    const host = stubConfigForm<PurposeRoutesSettings>()
+    const models = vi.fn()
+      .mockImplementationOnce(() => pending.promise)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { groups: [], failures: [] },
+      })
+    const controller = new SubagentPurposeRoutesCardController(host.scope, ctxWith({ session: { modelCatalog: models } }))
+    host.publish({
+      status: 'ready', writable: true, revision: 2,
+      value: { purposeRoutes: purposeTable([{ provider: 'legacy', model: 'old', reasoningEffort: 'high' }]) },
+      user: {},
+    })
+    const face = controller.inject()
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('loading') })
+    face.editRoute('default', 0, 'effort', 'low')
+    expect(state().invalid).toBe(true)
+    face.save()
+    expect(host.mutate).not.toHaveBeenCalled()
+    pending.resolve({ ok: true, value: { groups: [], failures: [] } } as never)
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    expect(state().rows.find(row => row.slot === 'review')?.routes[0]?.available).toBe(false)
+    acceptWrites(host)
+    face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    expect(host.mutate).toHaveBeenCalledOnce()
+  })
+
+  it('reports a revision conflict and advances the fence for a sibling write', async () => {
+    const { host, face } = purposeHost(purposeTable(), 4)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    const replaced = purposeTable([route('other', 'new', 'low')])
+    face.editRoute('light', 0, 'effort', 'high')
+    host.publish({ revision: 5, value: { purposeRoutes: replaced } })
+    expect(state()).toMatchObject({ conflicted: true, dirty: true })
+    face.save()
+    await Promise.resolve()
+    expect(host.mutate).not.toHaveBeenCalled()
+    face.discard()
+    expect(state()).toMatchObject({ conflicted: false, dirty: false })
+
+    face.editRoute('light', 0, 'effort', 'high')
+    host.publish({ revision: 6, value: { purposeRoutes: replaced } })
+    expect(state()).toMatchObject({ conflicted: false, dirty: true })
+    acceptWrites(host)
+    face.save()
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalled() })
+    expect(host.mutate.mock.calls[0]?.[1]).toBe(6)
+  })
+
+  it('keeps a rejected draft and ignores edits while read-only or disposed', async () => {
+    const { host, face, controller } = purposeHost(purposeTable())
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    face.editRoute('medium', 0, 'model', 'fast')
+    face.save()
+    await vi.waitFor(() => { expect(state().failed).toBe(true) })
+    expect(state()).toMatchObject({ dirty: true, saving: false })
+
+    host.publish({ writable: false })
+    face.addReviewer()
+    face.removeReviewer(0)
+    face.moveReviewer(0, 'earlier')
+    expect(state().rows.find(row => row.slot === 'review')?.routes).toHaveLength(1)
+    controller.dispose()
+    face.editRoute('medium', 0, 'effort', 'low')
+    face.retryCatalog()
+    controller.refreshCatalog()
+    controller.resetConnection()
+    expect(host.mutate).toHaveBeenCalledOnce()
+  })
+
+  it('fills an empty slot and collapses an extra non-review route on edit', async () => {
+    const stored = purposeTable()
+    stored.writing = []
+    stored.review = []
+    stored.light = [route('alpha', 'fast', 'low'), route('alpha', 'fast', 'high')]
+    const { host, face } = purposeHost(stored)
+    acceptWrites(host)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    expect(state().rows.find(row => row.slot === 'writing')?.empty).toBe(true)
+    expect(state().rows.find(row => row.slot === 'review')?.empty).toBe(true)
+    expect(state().rows.find(row => row.slot === 'light')?.extra).toBe(true)
+    expect(state().invalid).toBe(true)
+    face.editRoute('writing', 0, 'provider', 'alpha')
+    face.addReviewer()
+    face.editRoute('review', 0, 'provider', 'alpha')
+    face.editRoute('light', 1, 'effort', 'low')
+    expect(state().rows.find(row => row.slot === 'writing')?.empty).toBe(false)
+    expect(state().rows.find(row => row.slot === 'light')?.routes).toHaveLength(1)
+    expect(state().invalid).toBe(false)
+    face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    expect(host.mutate.mock.calls[0]?.[0]).toEqual([{
+      op: 'set',
+      path: ['purposeRoutes'],
+      value: {
+        ...purposeTable(),
+        light: [route('alpha', 'fast', 'low')],
+        review: [route('alpha', 'fast', 'low')],
+        writing: [route('alpha', 'fast', 'low')],
+      },
+    }])
+  })
+
+  it('clears a draft the Host already landed, and ignores a same-revision notice', async () => {
+    const { host, face } = purposeHost(purposeTable(), 4)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    face.editRoute('light', 0, 'effort', 'high')
+    host.publish({ revision: 4, value: { purposeRoutes: purposeTable() } })
+    expect(state().dirty).toBe(true)
+    const landed = { ...purposeTable(), light: [route('alpha', 'fast', 'high')] }
+    host.publish({ revision: 5, value: { purposeRoutes: landed } })
+    expect(state()).toMatchObject({ dirty: false, conflicted: false })
+  })
+
+  it('uses the first advertised effort when the model has no usable default', async () => {
+    const host = stubConfigForm<PurposeRoutesSettings>()
+    const catalog = modelsApi({
+      groups: [{
+        id: 'alpha',
+        name: 'Alpha',
+        models: [
+          { id: 'plain', name: 'Plain', reasoning: { efforts: [{ id: 'high', name: 'High' }] } },
+          { id: 'odd', name: 'Odd', reasoning: { efforts: [{ id: 'high', name: 'High' }], defaultEffort: 'missing' } },
+          { id: 'bare', name: 'Bare' },
+        ],
+      }],
+    })
+    const controller = new SubagentPurposeRoutesCardController(host.scope, catalog.ctx)
+    host.publish({ status: 'ready', writable: true, revision: 1, value: { purposeRoutes: purposeTable() }, user: {} })
+    const face = controller.inject()
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    face.editRoute('light', 0, 'model', 'plain')
+    expect(state().rows.find(row => row.slot === 'light')?.routes[0]?.reasoningEffort).toBe('high')
+    face.editRoute('light', 0, 'model', 'odd')
+    expect(state().rows.find(row => row.slot === 'light')?.routes[0]?.reasoningEffort).toBe('high')
+    face.editRoute('light', 0, 'model', 'bare')
+    expect(state().rows.find(row => row.slot === 'light')?.routes[0]?.missing).toBe(true)
+    face.editRoute('light', 0, 'provider', 'alpha')
+    face.editRoute('light', 0, 'provider', 'alpha')
+    face.editRoute('medium', 0, 'provider', 'missing')
+    face.editRoute('review', 4, 'effort', 'low')
+    face.removeReviewer(-1)
+    face.moveReviewer(9, 'later')
+    expect(state().rows.find(row => row.slot === 'review')?.routes).toHaveLength(1)
+    face.save()
+    expect(host.mutate).not.toHaveBeenCalled()
+    host.publish({ writable: false })
+    face.save()
+    expect(host.mutate).not.toHaveBeenCalled()
+  })
+
+  it('reports a catalogue error, drops a late load, and ignores a save after disposal', async () => {
+    const pending = deferred<never>()
+    const host = stubConfigForm<PurposeRoutesSettings>()
+    const models = vi.fn()
+      .mockImplementationOnce(() => pending.promise)
+      .mockResolvedValue({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
+    const controller = new SubagentPurposeRoutesCardController(host.scope, ctxWith({ session: { modelCatalog: models } }))
+    host.publish({
+      status: 'ready', writable: true, revision: 2,
+      value: { purposeRoutes: purposeTable() },
+      user: {},
+    })
+    const face = controller.inject()
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('loading') })
+    face.retryCatalog()
+    expect(models).toHaveBeenCalledOnce()
+    controller.refreshCatalog()
+    pending.resolve({ ok: true, value: { groups: [], failures: [] } } as never)
+    await pending.promise
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('error') })
+    const write = deferred<boolean>()
+    host.mutate.mockImplementationOnce(() => write.promise)
+    face.editRoute('default', 0, 'effort', 'low')
+    const saving = face.save()
+    face.discard()
+    expect(state().dirty).toBe(true)
+    controller.dispose()
+    write.resolve(true)
+    await saving
+    expect(state().saving).toBe(true)
+  })
+
+  it('writes the purpose table after a sibling model write and uses the new revision', async () => {
+    const host = stubConfigForm<SubagentModelSelectionSettings & PurposeRoutesSettings>()
+    const catalog = modelsApi({ groups: [{ id: 'alpha', name: 'Alpha', models: [fast] }] })
+    let revision = 4
+    host.mutate.mockImplementation(async () => {
+      const current = host.scope.getSnapshot().value
+      revision += 1
+      host.publish({
+        revision,
+        value: {
+          enabled: current?.enabled ?? false,
+          allowedModels: current?.allowedModels ?? [],
+          purposeRoutes: current?.purposeRoutes ?? null,
+        },
+      })
+      return true
+    })
+    host.publish({
+      status: 'ready', writable: true, revision,
+      value: { enabled: false, allowedModels: [{ provider: 'alpha', model: 'fast' }], purposeRoutes: purposeTable() },
+      user: {},
+    })
+    const limits = new SubagentLimitsCardController(stubConfigForm<SubagentLimitsSettings>().scope).inject()
+    const models = new SubagentModelSelectionCardController(host.scope, catalog.ctx).inject()
+    const purpose = new SubagentPurposeRoutesCardController(host.scope, catalog.ctx).inject()
+    const face = subagentCardFace(limits, models, purpose)
+    await vi.waitFor(() => { expect(purpose.hooks.subagentPurposeRoutesCard.getSnapshot().catalogStatus).toBe('ready') })
+    face.toggleEnabled()
+    purpose.editRoute('default', 0, 'effort', 'low')
+    face.save()
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledTimes(2) })
+    expect(host.mutate.mock.calls[0]?.[1]).toBe(4)
+    expect(host.mutate.mock.calls[1]?.[1]).toBe(5)
+    expect(host.mutate.mock.calls[1]?.[0]).toEqual([{
+      op: 'set',
+      path: ['purposeRoutes'],
+      value: { ...purposeTable(), default: [route('alpha', 'fast', 'low')] },
+    }])
+  })
+
+  it('saves a purpose-only draft without rewriting model authorization', async () => {
+    const host = stubConfigForm<SubagentModelSelectionSettings & PurposeRoutesSettings>()
+    acceptWrites(host)
+    const catalog = modelsApi({ groups: [{ id: 'alpha', name: 'Alpha', models: [fast] }] })
+    host.publish({
+      status: 'ready', writable: true, revision: 3,
+      value: { enabled: false, allowedModels: [], purposeRoutes: purposeTable() },
+      user: {},
+    })
+    const limits = new SubagentLimitsCardController(stubConfigForm<SubagentLimitsSettings>().scope).inject()
+    const models = new SubagentModelSelectionCardController(host.scope, catalog.ctx).inject()
+    const purpose = new SubagentPurposeRoutesCardController(host.scope, catalog.ctx).inject()
+    const face = subagentCardFace(limits, models, purpose)
+    await vi.waitFor(() => { expect(purpose.hooks.subagentPurposeRoutesCard.getSnapshot().catalogStatus).toBe('ready') })
+    purpose.editRoute('default', 0, 'effort', 'low')
+    face.save()
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledOnce() })
+    expect(host.mutate.mock.calls[0]?.[0]).toEqual([{
+      op: 'set',
+      path: ['purposeRoutes'],
+      value: { ...purposeTable(), default: [route('alpha', 'fast', 'low')] },
+    }])
+    expect(models.hooks.subagentModelSelectionCard.getSnapshot().dirty).toBe(false)
   })
 })

@@ -27,8 +27,6 @@ The fork group holds the packages this fork adds to the product: private policy,
 | [`memory`](memory/README.md) | Global and workspace memory, the `memory` tool, and injected snapshots | `memory` |
 | [`llm-wiki`](llm-wiki/README.md) | Project and global wiki tools, lint, and the wiki skill | `llm-wiki` |
 | [`response-language`](response-language/README.md) | Fixed Japanese-response system-prompt section | `response-language` |
-| [`subagent-cursor`](subagent-cursor/README.md) | Cursor Agent CLI subagent provider | `subagent-cursor` |
-| [`subagent-pi`](subagent-pi/README.md) | Pi coding agent subagent provider | `subagent-pi` |
 | [`web-search-brave`](web-search-brave/README.md) | Brave search provider for `ctx.web` | `web-search-brave` |
 | [`web-search-exa`](web-search-exa/README.md) | Exa search provider that resolves its key through `ctx.credentials` | `web-search-exa` |
 | [`web-search-credentials`](web-search-credentials/README.md) | Shared API-key lookup order for the search providers | (library) |

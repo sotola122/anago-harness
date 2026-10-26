@@ -19618,6 +19618,194 @@
       }
     },
     {
+      "key": "event:subagent/purpose-route",
+      "kind": "event",
+      "event": "subagent/purpose-route",
+      "surface": false,
+      "digest": "26495f85055b1d5c86cf81ea3002a2989d02469bea830f8537c2364e124e0386",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 16,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 17,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 17,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 18,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "outcome",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "route",
+                "type": 8,
+                "optional": false
+              },
+              {
+                "name": "slot",
+                "type": 9,
+                "optional": false
+              },
+              {
+                "name": "toolCallId",
+                "type": 4,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "union",
+            "types": [
+              3,
+              6
+            ]
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "childId",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 5,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "literal",
+            "value": "started"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "kind",
+                "type": 7,
+                "optional": false
+              },
+              {
+                "name": "reason",
+                "type": 4,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "literal",
+            "value": "not-started"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "model",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "provider",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "reasoningEffort",
+                "type": 4,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "union",
+            "types": [
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ]
+          },
+          {
+            "kind": "literal",
+            "value": "deep"
+          },
+          {
+            "kind": "literal",
+            "value": "default"
+          },
+          {
+            "kind": "literal",
+            "value": "light"
+          },
+          {
+            "kind": "literal",
+            "value": "medium"
+          },
+          {
+            "kind": "literal",
+            "value": "review"
+          },
+          {
+            "kind": "literal",
+            "value": "writing"
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "subagent/purpose-route"
+          }
+        ]
+      }
+    },
+    {
       "key": "event:system/message",
       "kind": "event",
       "event": "system/message",
@@ -26359,7 +26547,7 @@
       "sources": [
         "packages/fork/memory/src/review-input.ts:42",
         "packages/session/session-title/src/types.ts:20",
-        "packages/subagent/tool-subagent/src/model-selection.ts:9"
+        "packages/subagent/tool-subagent/src/model-selection.ts:18"
       ]
     },
     {
@@ -26463,6 +26651,11 @@
       "sources": [
         "packages/subagent/tool-subagent/src/model-selection-state.ts:17"
       ]
+    },
+    {
+      "digest": "0e0c2e4d3cc973c306157134f073eb4b2ccaa96d3abbe722d30ea2fa0410d3f1",
+      "names": [],
+      "sources": []
     },
     {
       "digest": "0e10d7c096b47e61defe372a5fc8bd37d835199410eac44367f95c45082498bd",
@@ -26799,6 +26992,15 @@
       "sources": []
     },
     {
+      "digest": "1f217c084ff670096fbb4f0893aefb959f6652944711ddfa3e309e89694684c0",
+      "names": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts#PurposeRouteEvent"
+      ],
+      "sources": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts:49"
+      ]
+    },
+    {
       "digest": "1f8c126cfab3df812cd115cfc23e3256f0fa2383400f4ce91ecad313577e59b0",
       "names": [
         "packages/core/session/src/types.ts#TurnEndCancelCause"
@@ -26901,6 +27103,11 @@
     },
     {
       "digest": "260523b412c19ad8c2bb00093b07f64245ff8ba6b2f76c5b545303772ac9704c",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "26495f85055b1d5c86cf81ea3002a2989d02469bea830f8537c2364e124e0386",
       "names": [],
       "sources": []
     },
@@ -27531,6 +27738,11 @@
       ]
     },
     {
+      "digest": "4eb4fb4727f07bba28fa8bba30ca866d09c21bd5c470c0fb8818a802ea0e5b20",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "4edec1b770e8ec4ce1220bf42edc5ac46713a1b48d4caa778dcfc98bad1f28a3",
       "names": [],
       "sources": []
@@ -27755,6 +27967,15 @@
       "sources": []
     },
     {
+      "digest": "5d481ceb77120bbff3cdad6f3e4068a44ad64e6c14b3f1cd1e509ace3fd65131",
+      "names": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts#PurposeRouteSlot"
+      ],
+      "sources": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts:22"
+      ]
+    },
+    {
       "digest": "5d542ac7bdf13310c46e1a884dec9fb18ad8c6e153cff207e639cd7bf9d7e694",
       "names": [],
       "sources": []
@@ -27941,6 +28162,11 @@
     },
     {
       "digest": "6b23ed9ce1b397e602788dbe033693bf97642a69e23fcab1cc45bf6f13b6d619",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "6bb7920e95ffc9e7abc623ec2b2e894b79cee63375b5b8f3cf1fc947a344cd29",
       "names": [],
       "sources": []
     },
@@ -28338,6 +28564,11 @@
       ]
     },
     {
+      "digest": "847de97d9ff31dff732d3bc310f69dc98ce63e765bf0b13f6092d85e02c17400",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "84ac8c1a66ffc697262e181f42e851259eae14038c113ca329fb4700ccdb1f7c",
       "names": [
         "packages/goal/goal/src/types.ts#GoalBlockReason"
@@ -28442,6 +28673,11 @@
     },
     {
       "digest": "8af841fc9b265ade3441caf9fe40dd24db24226befba48150e6d0eeccc1389c3",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "8bb188be8ccbc2bd027b5d91bf7932180a7cf3d58832c026d01819f3d2623a39",
       "names": [],
       "sources": []
     },
@@ -29166,7 +29402,17 @@
       "sources": []
     },
     {
+      "digest": "b72a9be4ead1ca6a17d1a83cc02cb9b0d11cc24dcab6265608fc0078b275d2b7",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "b765ee31033cea463863faf3fc6a0a1b85c47c6a2f13fe1ce833abe56105114b",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "b76c2f5dbe6dd1cff6862f47f656b42be16dbfbf9e709e738826f61d2c4cb1bb",
       "names": [],
       "sources": []
     },
@@ -29308,6 +29554,11 @@
       ]
     },
     {
+      "digest": "c1e1622166f57c10c79f9f47b5f300a3b2f42e4fd198ebb4a2290f223c0cf4ac",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "c1f0f17b6493b85db6453bb30e01b208d703731b25bc1e68e5d4fc72eea9cdea",
       "names": [
         "packages/llm/llm/src/types.ts#ToolCallBlock"
@@ -29339,6 +29590,15 @@
       "digest": "c2f49004d9ae38a964e80850c87bc6849d6a872091a1d43e99eedf00c641e2a3",
       "names": [],
       "sources": []
+    },
+    {
+      "digest": "c3d3edea03ed751bd58962f93f8266e72f9b4427da6955f9bec2454d75848585",
+      "names": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts#PurposeRouteOutcome"
+      ],
+      "sources": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts:44"
+      ]
     },
     {
       "digest": "c43b119ce579b3e9983a0d3adc4ba402ebb9ba773d89738a2dab01ecf5813943",
@@ -29517,6 +29777,11 @@
       "sources": []
     },
     {
+      "digest": "d66ba5eb62ddba9fc264067c47d1152ca3bd8c2bdf2ededb66695e04ab588550",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "d66e11dddf5dfa3c71547e2cbd7b0608824cd8d6243fc16f532017ff28e8fba5",
       "names": [],
       "sources": []
@@ -29666,6 +29931,13 @@
       "digest": "e0a787e6ec76c7c94fecbc501b489164ab0293db05bc947914077ad01e674f05",
       "names": [],
       "sources": []
+    },
+    {
+      "digest": "e18ab37d8ada0d71d436fabc492b035fcd9d7cc3da7f080a4c9678cacc15109f",
+      "names": [],
+      "sources": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts:45"
+      ]
     },
     {
       "digest": "e2ad8f5bcd813f268ffef1b10a12d7ddd2b8ced8b9b6d0275b3f6b7ed094a187",
@@ -29884,6 +30156,13 @@
       "sources": []
     },
     {
+      "digest": "efe5fd427c6d0be5412fc07c572dc7291f17aa189562afb74692c7c869b2a508",
+      "names": [],
+      "sources": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts:46"
+      ]
+    },
+    {
       "digest": "f05fb85e715af4ab4de0b6ba111166dd0435bd8bb74a0fa0f32b9d174113fc7c",
       "names": [],
       "sources": []
@@ -29972,6 +30251,13 @@
       ],
       "sources": [
         "packages/context/session-reference/src/types.ts:13"
+      ]
+    },
+    {
+      "digest": "f5d61e83f890477d2946e887cd6326ef476f1d05b1b0da4bd0c12844a232aa78",
+      "names": [],
+      "sources": [
+        "packages/subagent/tool-subagent/src/purpose-routing.ts:55"
       ]
     },
     {

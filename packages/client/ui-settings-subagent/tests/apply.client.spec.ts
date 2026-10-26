@@ -65,7 +65,9 @@ describe('ui-settings-subagent apply', () => {
     expect(resolveSlotLabel(entry.options.label)).toBe('子智能体')
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<SubagentCardFace, 'hooks'>)()
-    expect(Object.keys(face.hooks).sort()).toEqual(['subagentLimitsCard', 'subagentModelSelectionCard'])
+    expect(Object.keys(face.hooks).sort()).toEqual([
+      'subagentLimitsCard', 'subagentModelSelectionCard', 'subagentPurposeRoutesCard',
+    ])
   })
 
   it('registers the page when only the model namespace is served, and nothing when neither is', async () => {

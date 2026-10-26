@@ -9,6 +9,7 @@ import { SubagentCard, type SubagentCardProps } from '../src/client/SubagentCard
 import type { SubagentLimitsCardState } from '../src/client/subagent-limits-card-controller.ts'
 import type { SettingsFieldState, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SubagentModelSelectionCardState } from '../src/client/subagent-model-selection-card-controller.ts'
+import type { SubagentPurposeRoutesCardState } from '../src/client/subagent-purpose-routes-card-controller.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -35,6 +36,7 @@ function renderSubagent(
   limitState: Partial<SubagentLimitsCardState> = {},
   modelState: Partial<SubagentModelSelectionCardState> = {},
   view: ConfigView = 'page',
+  purposeState: Partial<SubagentPurposeRoutesCardState> = {},
 ) {
   const limits = createSnapshotStore<SubagentLimitsCardState>({
     ...settled,
@@ -51,12 +53,27 @@ function renderSubagent(
     conflicted: false,
     ...modelState,
   })
+  const purpose = createSnapshotStore<SubagentPurposeRoutesCardState>({
+    ...settled,
+    available: false,
+    configured: false,
+    rows: [],
+    catalogStatus: 'idle',
+    catalogPartial: false,
+    conflicted: false,
+    ...purposeState,
+  })
   const actions = {
     editLimit: vi.fn(),
     resetLimit: vi.fn(),
     toggleEnabled: vi.fn(),
     toggleModel: vi.fn(),
     retryCatalog: vi.fn(),
+    editPurposeRoute: vi.fn(),
+    addReviewer: vi.fn(),
+    removeReviewer: vi.fn(),
+    moveReviewer: vi.fn(),
+    retryPurposeCatalog: vi.fn(),
     save: vi.fn(),
     discard: vi.fn(),
   }
@@ -66,9 +83,10 @@ function renderSubagent(
     t,
     useSubagentLimitsCard: bindSnapshotSelector(limits),
     useSubagentModelSelectionCard: bindSnapshotSelector(models),
+    useSubagentPurposeRoutesCard: bindSnapshotSelector(purpose),
   } as SubagentCardProps
   render(<SubagentCard {...props} />)
-  return { actions, limits, models }
+  return { actions, limits, models, purpose }
 }
 
 function renderSubagentModelSelection(state: Partial<SubagentModelSelectionCardState> = {}, view: ConfigView = 'page') {
@@ -289,4 +307,109 @@ describe('SubagentCard', () => {
     expect(screen.getByRole('switch')).toBeTruthy()
     expect(screen.queryByLabelText(en.subagentMaxDepth)).toBeNull()
   })
+
+  it('shows an empty purpose section when routing is off and no way to create a table', () => {
+    renderSubagent({}, {}, 'page', { available: true, configured: false })
+    expect(screen.getByRole('heading', { name: en['purposeRoutes.title'] })).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.notConfigured'])).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en['purposeRoutes.addReviewer'] })).toBeNull()
+    expect(screen.queryByRole('combobox')).toBeNull()
+  })
+
+  it('edits one route per purpose and several reviewers on review', () => {
+    const actions = renderSubagent({}, { available: false }, 'page', {
+      available: true,
+      configured: true,
+      rows: [
+        row('light', [route('light-1', { provider: 'alpha', model: 'fast', reasoningEffort: 'low' })]),
+        row('medium', [route('medium-1', { provider: 'alpha', model: 'fast', reasoningEffort: 'low' })]),
+        row('deep', [route('deep-1', { provider: 'alpha', model: 'fast', reasoningEffort: 'high' })]),
+        row('review', [
+          route('review-1', { provider: 'alpha', model: 'fast', reasoningEffort: 'high' }),
+          route('review-2', { provider: 'beta', model: 'slow', reasoningEffort: 'high', available: false }),
+        ], { fanOut: true }),
+        row('writing', [route('writing-1', { provider: 'alpha', model: 'fast', reasoningEffort: 'low' })]),
+        row('default', [route('default-1', { provider: 'alpha', model: 'fast', reasoningEffort: 'high' })]),
+      ],
+    }).actions
+    expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.light.label'] })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.medium.label'] })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.writing.label'] })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.default.label'] })).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.slot.medium.hint'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.slot.writing.hint'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.slot.default.hint'])).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: en['purposeRoutes.addReviewer'] })).toHaveLength(1)
+    expect(screen.getByText(en['purposeRoutes.warnings.providerUnavailable'])).toBeTruthy()
+    fireEvent.change(screen.getAllByLabelText(en['purposeRoutes.provider'])[0]!, { target: { value: 'beta' } })
+    expect(actions.editPurposeRoute).toHaveBeenCalledWith('light', 0, 'provider', 'beta')
+    fireEvent.click(screen.getByRole('button', { name: en['purposeRoutes.addReviewer'] }))
+    expect(actions.addReviewer).toHaveBeenCalledOnce()
+    const remove = screen.getAllByRole('button', { name: en['purposeRoutes.removeReviewer'] })
+    expect(remove[0]).toHaveProperty('disabled', false)
+    fireEvent.click(remove[1]!)
+    expect(actions.removeReviewer).toHaveBeenCalledWith(1)
+    fireEvent.click(screen.getAllByRole('button', { name: en['purposeRoutes.moveLater'] })[0]!)
+    expect(actions.moveReviewer).toHaveBeenCalledWith(0, 'later')
+    expect(screen.getAllByRole('button', { name: en['purposeRoutes.moveEarlier'] })[0]).toHaveProperty('disabled', true)
+  })
+
+  it('shows validation, a catalogue failure, and a revision conflict on the purpose section', () => {
+    const { actions, purpose } = renderSubagent({}, { available: false }, 'page', {
+      available: true,
+      configured: true,
+      dirty: true,
+      invalid: true,
+      catalogStatus: 'error',
+      rows: [row('deep', [route('deep-1', { missing: true, effortUnsupported: true })], { extra: true, duplicate: true, empty: true })],
+    })
+    expect(screen.getByText(en['purposeRoutes.errors.missingRoute'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.errors.effortUnsupported'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.errors.duplicateRoute'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.errors.extraRoute'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.emptySlot'])).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.save })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('button', { name: en.subagentModelSelectionRetry }))
+    expect(actions.retryPurposeCatalog).toHaveBeenCalledOnce()
+    act(() => { purpose.set({ ...purpose.getSnapshot(), invalid: false, conflicted: true, catalogStatus: 'ready' }) })
+    expect(screen.getByText(en.subagentModelSelectionConflict)).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.save })).toHaveProperty('disabled', true)
+    cleanup()
+    renderSubagent({}, { available: false }, 'page', {
+      available: true,
+      configured: true,
+      catalogStatus: 'loading',
+      catalogPartial: true,
+      rows: [],
+    })
+    expect(screen.getByText(en.subagentModelSelectionLoading)).toBeTruthy()
+    expect(screen.getByText(en.subagentModelSelectionPartial)).toBeTruthy()
+  })
 })
+
+function route(
+  id: string,
+  rest: Partial<import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteEditorState> = {},
+): import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteEditorState {
+  return {
+    id,
+    provider: '',
+    model: '',
+    reasoningEffort: '',
+    available: true,
+    missing: false,
+    effortUnsupported: false,
+    providers: [{ id: 'alpha', name: 'Alpha' }, { id: 'beta', name: 'Beta' }],
+    models: [{ id: 'fast', name: 'Fast' }],
+    efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }],
+    ...rest,
+  }
+}
+
+function row(
+  slot: import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteSlot,
+  routes: import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteEditorState[],
+  rest: Partial<import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteRowState> = {},
+): import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteRowState {
+  return { slot, fanOut: false, routes, duplicate: false, extra: false, empty: false, ...rest }
+}

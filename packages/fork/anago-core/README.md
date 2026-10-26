@@ -1,5 +1,5 @@
 ---
-description: "The host capability layer for anago profiles: memory, the LLM wiki, the Japanese-response instruction, the Cursor subagent, and the Exa and Brave search providers."
+description: "The host capability layer for anago profiles: memory, the LLM wiki, the Japanese-response instruction, and the Exa and Brave search providers."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The host capability layer for anago profiles: memory, the LLM wiki, the Japanese-response instruction, the Cursor subagent, and the Exa and Brave search providers. The package carries no runtime code; its substance is `cordis.patch.yml`, declared by the `dsh.bundle.patch` manifest field.
+The host capability layer for anago profiles: memory, the LLM wiki, the Japanese-response instruction, and the Exa and Brave search providers. The package carries no runtime code; its substance is `cordis.patch.yml`, declared by the `dsh.bundle.patch` manifest field.
 
 ## Table of Contents
 
@@ -32,8 +32,6 @@ Mount it after the upstream bundles in `dsh.profile.bundles`. It also pins the d
 | `memory` | `@anago-harness/memory` |
 | `llm-wiki` | `@anago-harness/llm-wiki` |
 | `response-language` | `@anago-harness/response-language` |
-| `subagent-cursor` | `@anago-harness/subagent-cursor` |
-| `tool-subagent-cursor` | `@deepseek-ai/dsh-tool-subagent` |
 | `web-search-exa` | `@anago-harness/web-search-exa` |
 | `web-search-brave` | `@anago-harness/web-search-brave` |
 

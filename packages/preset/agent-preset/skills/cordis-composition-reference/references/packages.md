@@ -244,8 +244,6 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@anago-harness/llm-wiki` | yes | LLM wiki: project and global wiki stores with write, search, and lint tools plus a skill. |
 | `@anago-harness/memory` | yes | Persistent agent memory: global and workspace stores, the memory tool, and injected snapshots. |
 | `@anago-harness/response-language` | yes | Fixed Japanese-response instruction injected as a global system-prompt section. |
-| `@anago-harness/subagent-cursor` | yes | Cursor Agent CLI one-shot subagent provider for the DSH subagent seam. |
-| `@anago-harness/subagent-pi` | yes | Pi coding agent CLI one-shot subagent provider for the DSH subagent seam. |
 | `@anago-harness/web-search-brave` | yes | Brave Search provider for the ctx.web capability seam. |
 | `@anago-harness/web-search-exa` | yes | Exa search provider that resolves its key through the credentials service. |
 | `@anago-harness/xai-oauth` | no | Sign in to xAI (SuperGrok / X Premium) through the pi-ai OAuth flow and drive it from /xai-* commands. |

@@ -196,113 +196,6 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@anago-harness/response-language -->
 
-<!-- BEGIN GENERATED config-catalog:@anago-harness/subagent-cursor -->
-<a id="anago-harnesssubagent-cursor"></a>
-
-## `@anago-harness/subagent-cursor`
-
-- `inject`: `subagents` · `subprocess`
-- `source`: [`packages/fork/subagent-cursor/src/index.ts:76`](../packages/fork/subagent-cursor/src/index.ts)
-
-```ts config-catalog
-/**
- * Provider configuration (see the package README for the field table).
- *
- * The schema applies every default, so a value of this type is complete; a
- * `cordis.yml` row may omit any field.
- */
-export interface Config {
-  /** Registry name inside `ctx.subagents`; must be unique per composition. */
-  providerName: string
-  /** Cursor CLI executable resolved through `ctx.subprocess.resolveExecutable`. */
-  agentBinary: string
-  /** Optional `--model` value; omitted uses the CLI default. */
-  model?: string
-  /** `--output-format` value; `text` is the unverified-JSON-schema escape hatch. */
-  outputFormat: OutputFormat
-  /** Execution mode; `agent` emits no `--mode`. */
-  mode: ExecutionMode
-  /** Emit `--sandbox enabled` (true) or `disabled` (false, diagnostics only). */
-  sandbox: boolean
-  /** Emit `--force` (Run Everything); off by default. */
-  force: boolean
-  /** Emit `--trust` to skip the workspace trust prompt in print mode. */
-  trust: boolean
-  /** Per-run wall-clock budget in milliseconds; absent leaves only the parent's cancellation. */
-  timeoutMs?: number
-  /** SIGTERM-to-SIGKILL grace handed to the subprocess provider. */
-  disposeGraceMs: number
-  /** In-memory stdout cap; overflow keeps the tail only. */
-  stdoutMaxBytes: number
-  /** Full-stdout spill cap used to recover a truncated JSON payload. */
-  stdoutSpillMaxBytes: number
-  /** In-memory stderr cap used for the log-only diagnostic tail. */
-  stderrMaxBytes: number
-  /** Extra environment variables layered over the scrubbed parent environment. */
-  env: Record<string, string>
-  /** Extra CLI arguments; provider-owned flags are rejected at start. */
-  extraArgs: string[]
-}
-
-/** `--output-format` values this provider passes to the CLI. */
-export type OutputFormat = 'json' | 'text'
-
-/**
- * `--mode` values this provider understands. `agent` is the provider's name for
- * "no `--mode` flag": the CLI only accepts `plan` and `ask`, and passing
- * `--mode agent` would fail its choices check.
- */
-export type ExecutionMode = 'agent' | 'ask' | 'plan'
-```
-<!-- END GENERATED config-catalog:@anago-harness/subagent-cursor -->
-
-<!-- BEGIN GENERATED config-catalog:@anago-harness/subagent-pi -->
-<a id="anago-harnesssubagent-pi"></a>
-
-## `@anago-harness/subagent-pi`
-
-- `inject`: `subagents` · `subprocess`
-- `source`: [`packages/fork/subagent-pi/src/index.ts:53`](../packages/fork/subagent-pi/src/index.ts)
-
-```ts config-catalog
-/**
- * Provider configuration (see the package README for the field table).
- *
- * The schema applies every default, so a value of this type is complete; a
- * `cordis.yml` row may omit any field.
- */
-export interface Config {
-  /** Registry name inside `ctx.subagents`; must be unique per composition. */
-  providerName: string
-  /** Pi CLI executable resolved through `ctx.subprocess.resolveExecutable`. */
-  executable: string
-  /** Optional `--provider` id; requires `model`. */
-  provider?: string
-  /** Optional `--model` pattern or id; absent uses Pi's own configured model. */
-  model?: string
-  /** Optional `--thinking` level. */
-  thinking?: PiThinkingLevel
-  /** Optional `--tools` allowlist; an empty list emits `--no-tools`. */
-  tools?: string[] | undefined
-  /** Optional `--exclude-tools` denylist. */
-  excludeTools?: string[] | undefined
-  /** Emit `--approve` (true) or `--no-approve` (false) for project-local files. */
-  approve: boolean
-  /** Optional absolute `--session-dir`; absent emits `--no-session`. */
-  sessionDir?: string
-  /** Extra environment variables layered over the scrubbed parent environment. */
-  env: Record<string, string>
-  /** Optional per-run wall-clock budget in milliseconds; absent is unbounded. */
-  timeoutMs?: number
-  /** SIGTERM-to-SIGKILL grace handed to the subprocess provider. */
-  disposeGraceMs: number
-}
-
-/** One `--thinking` level understood by the Pi CLI. */
-export type PiThinkingLevel = (typeof PI_THINKING_LEVELS)[number]
-```
-<!-- END GENERATED config-catalog:@anago-harness/subagent-pi -->
-
 <!-- BEGIN GENERATED config-catalog:@anago-harness/web-search-brave -->
 <a id="anago-harnessweb-search-brave"></a>
 
@@ -4425,7 +4318,7 @@ export interface Config {
 
 - `inject`: `tools` · `subagents` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.zh.md)
-- `source`: [`packages/subagent/tool-subagent/src/index.ts:51`](../packages/subagent/tool-subagent/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent/src/index.ts:62`](../packages/subagent/tool-subagent/src/index.ts)
 
 ```ts config-catalog
 /** Config: which registered provider this tool delegates to, plus child defaults. */
@@ -4450,6 +4343,12 @@ export interface Config extends PresetSelectionConfig {
    * as `agentOptions` to the provider.
    */
   providerOwnedRoute?: boolean
+  /**
+   * Resolve each call from the live purpose table. Adds `category`. Cannot
+   * combine with `providerOwnedRoute` or with `agentOptions` route fields
+   * (`maxTokens` may combine). Requires the settings service and a non-null table.
+   */
+  purposeRouting?: boolean
   /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */

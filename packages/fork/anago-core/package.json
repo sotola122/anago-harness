@@ -1,6 +1,6 @@
 {
   "name": "@anago-harness/anago-core",
-  "description": "Host capability layer for anago profiles: memory, wiki, response language, Cursor subagent, Exa and Brave search.",
+  "description": "Host capability layer for anago profiles: memory, wiki, response language, Exa and Brave search.",
   "version": "0.2.1-rc.2",
   "private": true,
   "type": "module",
@@ -34,11 +34,8 @@
     "@anago-harness/llm-wiki": "workspace:*",
     "@anago-harness/memory": "workspace:*",
     "@anago-harness/response-language": "workspace:*",
-    "@anago-harness/subagent-cursor": "workspace:*",
-    "@anago-harness/subagent-pi": "workspace:*",
     "@anago-harness/web-search-brave": "workspace:*",
     "@anago-harness/web-search-exa": "workspace:*",
-    "@deepseek-ai/dsh-tool-subagent": "workspace:*",
     "@deepseek-ai/dsh-web": "workspace:*"
   },
   "peerDependencies": {

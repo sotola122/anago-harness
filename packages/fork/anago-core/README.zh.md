@@ -1,5 +1,5 @@
 ---
-description: "anago 配置的主机能力层：记忆、LLM wiki、日语响应指令、Cursor 子代理，以及 Exa 与 Brave 搜索提供方。"
+description: "anago 配置的主机能力层：记忆、LLM wiki、日语响应指令，以及 Exa 与 Brave 搜索提供方。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-anago 配置的主机能力层：记忆、LLM wiki、日语响应指令、Cursor 子代理，以及 Exa 与 Brave 搜索提供方。 本包不携带运行时代码，其实质是 `cordis.patch.yml`，由 manifest 的 `dsh.bundle.patch` 字段声明。
+anago 配置的主机能力层：记忆、LLM wiki、日语响应指令，以及 Exa 与 Brave 搜索提供方。 本包不携带运行时代码，其实质是 `cordis.patch.yml`，由 manifest 的 `dsh.bundle.patch` 字段声明。
 
 ## 目录
 
@@ -32,8 +32,6 @@ anago 配置的主机能力层：记忆、LLM wiki、日语响应指令、Cursor
 | `memory` | `@anago-harness/memory` |
 | `llm-wiki` | `@anago-harness/llm-wiki` |
 | `response-language` | `@anago-harness/response-language` |
-| `subagent-cursor` | `@anago-harness/subagent-cursor` |
-| `tool-subagent-cursor` | `@deepseek-ai/dsh-tool-subagent` |
 | `web-search-exa` | `@anago-harness/web-search-exa` |
 | `web-search-brave` | `@anago-harness/web-search-brave` |
 

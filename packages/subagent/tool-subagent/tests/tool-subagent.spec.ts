@@ -727,7 +727,7 @@ describe('dsh-tool-subagent local activation', () => {
       { agent: parent },
     )
     expect(started.isError).toBe(false)
-    const match = /^started subagent (\S+)$/.exec(text(started))
+    const match = /^started subagent (\S+)/.exec(text(started))
     expect(match).not.toBeNull()
     const [, childId] = match!
     // No Task was created for the continuable child.
@@ -803,6 +803,8 @@ describe('dsh-tool-subagent local activation', () => {
     expect(succeeded.isError ? undefined : succeeded.value).toEqual({
       kind: 'activation',
       subagentId: survivingChildId,
+      provider: 'mock',
+      model: 'mock',
     })
     await vi.waitFor(() => {
       expect(ctx.agents.get(survivingChildId!)).toBeUndefined()

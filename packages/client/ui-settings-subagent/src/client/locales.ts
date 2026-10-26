@@ -20,6 +20,20 @@ export type SubagentSettingsLocaleKey =
   | 'subagentModelSelectionPartial' | 'subagentModelSelectionUnavailable'
   | 'subagentModelSelectionUnavailableGroup' | 'subagentModelSelectionEmpty'
   | 'subagentModelSelectionRequired' | 'subagentModelSelectionConflict' | 'subagentModelSelectionOff'
+  | 'purposeRoutes.title' | 'purposeRoutes.description' | 'purposeRoutes.appliesNextDelegation' | 'purposeRoutes.notConfigured'
+  | 'purposeRoutes.primary' | 'purposeRoutes.addReviewer' | 'purposeRoutes.removeReviewer'
+  | 'purposeRoutes.moveEarlier' | 'purposeRoutes.moveLater'
+  | 'purposeRoutes.provider' | 'purposeRoutes.model' | 'purposeRoutes.effort'
+  | 'purposeRoutes.chooseProvider' | 'purposeRoutes.chooseModel' | 'purposeRoutes.chooseEffort'
+  | 'purposeRoutes.slot.light.label' | 'purposeRoutes.slot.light.hint'
+  | 'purposeRoutes.slot.medium.label' | 'purposeRoutes.slot.medium.hint'
+  | 'purposeRoutes.slot.deep.label' | 'purposeRoutes.slot.deep.hint'
+  | 'purposeRoutes.slot.review.label' | 'purposeRoutes.slot.review.hint'
+  | 'purposeRoutes.slot.writing.label' | 'purposeRoutes.slot.writing.hint'
+  | 'purposeRoutes.slot.default.label' | 'purposeRoutes.slot.default.hint'
+  | 'purposeRoutes.errors.duplicateRoute' | 'purposeRoutes.errors.effortUnsupported'
+  | 'purposeRoutes.errors.missingRoute' | 'purposeRoutes.errors.extraRoute'
+  | 'purposeRoutes.warnings.providerUnavailable' | 'purposeRoutes.emptySlot'
 
 /** English copy. */
 export const en: Record<SubagentSettingsLocaleKey, string> = {
@@ -31,7 +45,7 @@ export const en: Record<SubagentSettingsLocaleKey, string> = {
   saving: 'Saving…',
   saveFailed: 'The deployment did not accept these values; they were left for you to correct.',
   subagentTitle: 'Subagent',
-  subagentDescription: 'Set Subagent recursion depth, count, and models.',
+  subagentDescription: 'Set Subagent recursion depth, count, models, and purpose routes.',
   subagentLimitsTitle: 'Limits',
   subagentMaxDepth: 'Maximum recursion depth',
   subagentDepthHelpLabel: 'About maximum recursion depth',
@@ -58,6 +72,39 @@ export const en: Record<SubagentSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: 'Select at least one model before saving.',
   subagentModelSelectionConflict: 'Settings changed elsewhere. Discard your draft and try again.',
   subagentModelSelectionOff: 'Subagents use configured defaults or inherit the parent agent\'s model. Saved model choices are retained.',
+  'purposeRoutes.title': 'Purpose routes',
+  'purposeRoutes.description': 'Model authorization still applies only to a newly composed session.',
+  'purposeRoutes.appliesNextDelegation': 'A saved table applies on the next delegation.',
+  'purposeRoutes.notConfigured': 'This deployment has no purpose routing table.',
+  'purposeRoutes.primary': 'Route',
+  'purposeRoutes.addReviewer': 'Add reviewer',
+  'purposeRoutes.removeReviewer': 'Remove reviewer',
+  'purposeRoutes.moveEarlier': 'Move earlier',
+  'purposeRoutes.moveLater': 'Move later',
+  'purposeRoutes.provider': 'Provider',
+  'purposeRoutes.model': 'Model',
+  'purposeRoutes.effort': 'Reasoning effort',
+  'purposeRoutes.chooseProvider': 'Choose a provider',
+  'purposeRoutes.chooseModel': 'Choose a model',
+  'purposeRoutes.chooseEffort': 'Choose an effort',
+  'purposeRoutes.slot.light.label': 'Light',
+  'purposeRoutes.slot.light.hint': 'Quick lookups, small edits, and short summaries.',
+  'purposeRoutes.slot.medium.label': 'Standard',
+  'purposeRoutes.slot.medium.hint': 'Ordinary implementation or investigation.',
+  'purposeRoutes.slot.deep.label': 'Deep',
+  'purposeRoutes.slot.deep.hint': 'Hard debugging, design, or long reasoning.',
+  'purposeRoutes.slot.review.label': 'Review',
+  'purposeRoutes.slot.review.hint': 'Independent review. Several reviewers can run together.',
+  'purposeRoutes.slot.writing.label': 'Writing',
+  'purposeRoutes.slot.writing.hint': 'Documentation, pull requests, issues, and other prose.',
+  'purposeRoutes.slot.default.label': 'Default',
+  'purposeRoutes.slot.default.hint': 'Used when a delegation does not name a purpose.',
+  'purposeRoutes.errors.duplicateRoute': 'This route is already listed for this purpose.',
+  'purposeRoutes.errors.effortUnsupported': 'This model does not offer that effort.',
+  'purposeRoutes.errors.missingRoute': 'Choose a provider, model, and effort.',
+  'purposeRoutes.errors.extraRoute': 'This purpose accepts one route.',
+  'purposeRoutes.warnings.providerUnavailable': 'Saved but currently unavailable. A later login can still use this route.',
+  'purposeRoutes.emptySlot': 'No route is set for this purpose.',
 }
 
 /** Simplified Chinese copy. */
@@ -70,7 +117,7 @@ export const zh: Record<SubagentSettingsLocaleKey, string> = {
   saving: '保存中…',
   saveFailed: '本部署没有接受这些值，已保留供你修改。',
   subagentTitle: '子智能体',
-  subagentDescription: '设置子智能体的递归层级、数量和模型。',
+  subagentDescription: '设置子智能体的递归层级、数量、模型和用途路由。',
   subagentLimitsTitle: '运行限制',
   subagentMaxDepth: '最大递归深度',
   subagentDepthHelpLabel: '最大递归深度说明',
@@ -97,6 +144,39 @@ export const zh: Record<SubagentSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: '保存前请至少选择一个模型。',
   subagentModelSelectionConflict: '设置已在其他位置更新。请放弃修改后重试。',
   subagentModelSelectionOff: '关闭后，子智能体使用配置的默认模型或继承父 Agent 的模型；已选模型会保留。',
+  'purposeRoutes.title': '用途路由',
+  'purposeRoutes.description': '模型授权仍只作用于新组成的会话',
+  'purposeRoutes.appliesNextDelegation': '保存后的路由表在下次委派时生效',
+  'purposeRoutes.notConfigured': '本部署没有用途路由表',
+  'purposeRoutes.primary': '路由',
+  'purposeRoutes.addReviewer': '添加审阅者',
+  'purposeRoutes.removeReviewer': '移除审阅者',
+  'purposeRoutes.moveEarlier': '上移',
+  'purposeRoutes.moveLater': '下移',
+  'purposeRoutes.provider': '提供方',
+  'purposeRoutes.model': '模型',
+  'purposeRoutes.effort': '推理强度',
+  'purposeRoutes.chooseProvider': '选择提供方',
+  'purposeRoutes.chooseModel': '选择模型',
+  'purposeRoutes.chooseEffort': '选择推理强度',
+  'purposeRoutes.slot.light.label': '轻量',
+  'purposeRoutes.slot.light.hint': '快速查找、小改动和短摘要',
+  'purposeRoutes.slot.medium.label': '标准',
+  'purposeRoutes.slot.medium.hint': '常规实现或调查',
+  'purposeRoutes.slot.deep.label': '深入',
+  'purposeRoutes.slot.deep.hint': '困难调试、设计或长推理',
+  'purposeRoutes.slot.review.label': '审阅',
+  'purposeRoutes.slot.review.hint': '独立审阅，可以同时启动多名审阅者',
+  'purposeRoutes.slot.writing.label': '写作',
+  'purposeRoutes.slot.writing.hint': '文档、拉取请求、议题和其他面向读者的文字',
+  'purposeRoutes.slot.default.label': '默认',
+  'purposeRoutes.slot.default.hint': '委派未指定用途时使用',
+  'purposeRoutes.errors.duplicateRoute': '同一用途中已有这条路由',
+  'purposeRoutes.errors.effortUnsupported': '所选模型不提供这个推理强度',
+  'purposeRoutes.errors.missingRoute': '请选择提供方、模型和推理强度',
+  'purposeRoutes.errors.extraRoute': '此用途只能有一条路由',
+  'purposeRoutes.warnings.providerUnavailable': '已保存但当前不可用，登录后仍可使用',
+  'purposeRoutes.emptySlot': '此用途还没有路由',
 }
 
 /**

@@ -8,6 +8,11 @@ import {
   assertAllowedModelRoutes,
   type AllowedModelRoute,
 } from './model-selection.ts'
+import {
+  PurposeRouteTableSchema,
+  purposeTableFromStored,
+} from './purpose-routing.ts'
+import type { PurposeRouteTable, StoredPurposeRouteTable } from './purpose-routing.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -30,6 +35,11 @@ export interface Config {
   enabled: Volatile<boolean>
   /** Initial route list inherited when the user document does not override it. */
   allowedModels: Volatile<AllowedModelRoute[]>
+  /**
+   * Purpose routing table read at every delegation; null when this deployment has none.
+   * Efforts are stored as strings because a branded id does not survive a volatile snapshot.
+   */
+  purposeRoutes: Volatile<StoredPurposeRouteTable | null>
 }
 
 /** Singleton settings owner read when delegation tools are composed for a Session. */
@@ -37,10 +47,13 @@ export class SubagentModelSelectionConfig extends Service {
   static Config = z.object({
     enabled: z.boolean().default(false).volatile(),
     allowedModels: z.array(AllowedModelRouteSchema).default([]).volatile(),
+    purposeRoutes: z.union([PurposeRouteTableSchema, z.const(null)]).default(null).volatile(),
   })
 
   constructor(ctx: Context, private config: Config) {
     super(ctx, 'subagentModelSelection')
+    const table = readPurposeRoutes(this.config)
+    if (table !== null) purposeTableFromStored(table)
   }
 
   /**
@@ -57,7 +70,32 @@ export class SubagentModelSelectionConfig extends Service {
     return { enabled, allowedModels: allowedModels.map(route => ({ ...route })) }
   }
 
+  /**
+   * Read a detached copy of the current purpose routing table.
+   * @returns the validated table, or null when none is configured.
+   * @throws when a configured table is empty, has an extra non-review route, or repeats a triple.
+   */
+  purposeRoutes(): PurposeRouteTable | null {
+    const table = readPurposeRoutes(this.config)
+    if (table === null) return null
+    return purposeTableFromStored(table)
+  }
+
 }
+
+/**
+ * Read the live table. A direct `plugin()` call can omit the field; that is the null default.
+ * @param config - settings plugin config.
+ * @returns the current table, or null when none is configured.
+ */
+function readPurposeRoutes(config: Config): StoredPurposeRouteTable | null {
+  const field = config.purposeRoutes
+  if (field === undefined) return null
+  return field.get() ?? null
+}
+
+export type { PurposeCategory, PurposeRoute, PurposeRouteSlot, PurposeRouteTable } from './purpose-routing.ts'
+export { PURPOSE_CATEGORIES, PURPOSE_ROUTE_SLOTS, assertPurposeRouteTable } from './purpose-routing.ts'
 
 export const name = 'subagent-model-selection-settings'
 export default SubagentModelSelectionConfig

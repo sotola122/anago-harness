@@ -48,6 +48,7 @@ kind: "package-reference"
 | `toolName` | `subagent` | 面向模型的工具名称；每个已加载实例必须不同 |
 | `modelSelectionSettings` | `false` | 为每个顶层 Session 读取宿主的精确路由授权偏好；常驻 preset 观察匹配 Session，直接 Agent setup 则显式传入其 Session；要求提供方支持 `agentOptions` |
 | `providerOwnedRoute` | `false` | 本 fork 扩展：由提供方按自己的命名空间解释 `provider` / `model` / `reasoning_effort`；工具公开三个相互独立的可选字段，跳过宿主模型选择策略与 DSH LLM 目录预检，并以 `agentOptions` 转发 |
+| `purposeRouting` | `false` | 为 true 时，调用可传入 `category`，运行时在该次调用从实时用途表解析子级路由。要求设置服务、非 null 的表，以及提供方支持 `agentOptions`。不能与 `providerOwnedRoute` 或 `agentOptions` 的 `provider`、`model`、`reasoningEffort` 同时配置；`maxTokens` 可以同时配置 |
 | `agentOptions` | — | 配置的子级 `provider`、`model`、适配器所有的 `reasoningEffort` 与正整数 `maxTokens` 默认值；要求提供方支持 `agentOptions`，并会覆盖提供方持有的路由默认值 |
 | `agentPreset` | — | 独立子级 preset 的默认 id；要求进程内 spawn |
 | `allowedAgentPresets` | — | 非空 preset-id 白名单，作为模型可选的 `agent_preset` 枚举；与 `agentPreset` 同时配置时必须包含后者 |
@@ -57,7 +58,7 @@ kind: "package-reference"
 
 ### 受管理的委派
 
-运行时接受子任务后，每次调用都会返回 `started subagent <childId>`，不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
+运行时接受子任务后，每次调用都会返回 `started subagent <childId>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。它不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
 
 所有后端的完成通知都会附带最终回答。本地 Spawn 和 Fork 子任务还可以发送消息，在活跃期间通过 `send_message` 接受更多工作，或在结束后恢复。Codex、Claude Code、ACP 与 DSH SDK 后端不接受后续消息。
 
@@ -77,6 +78,10 @@ kind: "package-reference"
 设置 `modelSelectionSettings: true`，即可在组合每个全新顶层 Session 时读取宿主的 `subagent-model-selection` 偏好。没有已记录策略的恢复 Session 会保持禁用，包括显式为空的恢复。启用后，非空的精确 provider/model 路由列表会记录进 Session、由子 Session 继承，后续设置编辑不会改变它。工具随后公开可选的 `provider`、`model` 与 `reasoning_effort` 字段，并注册共享的 `list_subagent_models` 工具。此模式要求后端声明 `agentOptions`；两个进程内后端和 DSH SDK 支持该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
 
 一次调用需同时提供 `provider` 与 `model`；当配置值、父 agent 值或提供方持有的默认值能提供路由时，也可只提供推理等级。静态的 `provider.agentRouteDefaults` 在存在时构成提供方／模型基线；工具配置与模型字段会在路由相关强度合并和确切路由预检前覆盖它。没有这些默认值的提供方会使用父 agent 最新已记录请求中的兼容值，再使用父级首次请求前的创建选项，并保留配置的 `maxTokens`。更改路由但未显式提供推理等级时，会清除继承的路由自有等级，使所选模型解析自己的默认值。实时 LLM 适配器在创建子 agent 前校验有效路由。目录成员资格只提供建议，因此适配器接受时，模型可以使用未列出的 id。
+
+设置 `purposeRouting: true` 后，调用可传入 `category`，而不必写出提供方和模型。`light` 用于快速查找、小的机械性修改和短摘要。`medium` 用于普通实现或调查。`deep` 用于困难调试、设计或长的多步推理。`review` 按表中顺序为该行的每条路由启动一个子级，并返回 `subagentIds` 与 `notStarted`。`writing` 用于文档、PR 或 issue 文本、翻译和面向用户的文字。省略 `category` 时使用表中的 `default` 行。其他类别恰好启动一个子级。
+
+设置行保存 `purposeRoutes`，这是一张默认为 `null` 的易变表。`light`、`medium`、`deep`、`writing` 和 `default` 各保存一条路由，且必须带 `reasoningEffort`。`review` 保存一条或多条。缺少某一行时 schema 校验失败。空列表、非 review 行上的第二条路由，或重复的提供方／模型／推理强度三元组，会在读取表时失败。运行时在每次委派时读取该表，因此编辑只影响下一次调用，不影响进行中的调用。显式的 `provider` / `model` / `reasoning_effort` 选择，包括只指定推理强度、并使用 `default` 行的提供方和模型的选择，仍检查 Session 的 `allowedModels` 列表。类别路由跳过该列表，但仍执行适配器预检。类别路由失败时，面向模型的错误不包含提供方和模型名称；`subagent/purpose-route` 事件保留原因。类别枚举是静态的，因此编辑表不会改变提示词前缀。工具文本要求父级在任务失败后用同一个 `category` 再委派一次；运行时不强制该次数。
 
 -----
 
@@ -98,7 +103,7 @@ kind: "package-reference"
 
 ### 结果确认
 
-规范工具结果为 `{ kind: 'activation', subagentId }`。其中没有执行 Promise 或最终输出；需要等待结果的程序调用方直接使用 subagent 服务。
+规范工具结果为 `{ kind: 'activation', subagentId }`。`review` 调用还会返回 `subagentIds` 与 `notStarted`。其中没有执行 Promise 或最终输出；需要等待结果的程序调用方直接使用 subagent 服务。
 
 ### 随上下文变化的措辞
 
@@ -110,7 +115,8 @@ kind: "package-reference"
 |---|---|
 | [`src/index.ts`](src/index.ts) | 工具注册、提供方生命周期镜像、activation 请求 |
 | [`src/preset-selection.ts`](src/preset-selection.ts) | 配置的 preset 校验、模型白名单与描述引导 |
-| [`src/model-selection.ts`](src/model-selection.ts) | 请求／配置合并与实时 LLM 路由预检 |
+| [`src/model-selection.ts`](src/model-selection.ts) | 请求／配置合并、用途路由解析与实时 LLM 路由预检 |
+| [`src/purpose-routing.ts`](src/purpose-routing.ts) | 用途标签、路由表检查，以及 `subagent/purpose-route` 事件 |
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | 为新 Session 读取的宿主所有 opt-in 设置 |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | 记录并继承已读取决定的 Session 事件 |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` 运行时发现工具 |
@@ -139,11 +145,11 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-提供方存在时，以配置的工具名称公开生成的默认 [`subagent` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent)。启用的 Session 策略会添加 `provider`、`model`、`reasoning_effort` 和路由指引；后端必须支持 `agentOptions`。`allowedAgentPresets` 增加 `agent_preset` 枚举和来自 preset 显示描述的引导。上下文继承和继续执行能力决定任务与后续消息的描述。工具限制会同时移除 schema 及其 `tool:<toolName>` 指引 section。
+提供方存在时，以配置的工具名称公开生成的默认 [`subagent` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent)。启用的 Session 策略会添加 `provider`、`model`、`reasoning_effort` 和路由指引；后端必须支持 `agentOptions`。`purposeRouting: true` 的实例还会增加可选的 `category` 和一句重试说明；这段文字不写出提供方或模型。`allowedAgentPresets` 增加 `agent_preset` 枚举和来自 preset 显示描述的引导。上下文继承和继续执行能力决定任务与后续消息的描述。工具限制会同时移除 schema 及其 `tool:<toolName>` 指引 section。
 
 #### Token 影响
 
-每个父级请求支付固定的 schema 成本；LLM 选择增加三个参数，preset 选择增加一个枚举参数和 preset 描述。每个工具实例增加一个 schema 和一个简短的系统提示词 section。
+每个父级请求支付固定的 schema 成本；LLM 选择增加三个参数，preset 选择增加一个枚举参数和 preset 描述。用途路由增加一个枚举参数和一句描述；编辑表不会改变该前缀。每个工具实例增加一个 schema 和一个简短的系统提示词 section。
 
 #### KV Cache 影响
 
@@ -207,7 +213,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 
 #### 模型看到什么
 
-调用保留任务描述与提示词。成功返回 `started subagent <childId>`；启动被拒绝则返回错误。子任务执行详情独立于这条确认交付。
+调用保留任务描述与提示词。成功返回 `started subagent <childId>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。启动被拒绝则返回错误。规范值还带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。启动了多个子级、或有评审者未能启动的 review，返回 `started N subagents: <ids>`，并在需要时附上 `; M reviewer could not start`，然后为每个已启动的子级另起一行 `started subagent <id> · <model> · <effort>`。规范值的 `children` 列表包含未能启动的评审者及其路由，且没有 id。子任务执行详情独立于这条确认交付。
 
 #### Token 影响
 
@@ -241,6 +247,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 - **本工具不等待结果**——使用完成通知或子任务消息。程序化结果等待由 subagent 服务提供。
 - **随附 fork 工具不能选择子级 LLM 路由**——它们继承父级提供方与模型，使复制的对话前缀仍有资格复用 KV Cache。仅当路由变更能保留复用或公开有界重算成本时，才重新启用选择。
 - **深度上限按实例固定**——不同名称的工具可设置不同上限。LLM 选择要求启用逐 Session 偏好，且提供方必须声明 `agentOptions`；两个进程内提供方和 DSH SDK 会声明该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
+- **同类别重试不受强制**——工具文本要求父级在任务失败后用同一个 `category` 再委派一次；失败调用省略了 `category` 时，再次省略它。运行时无法判断后来的调用是否是同一任务。
 
 <a id="dev-note"></a>
 ### 开发备注

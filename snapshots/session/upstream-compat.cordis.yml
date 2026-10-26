@@ -14,20 +14,6 @@
 - id: response-language
   disabled: true
 
-- id: subagent-cursor
-  disabled: true
-
-- id: tool-subagent-cursor
-  disabled: true
-
-# Upstream pins predate the Pi provider; the fork bundles add it to every
-# headless template, so the compat layer removes it again.
-- id: subagent-pi
-  disabled: true
-
-- id: tool-subagent-pi
-  disabled: true
-
 - id: web-search-exa
   disabled: true
 

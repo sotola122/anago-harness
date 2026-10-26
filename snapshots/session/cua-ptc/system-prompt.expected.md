@@ -180,7 +180,7 @@ interface ToolArgsMap {
     /** Max wait in milliseconds with wait: true. Defaults to and is capped by configuration. */
     timeout_ms?: number;
   } & Record<string, JsonValue>;
-  /** List subagents you started, with their ids, labels, and status. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation. */
+  /** List subagents you started, with their ids, labels, status, and recorded provider, model, and reasoning effort. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation. */
   list_agents: {
     /** children (default) lists direct children, which accept send_message in any status. descendants lists the whole tree below you with each entry's parent session id and depth; entries deeper than 1 accept only interrupt_agent. */
     scope?: "children" | "descendants";
@@ -444,6 +444,9 @@ interface ToolOutputMap {
     id: string;
     label: string;
     status: "running" | "inactive";
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
     parent?: string;
     depth?: number;
   } | {
@@ -500,10 +503,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     subagentId: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     subagentId: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   todo_write: {
     todos: ({

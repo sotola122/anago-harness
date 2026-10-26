@@ -63,7 +63,7 @@ export interface SubagentModelSelectionCardFace {
   /** Retry the adapter directory. */
   retryCatalog: () => void
   /** Persist the switch and exact routes as one revision-fenced mutation. */
-  save: () => void
+  save: () => Promise<void>
   /** Drop the staged enabled state and route choices. */
   discard: () => void
 }
@@ -131,6 +131,9 @@ export class SubagentModelSelectionCardController {
   private draftEnabled: boolean | undefined
   private draftRoutes: Map<string, AllowedSubagentModel> | undefined
   private draftRevision: number | undefined
+  /** Own fields when the draft started. A sibling write on this form does not invalidate it. */
+  private baselineEnabled = false
+  private baselineRoutes: AllowedSubagentModel[] = []
   private saving = false
   private failed = false
   private conflicted = false
@@ -151,12 +154,7 @@ export class SubagentModelSelectionCardController {
   ) {
     this.store = createSnapshotStore(this.projection())
     this.unsubscribe = scope.subscribe(() => {
-      if (!this.saving && this.draftRoutes !== undefined
-        && this.scope.getSnapshot().revision !== this.draftRevision) {
-        if (this.currentEnabled() === this.enabled()
-          && sameRoutes(this.currentRoutes(), this.desiredRoutes())) this.clearDraft()
-        else this.conflicted = true
-      }
+      this.noteRevision()
       if (this.enabled() && this.catalogStatus === 'idle') void this.loadCatalog()
       this.publish()
     })
@@ -181,7 +179,7 @@ export class SubagentModelSelectionCardController {
       toggleEnabled: () => { this.toggleEnabled() },
       toggleModel: (key) => { this.toggleModel(key) },
       retryCatalog: () => { void this.loadCatalog() },
-      save: () => { void this.save() },
+      save: () => this.save(),
       discard: () => { this.discard() },
     }
   }
@@ -205,13 +203,32 @@ export class SubagentModelSelectionCardController {
   private beginDraft(): Map<string, AllowedSubagentModel> {
     if (this.draftRoutes === undefined) {
       const snapshot = this.scope.getSnapshot()
-      this.draftEnabled = snapshot.value?.enabled ?? false
-      this.draftRoutes = new Map(
-        snapshot.value?.allowedModels.map(route => [subagentModelKey(route), { ...route }]) ?? [],
-      )
+      this.baselineEnabled = snapshot.value?.enabled ?? false
+      this.baselineRoutes = snapshot.value?.allowedModels.map(route => ({ ...route })) ?? []
+      this.draftEnabled = this.baselineEnabled
+      this.draftRoutes = new Map(this.baselineRoutes.map(route => [subagentModelKey(route), { ...route }]))
       this.draftRevision = snapshot.revision
     }
     return this.draftRoutes
+  }
+
+  /**
+   * A revision that lands this draft clears it. A revision that leaves these
+   * fields untouched advances the fence so a sibling field write can commit.
+   */
+  private noteRevision(): void {
+    if (this.saving || this.draftRoutes === undefined) return
+    if (this.scope.getSnapshot().revision === this.draftRevision) return
+    if (this.currentEnabled() === this.enabled() && sameRoutes(this.currentRoutes(), this.desiredRoutes())) {
+      this.clearDraft()
+      return
+    }
+    if (this.currentEnabled() === this.baselineEnabled && sameRoutes(this.currentRoutes(), this.baselineRoutes)) {
+      this.draftRevision = this.scope.getSnapshot().revision
+      this.conflicted = false
+      return
+    }
+    this.conflicted = true
   }
 
   private toggleEnabled(): void {
@@ -239,6 +256,7 @@ export class SubagentModelSelectionCardController {
     this.draftEnabled = undefined
     this.draftRoutes = undefined
     this.draftRevision = undefined
+    this.baselineRoutes = []
     this.failed = false
     this.conflicted = false
   }

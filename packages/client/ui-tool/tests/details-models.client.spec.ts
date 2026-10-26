@@ -17,11 +17,12 @@ import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 
 const t = makeTranslate(en, commonEn)
 
-function output(name: string, text: string, args: Record<string, unknown> = {}): ToolResultNode {
+function output(name: string, text: string, args: Record<string, unknown> = {}, meta?: unknown): ToolResultNode {
   return {
     kind: 'tool-result', seq: 10, time: 2_000, callTime: 1_000, callId: `${name}-1`,
     name, args: PartialArguments.fromText(JSON.stringify(args)),
     call: { name, argsRaw: JSON.stringify(args) }, content: [{ type: 'text', text }], isError: false, subCalls: [],
+    ...meta === undefined ? {} : { meta },
   }
 }
 
@@ -61,6 +62,9 @@ describe('control detail adapters', () => {
   ] as const)('names subagents in Chinese wait results (%j)', (value, summary) => {
     const translate = makeTranslate(zh, commonZh)
     expect(translate('tool.title.waitAgent')).toBe('等待子智能体')
+    expect(translate('detail.agent.started', { id: 'a' })).toBe('已启动子智能体 a')
+    expect(translate('detail.agent.notStarted')).toBe('未能启动')
+    expect(translate('detail.field.reasoningEffort')).toBe('推理强度')
     expect(detailsCardModel(output('wait_agent', JSON.stringify(value)), translate, 'zh-CN')?.summary).toBe(summary)
   })
 
@@ -94,6 +98,32 @@ describe('control detail adapters', () => {
     expect(details('wait_agent', '{"timedOut":true}')?.summary).toBe('Subagent activity · Wait timed out')
     expect(details('wait_agent', '{"timedOut":false,"noProgress":{"message":"No peer"}}')?.items[0]?.description).toBe('No peer')
     expect(details('subagent', 'started background subagent job job-1', { prompt: 'Do work' })?.items[0]?.fields).toContainEqual({ label: 'Job ID', value: 'job-1' })
+    const started = details('subagent', 'started subagent child-1 · grok-4.7 · high', { prompt: 'Do work' })
+    expect(started?.summary).toBe('started subagent child-1 · grok-4.7 · high')
+    expect(started?.items[0]?.fields).toEqual([
+      { label: 'Agent ID', value: 'child-1' },
+      { label: 'Model', value: 'grok-4.7' },
+      { label: 'Reasoning effort', value: 'high' },
+    ])
+    const fanOut = detailsCardModel(output('subagent', 'started 2 subagents: a, b', { prompt: 'Review' }, {
+      subagentId: 'a',
+      children: [
+        { subagentId: 'a', provider: 'xai', model: 'grok-4.7', reasoningEffort: 'high' },
+        { provider: 'xai', model: 'grok-4', reasoningEffort: 'low' },
+      ],
+    }), t, 'en')
+    expect(fanOut?.summary).toBe('started 1 subagents')
+    expect(fanOut?.items.map(item => item.title)).toEqual([
+      'started subagent a · grok-4.7 · high',
+      'could not start',
+    ])
+    expect(fanOut?.items[1]?.fields).toContainEqual({ label: 'Model', value: 'grok-4' })
+    const listed = details('list_agents', 'a1 [running] provider=xai model=grok-4.7 effort=high — Build')
+    expect(listed?.items[0]?.fields).toEqual([
+      { label: 'Provider', value: 'xai' },
+      { label: 'Model', value: 'grok-4.7' },
+      { label: 'Reasoning effort', value: 'high' },
+    ])
     expect(details('subagent', 'A useful reply', { prompt: 'Do work' })?.items[0]?.markdown).toBe('A useful reply')
     expect(details('list_subagent_models', 'deepseek-chat — Fast\nunknown', { model: 'deepseek-chat' })?.items).toHaveLength(2)
     expect(details('job_kill', 'requested cancellation of job j1', { job_id: 'j1', reason: 'stop' })?.summary).toContain('Cancellation requested')

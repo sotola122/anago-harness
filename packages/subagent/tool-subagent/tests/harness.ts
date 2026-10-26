@@ -10,6 +10,7 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import * as mock from './scripted-provider.ts'
 import * as tool from '../src/index.ts'
 import SubagentModelSelectionConfig from '../src/model-selection-settings.ts'
+import type { PurposeRouteTable } from '../src/purpose-routing.ts'
 
 const contexts = new Set<Context>()
 afterEach(async () => {
@@ -35,6 +36,7 @@ let setupAgentCounter = 0
 type SetupConfig = tool.Config & {
   withModelSelection?: boolean
   parentAgentOptions?: AgentOptions
+  purposeRoutes?: PurposeRouteTable | null
 }
 
 const TEST_ALLOWED_MODELS = [
@@ -48,12 +50,22 @@ const TEST_ALLOWED_MODELS = [
 
 export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Config> = {}): Promise<Context> {
   const ctx = ownContext(new Context())
-  const { withModelSelection, parentAgentOptions, ...config } = toolConfig
-  if (withModelSelection === true) {
+  const { withModelSelection, parentAgentOptions, purposeRoutes, ...config } = toolConfig
+  if (withModelSelection === true || purposeRoutes !== undefined) {
     await ctx.plugin(SubagentModelSelectionConfig, {
-      enabled: true,
-      allowedModels: TEST_ALLOWED_MODELS,
+      enabled: withModelSelection === true,
+      allowedModels: withModelSelection === true ? TEST_ALLOWED_MODELS : [],
+      ...purposeRoutes !== undefined ? { purposeRoutes: purposeRoutes === null ? null : {
+        light: purposeRoutes.light.map(route => ({ ...route })),
+        medium: purposeRoutes.medium.map(route => ({ ...route })),
+        deep: purposeRoutes.deep.map(route => ({ ...route })),
+        review: purposeRoutes.review.map(route => ({ ...route })),
+        writing: purposeRoutes.writing.map(route => ({ ...route })),
+        default: purposeRoutes.default.map(route => ({ ...route })),
+      } } : {},
     })
+  }
+  if (withModelSelection === true) {
     await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(AgentLoop, { agents: [] })
     await mountWorkingDirectoryFixture(ctx)

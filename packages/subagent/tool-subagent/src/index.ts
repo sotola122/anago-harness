@@ -13,13 +13,14 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SessionSeq } from '@deepseek-ai/dsh-session'
-import type { Session } from '@deepseek-ai/dsh-session'
+import type { Session, SessionId } from '@deepseek-ai/dsh-session'
 import {
   assertSubagentMaxDepth,
   delegationDepthOf,
   parentAgentOptionsForDelegation,
+  resolveChildAgentOptions,
 } from '@deepseek-ai/dsh-subagent'
 import type { SubagentProvider } from '@deepseek-ai/dsh-subagent'
 import {
@@ -29,8 +30,18 @@ import {
   preflightChildLlmRoute,
   providerOwnedAgentOptions,
   requestedAgentOptions,
+  resolveChildRoutes,
 } from './model-selection.ts'
-import type { DelegationModelRequest, ModelSelectionPolicy } from './model-selection.ts'
+import type { ChildRouteResolution, DelegationModelRequest, ModelSelectionPolicy, ResolvedChildRoute } from './model-selection.ts'
+import {
+  CATEGORY_EXCLUSIVITY_SUFFIX,
+  isFanOutSlot,
+  PURPOSE_CATEGORIES,
+  PURPOSE_CATEGORY_DESCRIPTION,
+  PURPOSE_TOOL_SENTENCE,
+  purposeUnavailableError,
+} from './purpose-routing.ts'
+import type { PurposeRouteSlot } from './purpose-routing.ts'
 import { registerListSubagentModels } from './list-models.ts'
 import { SubagentPresetSelection, type PresetSelectionConfig, type PresetSelectionRequest } from './preset-selection.ts'
 import type {} from './model-selection-settings.ts'
@@ -70,6 +81,12 @@ export interface Config extends PresetSelectionConfig {
    */
   providerOwnedRoute?: boolean
   /**
+   * Resolve each call from the live purpose table. Adds `category`. Cannot
+   * combine with `providerOwnedRoute` or with `agentOptions` route fields
+   * (`maxTokens` may combine). Requires the settings service and a non-null table.
+   */
+  purposeRouting?: boolean
+  /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */
   agentOptions?: AgentOptions
@@ -91,6 +108,7 @@ export const Config: z<Config> = z.object({
   toolName: z.string().default('subagent'),
   modelSelectionSettings: z.boolean().default(false),
   providerOwnedRoute: z.boolean().default(false),
+  purposeRouting: z.boolean().default(false),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
   agentOptions: z.object({
     provider: z.string(),
@@ -146,6 +164,276 @@ function providerWording(inheritsConversation: boolean): { description: string; 
   }
 }
 
+/** Read `category` from tool arguments, including a call whose schema does not declare it. */
+function categoryArgument(args: { category?: unknown }): string | undefined {
+  if (args.category === undefined) return undefined
+  return typeof args.category === 'string' ? args.category : ''
+}
+
+/** Text of a thrown value, kept for the log and the `not-started` event. */
+function failureReason(error: unknown): string {
+  return error instanceof Error && error.message.length > 0 ? error.message : String(error)
+}
+
+/** Whether a failure is the caller's abort rather than a route failure. */
+function isAbort(error: unknown, signal: AbortSignal): boolean {
+  return signal.aborted || (error instanceof Error && error.name === 'AbortError')
+}
+
+/** Provider, model, and reasoning effort a call actually passed to one child. */
+interface UsedRoute {
+  provider?: string
+  model?: string
+  reasoningEffort?: string
+}
+
+/** One attempted child. `subagentId` is absent when that reviewer did not start. */
+interface ActivationChild extends UsedRoute {
+  subagentId?: string
+}
+
+/** Result fields a delegation call may return. Review fan-out adds the list fields. */
+interface ActivationResult extends UsedRoute {
+  kind: 'activation'
+  subagentId: string
+  subagentIds?: string[]
+  notStarted?: number
+  /** Present for a review fan-out, in attempt order, including reviewers that did not start. */
+  children?: ActivationChild[]
+}
+
+/**
+ * Effective route the child runtime stamps from the parent plus this call's options.
+ * @param parent - delegating parent whose route supplies omitted fields.
+ * @param requested - per-child options passed to `startActivation`, if any.
+ * @returns only the provider, model, and reasoning effort that were resolved.
+ */
+function usedRoute(parent: Agent, requested: AgentOptions | undefined): UsedRoute {
+  const resolved = resolveChildAgentOptions(parent, requested, delegationDepthOf(parent) + 1)
+  return {
+    ...resolved.provider !== undefined ? { provider: resolved.provider } : {},
+    ...resolved.model !== undefined ? { model: resolved.model } : {},
+    ...resolved.reasoningEffort !== undefined ? { reasoningEffort: resolved.reasoningEffort } : {},
+  }
+}
+
+/** Compact model and effort suffix. Provider stays in the structured result. */
+function routeSuffix(route: UsedRoute): string {
+  // shortcut: model and effort tokens cannot contain spaces, upgrade if an id can.
+  const parts = [route.model, route.reasoningEffort].filter((part): part is string => part !== undefined && part !== '')
+  return parts.length === 0 ? '' : ` · ${parts.join(' · ')}`
+}
+
+/** Model-facing text for one activation result, including a partial review fan-out. */
+function renderActivation(value: ActivationResult): ContentBlock[] {
+  const children = value.children
+  const notStarted = value.notStarted ?? 0
+  if (children !== undefined && (children.length > 1 || notStarted > 0)) {
+    const ids = value.subagentIds ?? children.flatMap(child => child.subagentId === undefined ? [] : [child.subagentId])
+    const noun = ids.length === 1 ? 'subagent' : 'subagents'
+    let text = `started ${ids.length} ${noun}: ${ids.join(', ')}`
+    if (notStarted > 0) {
+      text += `; ${notStarted} ${notStarted === 1 ? 'reviewer' : 'reviewers'} could not start`
+    }
+    // Failed reviewer names stay off this text; the structured result still carries their routes.
+    const lines = children.flatMap(child => child.subagentId === undefined
+      ? []
+      : [`started subagent ${child.subagentId}${routeSuffix(child)}`])
+    return [{ type: 'text', text: [text, ...lines].join('\n') }]
+  }
+  return [{ type: 'text', text: `started subagent ${value.subagentId}${routeSuffix(value)}` }]
+}
+
+/** Replayable route facts for the Web card. Failed reviewers stay here, not in model-facing text. */
+function activationMeta(value: ActivationResult) {
+  return {
+    subagentId: value.subagentId,
+    ...value.provider !== undefined ? { provider: value.provider } : {},
+    ...value.model !== undefined ? { model: value.model } : {},
+    ...value.reasoningEffort !== undefined ? { reasoningEffort: value.reasoningEffort } : {},
+    ...value.subagentIds !== undefined ? { subagentIds: [...value.subagentIds] } : {},
+    ...value.notStarted !== undefined ? { notStarted: value.notStarted } : {},
+    ...value.children !== undefined ? {
+      children: value.children.map(child => ({
+        ...child.subagentId !== undefined ? { subagentId: child.subagentId } : {},
+        ...child.provider !== undefined ? { provider: child.provider } : {},
+        ...child.model !== undefined ? { model: child.model } : {},
+        ...child.reasoningEffort !== undefined ? { reasoningEffort: child.reasoningEffort } : {},
+      })),
+    } : {},
+  }
+}
+
+/**
+ * Preflight and start the children {@link resolveChildRoutes} selected.
+ * A purpose selection skips the allowlist, records each outcome, and fans out `review`.
+ * Abort stops children already started via `subagents.interrupt`.
+ */
+async function startResolvedChildren(input: {
+  runtimeCtx: Context
+  parent: Agent
+  signal: AbortSignal
+  callId: ToolCallId
+  providerName: string
+  subagentProvider: SubagentProvider
+  resolution: ChildRouteResolution
+  categoryOmitted: boolean
+  parentOptions: AgentOptions
+  policy: ModelSelectionPolicy | undefined
+  modelRequest: DelegationModelRequest
+  label: string
+  prompt: ContentBlock[]
+  cwd?: string
+  agentPreset?: string
+  maxDepth?: number
+}): Promise<ActivationResult> {
+  const {
+    runtimeCtx, parent, signal, callId, providerName, subagentProvider, resolution,
+    categoryOmitted, parentOptions, policy, modelRequest, label, prompt, cwd, agentPreset, maxDepth,
+  } = input
+  const slot: PurposeRouteSlot | undefined = resolution.source.kind === 'purpose' ? resolution.source.slot : undefined
+  const fanOut = slot !== undefined && isFanOutSlot(slot)
+
+  if (resolution.enforceAllowlist) {
+    assertAllowedModelSelection(policy, parentOptions, resolution.children[0]?.options, modelRequest)
+  }
+
+  const ordered: ActivationChild[] = []
+  const pending: Array<{ child: ResolvedChildRoute; index: number }> = []
+  let notStarted = 0
+  const queue = (child: ResolvedChildRoute, failed: boolean): void => {
+    const index = ordered.length
+    ordered.push(usedRoute(parent, child.options))
+    if (failed) notStarted += 1
+    else pending.push({ child, index })
+  }
+  if (slot !== undefined) {
+    const llm = runtimeCtx.get('llm')
+    for (const child of resolution.children) {
+      signal.throwIfAborted()
+      const route = child.route
+      if (route === undefined) continue
+      try {
+        if (llm === undefined) {
+          throw new Error('cannot resolve the selected child LLM route because the `llm` service is unavailable')
+        }
+        await preflightChildLlmRoute(llm, parentOptions, child.options, signal, false)
+        queue(child, false)
+      } catch (error) {
+        if (isAbort(error, signal)) throw error
+        queue(child, true)
+        recordPurposeOutcome(runtimeCtx, parent, callId, slot, route, failureReason(error))
+      }
+    }
+    if (pending.length === 0) throw purposeUnavailableError(slot, categoryOmitted)
+  } else {
+    const child = resolution.children[0]
+    const llm = runtimeCtx.get('llm')
+    if (llm === undefined) {
+      throw new Error('cannot resolve the selected child LLM route because the `llm` service is unavailable')
+    }
+    await preflightChildLlmRoute(llm, parentOptions, child?.options, signal, false)
+    if (child !== undefined) queue(child, false)
+  }
+
+  if (runtimeCtx.subagents.getProvider(providerName) !== subagentProvider) {
+    throw new Error(`subagent provider "${providerName}" changed while resolving the child LLM route; retry the delegation`)
+  }
+
+  const startedIds: SessionId[] = []
+  try {
+    for (const item of pending) {
+      const child = item.child
+      signal.throwIfAborted()
+      try {
+        const started = await runtimeCtx.subagents.startActivation({
+          provider: providerName,
+          label,
+          request: {
+            prompt,
+            parent,
+            ...cwd === undefined ? {} : { cwd },
+            ...agentPreset === undefined ? {} : { agentPreset },
+            ...child.options !== undefined ? { agentOptions: child.options } : {},
+            ...maxDepth !== undefined ? { maxDepth } : {},
+          },
+          signal,
+          delivery: 'parent',
+        })
+        startedIds.push(started.childId)
+        const placed = ordered[item.index]
+        if (placed !== undefined) ordered[item.index] = { ...placed, subagentId: started.childId }
+        if (slot !== undefined && child.route !== undefined) {
+          parent.session.append('subagent/purpose-route', {
+            toolCallId: callId,
+            slot,
+            route: {
+              provider: child.route.provider,
+              model: child.route.model,
+              reasoningEffort: child.route.reasoningEffort,
+            },
+            outcome: { kind: 'started', childId: started.childId },
+          }, { ignorable: true })
+        }
+      } catch (error) {
+        if (isAbort(error, signal)) throw error
+        notStarted += 1
+        if (slot !== undefined && child.route !== undefined) {
+          recordPurposeOutcome(runtimeCtx, parent, callId, slot, child.route, failureReason(error))
+        }
+        if (!fanOut) throw slot === undefined ? error : purposeUnavailableError(slot, categoryOmitted)
+      }
+    }
+  } catch (error) {
+    if (isAbort(error, signal)) {
+      for (const id of startedIds) {
+        try {
+          runtimeCtx.subagents.interrupt(id, { kind: 'ancestor', agent: parent })
+        } catch (stopError) {
+          runtimeCtx.logger.warn(`subagent purpose routing could not stop ${id}: ${failureReason(stopError)}`)
+        }
+      }
+      throw error
+    }
+    throw error
+  }
+
+  const first = startedIds[0]
+  if (first === undefined) {
+    throw slot === undefined
+      ? new Error('the selected child model is unavailable; re-delegate once')
+      : purposeUnavailableError(slot, categoryOmitted)
+  }
+  const primary = ordered.find(child => child.subagentId === first) ?? {}
+  const route = {
+    ...primary.provider !== undefined ? { provider: primary.provider } : {},
+    ...primary.model !== undefined ? { model: primary.model } : {},
+    ...primary.reasoningEffort !== undefined ? { reasoningEffort: primary.reasoningEffort } : {},
+  }
+  if (fanOut) {
+    return { kind: 'activation', subagentId: first, subagentIds: startedIds, notStarted, ...route, children: ordered }
+  }
+  return { kind: 'activation', subagentId: first, ...route }
+}
+
+/** Append a not-started purpose route and log the cause the model does not see. */
+function recordPurposeOutcome(
+  runtimeCtx: Context,
+  parent: Agent,
+  callId: ToolCallId,
+  slot: PurposeRouteSlot,
+  route: { provider: string; model: string; reasoningEffort: string },
+  reason: string,
+): void {
+  runtimeCtx.logger.warn(`subagent purpose route ${route.provider}/${route.model} did not start: ${reason}`)
+  parent.session.append('subagent/purpose-route', {
+    toolCallId: callId,
+    slot,
+    route: { provider: route.provider, model: route.model, reasoningEffort: route.reasoningEffort },
+    outcome: { kind: 'not-started', reason },
+  }, { ignorable: true })
+}
+
 /**
  * Install one delegation-tool composition.
  * Standing preset choices are validated for each Agent before its tool is installed.
@@ -157,6 +445,26 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
   for (const field of ['persona', 'toolFilter']) {
     if (Object.hasOwn(config, field)) {
       throw new Error(`tool-subagent: ${field} is no longer supported; configure persona and tool plugins in an Agent Preset and select it with agentPreset (spawn only)`)
+    }
+  }
+  const purposeRouting = config.purposeRouting === true
+  if (purposeRouting) {
+    if (config.providerOwnedRoute === true) {
+      throw new Error('tool-subagent: purposeRouting cannot be combined with providerOwnedRoute')
+    }
+    const options = config.agentOptions
+    if (options?.provider !== undefined || options?.model !== undefined || options?.reasoningEffort !== undefined) {
+      throw new Error('tool-subagent: purposeRouting cannot be combined with agentOptions provider, model, or reasoningEffort')
+    }
+    const settings = ctx.get('subagentModelSelection')
+    if (settings === undefined) {
+      throw new Error(
+        'tool-subagent: purposeRouting requires '
+        + '@deepseek-ai/dsh-tool-subagent/model-selection-settings in the Host scope',
+      )
+    }
+    if (settings.purposeRoutes() === null) {
+      throw new Error('tool-subagent: purposeRouting requires a purposeRoutes table')
     }
   }
   const presets = new SubagentPresetSelection(config)
@@ -193,6 +501,11 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
     if (providerOwnedRoute && !subagentProvider.capabilities.agentOptions) {
       throw new Error(
         `tool-subagent: provider "${subagentProvider.name}" does not accept per-call agent options`,
+      )
+    }
+    if (purposeRouting && !subagentProvider.capabilities.agentOptions) {
+      throw new Error(
+        `tool-subagent: provider "${subagentProvider.name}" does not support purpose routing`,
       )
     }
 
@@ -232,7 +545,8 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           + (subagentProvider.prepareContinuable !== undefined
             ? ' The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.'
             : ' The completion notice includes its final answer. This backend does not accept follow-up messages.')
-          + choiceDescription,
+          + choiceDescription
+          + (purposeRouting ? ` ${PURPOSE_TOOL_SENTENCE}` : ''),
         parameters: {
           cwd: {
             type: 'string',
@@ -248,6 +562,13 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             required: true,
             description: wording.promptDescription,
           },
+          ...purposeRouting ? {
+            category: {
+              type: 'string' as const,
+              enum: [...PURPOSE_CATEGORIES],
+              description: PURPOSE_CATEGORY_DESCRIPTION,
+            },
+          } : {},
           ...presets.choices === undefined ? {} : {
             agent_preset: {
               type: 'string' as const,
@@ -258,27 +579,30 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           ...(modelSelectionEnabled || providerOwnedRoute) ? {
             provider: {
               type: 'string' as const,
-              description: providerOwnedRoute
+              description: (providerOwnedRoute
                 ? 'Route in the child provider\'s own namespace (for an external CLI, its provider id). Optional and independent of model; omit to use the provider\'s configured default.'
                 : providerRouteDefaults !== undefined
                   ? 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or this provider\'s route defaults.'
-                  : 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or inherit the parent route.',
+                  : 'LLM provider route for the child. Supply together with model; omit both to use configured child defaults or inherit the parent route.')
+                + (purposeRouting && modelSelectionEnabled ? CATEGORY_EXCLUSIVITY_SUFFIX : ''),
             },
             model: {
               type: 'string' as const,
-              description: providerOwnedRoute
+              description: (providerOwnedRoute
                 ? 'Model id interpreted by the child provider (for an external CLI, its model name). Optional and independent of provider; omit to use the provider\'s configured default.'
                 : providerRouteDefaults !== undefined
                   ? 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or this provider\'s route defaults.'
-                  : 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or inherit the parent route.',
+                  : 'Model id interpreted by provider. Supply together with provider; omit both to use configured child defaults or inherit the parent route.')
+                + (purposeRouting && modelSelectionEnabled ? CATEGORY_EXCLUSIVITY_SUFFIX : ''),
             },
             reasoning_effort: {
               type: 'string' as const,
-              description: providerOwnedRoute
+              description: (providerOwnedRoute
                 ? 'Reasoning effort for the child provider (for an external CLI, its thinking level). Omit to use configured defaults.'
                 : providerRouteDefaults !== undefined
                   ? 'Adapter-owned reasoning effort for the effective child route. Omit to use a compatible configured effort or the selected model\'s default.'
-                  : 'Adapter-owned reasoning effort for the effective child route. Omit to inherit a compatible configured/parent effort or use a newly selected model\'s default.',
+                  : 'Adapter-owned reasoning effort for the effective child route. Omit to inherit a compatible configured/parent effort or use a newly selected model\'s default.')
+                + (purposeRouting && modelSelectionEnabled ? CATEGORY_EXCLUSIVITY_SUFFIX : ''),
             },
           } : {},
 
@@ -290,9 +614,30 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             properties: {
               kind: { type: 'string', required: true, const: 'activation' },
               subagentId: { type: 'string', required: true },
+              provider: { type: 'string' },
+              model: { type: 'string' },
+              reasoningEffort: { type: 'string' },
+              ...purposeRouting ? {
+                subagentIds: { type: 'array' as const, items: { type: 'string' as const } },
+                notStarted: { type: 'integer' as const },
+                children: {
+                  type: 'array' as const,
+                  items: {
+                    type: 'object' as const,
+                    additionalProperties: false,
+                    properties: {
+                      subagentId: { type: 'string' as const },
+                      provider: { type: 'string' as const },
+                      model: { type: 'string' as const },
+                      reasoningEffort: { type: 'string' as const },
+                    },
+                  },
+                },
+              } : {},
             },
           },
-          render: (_args, value) => [{ type: 'text', text: `started subagent ${value.subagentId}` }],
+          render: (_args, value) => renderActivation(value),
+          presentationMeta: (_args, value) => activationMeta(value),
         },
         isConcurrencySafe: () => true,
         async execute(args, exec) {
@@ -300,6 +645,43 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           if (!parent) {
             // Non-agent callers provide no parent for delegation ownership.
             throw new Error('subagent tool requires a calling agent (exec.agent was undefined)')
+          }
+
+          const category = categoryArgument(args)
+          if (purposeRouting || category !== undefined) {
+            const agentPreset = presets.resolve(args as PresetSelectionRequest)
+            const modelRequest = args as DelegationModelRequest
+            const parentOptions = parentAgentOptionsForDelegation(parent)
+            const settings = runtimeCtx.get('subagentModelSelection')
+            const resolution = resolveChildRoutes({
+              purposeRouting,
+              ...category === undefined ? {} : { category },
+              modelRequest,
+              table: settings === undefined ? undefined : settings.purposeRoutes(),
+              parentOptions,
+              configured: config.agentOptions,
+              providerRouteDefaults,
+              modelSelectionEnabled,
+            })
+            const maxDepth = runtimeCtx.subagents.resolveMaxDepth(config.maxDepth)
+            return startResolvedChildren({
+              runtimeCtx,
+              parent,
+              signal: exec.signal,
+              callId: exec.callId,
+              providerName: config.provider,
+              subagentProvider,
+              resolution,
+              categoryOmitted: category === undefined,
+              parentOptions,
+              policy: modelSelectionPolicy,
+              modelRequest,
+              label: args.description,
+              prompt: [{ type: 'text', text: args.prompt }],
+              ...args.cwd === undefined ? {} : { cwd: args.cwd },
+              ...agentPreset === undefined ? {} : { agentPreset },
+              ...maxDepth !== undefined ? { maxDepth } : {},
+            })
           }
 
           const agentPreset = presets.resolve(args as PresetSelectionRequest)
@@ -360,7 +742,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             signal: exec.signal,
             delivery: 'parent',
           })
-          return { kind: 'activation' as const, subagentId: started.childId }
+          return { kind: 'activation' as const, subagentId: started.childId, ...usedRoute(parent, requestedChildAgentOptions) }
         },
       })
       const disposeTool = runtimeCtx.effect(() => {

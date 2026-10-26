@@ -99,6 +99,13 @@ A successful `selectModel` response acknowledges the Session-local selection wit
 |---|---:|---|
 | `nativeOpen` | platform-detected | Whether Session workspace paths can be handed to a native desktop opener |
 | `listWorkSliceMs` | `16` | Positive integral list-work time slice in milliseconds; checks occur between complete rows |
+| `releaseOnIdle` | `false` | Release an idle Agent's Session write lease so another DSH process can open the same stored Session for writing |
+| `releaseIdleDelayMs` | `0` | Milliseconds after the idle signal before the first release check |
+| `releaseRetryMs` | `1000` | Milliseconds between release checks while work or child Agents remain |
+
+### Idle release
+
+`releaseOnIdle` (default `false`) releases an idle Agent's Session write lease so another DSH process can open the same stored Session for writing; while it is off, an attached Agent keeps the lease. Viewing never takes the lease. The release happens only when the Agent is idle, its inbox is empty, it has no holds, and it has no live child Agents. `releaseIdleDelayMs` (default `0`) is the delay in milliseconds after the idle signal before the first check. `releaseRetryMs` (default `1000`) is the delay in milliseconds between checks while work or child Agents remain.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-api-session-controller) is the exhaustive source for accepted fields and their JSDoc.
 
