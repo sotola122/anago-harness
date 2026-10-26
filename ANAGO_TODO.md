@@ -255,7 +255,7 @@
 
 ## GitHub Copilot OAuth プラグイン検証（2026-10-26）
 
-- 実装: `packages/fork/copilot-oauth`（`/copilot-login` / `/copilot-status` / `/copilot-logout` / `/copilot-cancel`）。既存の `llm-pi-ai/github-copilot` フローのみ使用。コミット `46dc7178ee`。
+- 実装: `packages/fork/copilot-oauth`（`/copilot-login` / `/copilot-status` / `/copilot-logout` / `/copilot-cancel`）。既存の `llm-pi-ai/github-copilot` フローのみ使用。実装はコミット済み（履歴参照）。
 - レコード: `~/.dsh/.credentials.yaml` の `llm-pi-ai/github-copilot` が `kind: grant` / `payload.type: oauth` で作成され、`availableModelIds` は 24 件、`expires` は約 24 時間先。ファイルは 0600。
 - 実チャット: モデル `github-copilot/gpt-5.6-sol`（GPT-5.6 Sol）で 2 ターン成功（`Completed` 2 秒、応答 "OK" / "READY"、Usage 17.1K tok）。
 - 再起動: 3083 を再起動後もレコードが残り、同じモデルでチャット成功。
@@ -267,7 +267,7 @@
 
 ### Copilot モデルフィルタの修正（2026-10-26）
 
-- `llm-pi-ai` の `reuseCatalogProvider` がカタログ provider の `filterModels`/`filterAllModels` を引き継ぎ、`listModels` が保存済み資格情報を読んで適用するよう修正（コミット `6c6c4b13b4`）。資格情報がないルートは従来どおりカタログ全件を表示する。
+- `llm-pi-ai` の `reuseCatalogProvider` がカタログ provider の `filterModels`/`filterAllModels` を引き継ぎ、`listModels` が保存済み資格情報を読んで適用するよう修正。資格情報がないルートは従来どおりカタログ全件を表示する。
 - 検証: サインイン後のピッカーは `github-copilot` **21 モデル**（アカウントの `availableModelIds` 24 件 ∩ カタログ 34 件）に絞られ、`gpt-5.6-sol` を選択して実チャット成功（`Completed` 3 秒、応答 "COPILOT"）。追加テスト 3 件、`provider.ts`/`adapter.ts` のカバレッジ 100%。
 - 残る差: アカウントの 24 件のうち `claude-haiku-5.5` / `claude-opus-4.8-fast` / `gemini-4-argon` は pi-ai 1.1.0 の静的カタログに存在せず表示されない。pi-ai 1.4.0 では `claude-haiku-5.5` と `gemini-4-argon` が追加される（`claude-opus-4.8-fast` は依然なし）が、本リポジトリは 1.1.0 をピンしローカルパッチを当てているため、依存更新はパッチ再検証を含む別作業。
 - 3083 検証ホストは停止済み。
