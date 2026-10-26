@@ -124,6 +124,9 @@ No direct effect; model requests remain owned by the Agent and LLM packages.
 - File-reference completion uses the shared Agent lookup and can resume a cold Session; the `skills/list` catalog is the non-activating alternative for skill metadata.
 - Accepted/running display memory lives only in Client memory and is lost on page reload.
 - That memory is not shared between tabs: one tab can show a converted row while another still shows `New Session` for the same Session.
+- A read-only follow of a Session written by another process polls the stored revision once per follower at `foreignPollMs`; every change re-reads and decodes the complete stored log, so a long Session costs one full parse per writer batch and two followers poll independently.
+- Such a follow delivers durable events only: its projections stay at the opening snapshot for the life of the follow, and Assistant stream frames from the writer's process never arrive.
+- Once an Agent of this process attaches, the follower keeps the in-process source even after that Agent detaches, so a later writer in another process stays unseen until the Client reopens the stream.
 
 
 <a id="dev-note"></a>

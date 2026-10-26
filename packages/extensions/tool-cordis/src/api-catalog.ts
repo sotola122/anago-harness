@@ -304,6 +304,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'true only while the exact child entry is live under that owner.',
       },
       {
+        signature: 'hold(agent: Agent): Disposable',
+        description: 'Hold one live agent against an idle release. A controller that releases idle agents checks holds; background work that must survive an idle transition (a turn-end review, an orchestration round) holds the agent until it finishes. Disposal of the agent releases every outstanding hold.',
+        parameters: [{ name: 'agent', description: 'live agent to hold.' }],
+        returns: 'an idempotent disposable that releases this hold.',
+        throws: ['when the agent is not live, so a caller cannot leak an unmatchable hold.'],
+      },
+      {
+        signature: 'holds(agent: Agent): number',
+        description: 'Count the outstanding holds on one live agent.',
+        parameters: [{ name: 'agent', description: 'agent whose holds are counted.' }],
+        returns: 'the hold count; zero for an agent that is not live.',
+      },
+      {
         signature: 'list(): Agent[]',
         description: 'All live agents, in registration order.',
         parameters: [],
@@ -2083,6 +2096,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'authorized bounded Session search results.',
       },
       {
+        signature: '@Remote async ownership(ids: readonly SessionId[]): Promise<Record<string, SessionOwnership>>',
+        description: 'Report which process holds each Session\'s write ownership. The answer is advisory: only the open and prompt paths\' kernel lease decides whether a write succeeds. A non-owner caller learns nothing about Sessions its access policy refuses.',
+        parameters: [{ name: 'ids', description: 'Session identities to probe; at most 200 after de-duplication.' }],
+        returns: 'one ownership state per requested identity.',
+        throws: ['RemoteError `gateway/bad-request` for an oversized batch.'],
+      },
+      {
         signature: '@Remote(\'create\') create(request: SessionCreateRequest): Promise<SessionCreateValue>',
         description: 'Create one ordinary Session for a new conversation, reusing the named blank Session while it is reusable.',
         parameters: [{ name: 'request', description: 'optional blank Session to reuse, location, and Agent preset.' }],
@@ -2262,6 +2282,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List every stored session visible to this process, in no promised order.',
         parameters: [{ name: 'options', description: 'optional cancellation.' }],
         returns: 'one snapshot per stored session.',
+      },
+      {
+        signature: 'abstract ownership(id: SessionId, options?: SessionPersistenceStatOptions): Promise<SessionOwnership>',
+        description: 'Report who currently owns one stored session\'s write path without taking ownership and without creating the session directory or its lock file.\n\nThis is a diagnostic probe, not exclusion: it classifies the moment it runs, and a caller presents or refuses a Session based on that answer but must not treat it as permission to write. `missing` states that no stored session matches the id; `unknown` states that the probe could not decide, for example because of a permission or I/O failure, and never that the session is unused. An in-process write claim answers `owned-here` even before a lazily materialized session reaches storage.',
+        parameters: [{ name: 'id', description: 'the stored session to probe.' }, { name: 'options', description: 'optional cancellation.' }],
+        returns: 'the ownership classification observed at probe time.',
       },
     ],
   },
@@ -4126,6 +4152,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'summary', description: 'current list row for the Session.' }],
   },
   {
+    name: 'api-session/detached',
+    mode: 'emit',
+    signature: '\'api-session/detached\'(sessionId: SessionId): void',
+    summary: 'A Session\'s live Agent was released while the stored Session remains.',
+    description: 'A Session\'s live Agent was released while the stored Session remains. Consumers keep the row, its history, and the draft, and clear live-Agent availability instead of treating the Session as removed.',
+    parameters: [{ name: 'sessionId', description: 'Session whose Agent detached.' }],
+  },
+  {
     name: 'api-session/error',
     mode: 'emit',
     signature: '\'api-session/error\'(sessionId: SessionId, message: string): void',
@@ -4137,8 +4171,8 @@ export const EVENT_API: readonly EventApiEntry[] = [
     name: 'api-session/removed',
     mode: 'emit',
     signature: '\'api-session/removed\'(sessionId: SessionId): void',
-    summary: 'A Session left the live Host registry.',
-    description: 'A Session left the live Host registry.',
+    summary: 'A durable subagent row left the live Host catalog with its run.',
+    description: 'A durable subagent row left the live Host catalog with its run. An ordinary conversation detaches instead, because its stored Session remains openable.',
     parameters: [{ name: 'sessionId', description: 'removed Session identity.' }],
   },
   {
@@ -4796,10 +4830,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApprovalOutcome',
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
-  },
-  {
-    name: 'ApprovalPolicy',
-    declaration: 'export type ApprovalPolicy = \'ask\' | \'never\';',
   },
   {
     name: 'ApprovalRequest',
@@ -5688,10 +5718,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'IndexInjectionPlacement',
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
-  },
-  {
-    name: 'InspectOptions',
-    declaration: 'export interface InspectOptions {\n    readonly registry?: Registry;\n}',
   },
   {
     name: 'InspectorId',
@@ -7171,7 +7197,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionFollowRequest',
-    declaration: 'export interface SessionFollowRequest extends Pick<SessionPageRequest, \'maxMessages\' | \'turnWindow\'> {\n    readonly address: SessionAddress;\n    readonly assistantStream?: true;\n}',
+    declaration: 'export interface SessionFollowRequest extends Pick<SessionPageRequest, \'maxMessages\' | \'turnWindow\'> {\n    readonly address: SessionAddress;\n    readonly assistantStream?: true;\n    readonly mode?: \'activate\' | \'read\';\n}',
   },
   {
     name: 'SessionForkRequest',
@@ -7275,7 +7301,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionObservation',
-    declaration: 'export interface SessionObservation extends Disposable {\n    readonly source: \'live\' | \'prepared\';\n    readonly header: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffsetType;\n    readonly events: readonly SessionEvent[];\n    readonly cursor: SessionSeqCursor;\n    readonly revision?: SessionPersistenceRevision;\n    readonly projections?: ProjectionSnapshot;\n    retain(): SessionObservation;\n}',
+    declaration: 'export interface SessionObservation extends Disposable {\n    readonly source: \'live\' | \'prepared\';\n    readonly header: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffsetType;\n    readonly events: readonly SessionEvent[];\n    readonly cursor: SessionSeqCursor;\n    readonly savedCursor: SessionSeqCursor;\n    readonly revision?: SessionPersistenceRevision;\n    readonly projections?: ProjectionSnapshot;\n    retain(): SessionObservation;\n}',
   },
   {
     name: 'SessionObservationOptions',
@@ -7288,6 +7314,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionOpenWorkspacePathValue',
     declaration: 'export interface SessionOpenWorkspacePathValue {\n    readonly opened: true;\n}',
+  },
+  {
+    name: 'SessionOwnership',
+    declaration: 'export type SessionOwnership = \'free\' | \'owned-here\' | \'held-elsewhere\' | \'missing\' | \'unknown\';',
   },
   {
     name: 'SessionPage',

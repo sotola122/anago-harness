@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionEvent, SessionHeader, SessionId as SessionIdType } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader, SessionId as SessionIdType, SessionOwnership } from '@deepseek-ai/dsh-session'
 import SessionPersistence, {
   SessionPersistenceCorruptionError,
   SessionPersistenceNotFoundError,
@@ -18,6 +18,7 @@ import type {
 } from '@deepseek-ai/dsh-session-persistence'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { describe, expect, it, vi } from 'vitest'
+import { readColdSessionLog } from '../src/cold-read.ts'
 import { SessionObservationReader } from '../src/observation.ts'
 
 function header(id: string): SessionHeader {
@@ -179,6 +180,7 @@ describe('SessionObservationReader live path', () => {
     using observed = await reader.read(session.id, { projectionMode: 'none' })
     using retained = observed.retain()
     expect(observed.cursor).toBe(0)
+    expect(observed.savedCursor).toBe(0)
     expect(snapshotEvents).not.toHaveBeenCalled()
 
     expect(retained.events).toBe(observed.events)
@@ -233,7 +235,10 @@ describe('SessionObservationReader cold path', () => {
     expect(observed.events.map(event => event.type)).toEqual(['turn/start', 'user/message', 'turn/end'])
     expect(observed.events[0]).toBe(restoredSource?.[0])
     expect(Object.isFrozen(restoredSource?.[0]?.data)).toBe(false)
+    // The display cursor includes the synthetic closer; the saved cursor is
+    // the last event the stored log physically contains.
     expect(observed.cursor).toBe(2)
+    expect(observed.savedCursor).toBe(1)
     // No projection registry is mounted, so the observation carries none.
     expect(observed.projections).toBeUndefined()
     // Balancing is in-memory only: nothing was written back to the store.
@@ -251,7 +256,20 @@ describe('SessionObservationReader cold path', () => {
 
     expect(observed.events).toEqual([])
     expect(observed.cursor).toBe(-1)
+    expect(observed.savedCursor).toBe(-1)
     await ctx.fiber.dispose()
+  })
+
+  it('derives the saved cursor from the persisted log before repair closers', async () => {
+    const meta = header('saved-cursor')
+    const store = new Map([[meta.id, { header: meta, events: interruptedLog('crashed'), revision: 'r1' }]])
+
+    const log = await readColdSessionLog(stubPersistence(store, { stat: 0, open: 0, read: 0 }), meta.id)
+
+    expect(log.savedCursor).toBe(1)
+    expect(log.events.map(event => event.seq)).toEqual([0, 1, 2])
+    // The closers stay in memory: the stored prefix is unchanged.
+    expect(store.get(meta.id)?.events).toHaveLength(2)
   })
 
   it('reference-counts prepared leases and rejects retention after disposal', async () => {
@@ -264,6 +282,7 @@ describe('SessionObservationReader cold path', () => {
     const observed = await reader.read(meta.id, { projectionMode: 'none' })
     const retained = observed.retain()
 
+    expect(retained.savedCursor).toBe(observed.savedCursor)
     observed[Symbol.dispose]()
     observed[Symbol.dispose]()
     expect(() => observed.retain()).toThrow('is disposed')
@@ -507,6 +526,10 @@ describe('SessionObservationReader cold path', () => {
           header: structuredClone(meta),
           revision: SessionPersistenceRevision('constant'),
         })
+      }
+
+      ownership(): Promise<SessionOwnership> {
+        return Promise.resolve('free')
       }
 
       list(): Promise<readonly SessionPersistenceSnapshot[]> {

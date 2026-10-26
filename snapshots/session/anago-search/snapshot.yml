@@ -1,0 +1,9 @@
+version: 1
+scenario: anago-search
+profile: headless
+composition: anago
+recording: live
+header:
+  class: anago
+  systemPromptSource: anago-memory
+  toolSchemasSource: anago-memory

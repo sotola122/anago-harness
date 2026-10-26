@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/anago-bundles/guide.md
+/:
+  en: 92d691f6cffe5e9c
+  zh: 56787f06438b41a1
+/anago-bundles-in-the-shipped-profiles:
+  en: 0623f32495a5870e
+  zh: 0239207b7640a731
+/anago-bundles-in-the-shipped-profiles/change:
+  en: 359dd81f34c84ece
+  zh: 50978cc7f6e79b28
+/anago-bundles-in-the-shipped-profiles/migration:
+  en: f048518d81df7e51
+  zh: 0ea8b97e87b6fe36

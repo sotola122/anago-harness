@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import SessionStore, { SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import type { SessionEvent, SessionHeader, SessionId as SessionIdType } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader, SessionId as SessionIdType, SessionOwnership } from '@deepseek-ai/dsh-session'
 import SessionPersistence, {
   SessionPersistenceCorruptionError,
   SessionPersistenceNotFoundError,
@@ -161,6 +161,10 @@ class TestPersistence extends SessionPersistence {
     const entry = TestPersistence.entries.get(id)
     if (entry === undefined) return Promise.resolve(undefined)
     return Promise.resolve({ header: structuredClone(entry.meta), revision: entryRevision(entry) })
+  }
+
+  ownership(id: SessionIdType): Promise<SessionOwnership> {
+    return Promise.resolve(TestPersistence.entries.has(id) ? 'free' : 'missing')
   }
 
   list(options?: { signal?: AbortSignal }): Promise<readonly SessionPersistenceSnapshot[]> {

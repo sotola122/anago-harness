@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fork/subagent-cursor/README.md
+/:
+  en: ad94940d74b0a07b
+  zh: ad94940d74b0a07b
+/anago-harness-subagent-cursor:
+  en: 9082435474fe5342
+  zh: 04912d4ed9e392b8
+/anago-harness-subagent-cursor/summary:
+  en: be2e12d42c02e16f
+  zh: 4014f0c1c2a14d1f
+/anago-harness-subagent-cursor/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/anago-harness-subagent-cursor/use-this-package:
+  en: 893770753af1dc10
+  zh: 4f30ca6bf3c21d16
+/anago-harness-subagent-cursor/use-this-package/configuration:
+  en: 5b1007a04b400c2a
+  zh: e05b5eeb007571fc
+/anago-harness-subagent-cursor/use-this-package/security-posture:
+  en: 02f26fa0e2bc8614
+  zh: ae21153356f4451a
+/anago-harness-subagent-cursor/understand-the-implementation:
+  en: 92f61387140a71b3
+  zh: 8cca6c2464d9a7be
+/anago-harness-subagent-cursor/further-exploration:
+  en: 1f11678009c22510
+  zh: f85ee2610bb9bfc2
+/anago-harness-subagent-cursor/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/anago-harness-subagent-cursor/model-experience/subagent-cursor-execution:
+  en: aff83f10ffea3928
+  zh: 8d0db188923486c8
+/anago-harness-subagent-cursor/model-experience/subagent-cursor-execution/what-the-model-sees:
+  en: aa52ffafa24e4e68
+  zh: 2c0eb479a8c2c563
+/anago-harness-subagent-cursor/model-experience/subagent-cursor-execution/token-effect:
+  en: d29a08adccca4fb7
+  zh: 87aac6370c2c7a01
+/anago-harness-subagent-cursor/model-experience/subagent-cursor-execution/kv-cache-effect:
+  en: c5e2522b25b1559c
+  zh: da1e2c6c1658c6ae
+/anago-harness-subagent-cursor/known-limitations-and-deferred-work:
+  en: 0cc548bc659d4ad3
+  zh: 10849f2f54a5b490
+/anago-harness-subagent-cursor/known-limitations-and-deferred-work/dev-note:
+  en: 52a1645f851ef464
+  zh: 9cbe9d8a7e44a5f6

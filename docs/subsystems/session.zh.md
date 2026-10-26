@@ -862,6 +862,17 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('search') async search(request: SessionSearchRequest, signal: AbortSignal): Promise<SessionSearchValue>
 
 /**
+ * Report which process holds each Session's write ownership. The answer is
+ * advisory: only the open and prompt paths' kernel lease decides whether a
+ * write succeeds. A non-owner caller learns nothing about Sessions its
+ * access policy refuses.
+ * @param ids - Session identities to probe; at most 200 after de-duplication.
+ * @returns one ownership state per requested identity.
+ * @throws RemoteError `gateway/bad-request` for an oversized batch.
+ */
+@Remote async ownership(ids: readonly SessionId[]): Promise<Record<string, SessionOwnership>>
+
+/**
  * Create one ordinary Session for a new conversation, reusing the named blank Session while it is reusable.
  * @param request - optional blank Session to reuse, location, and Agent preset.
  * @returns the created or reused Session identity and its preset when configured.
@@ -1187,6 +1198,27 @@ A Session became visible or its Agent was created or disposed. Consumers upsert 
 
 Source: [`packages/api/session-controller/src/types.ts`](../../packages/api/session-controller/src/types.ts)
 
+<a id="api-sessiondetached--emit"></a>
+
+#### `api-session/detached` — emit
+
+A Session's live Agent was released while the stored Session remains. Consumers keep the row, its history, and the draft, and clear live-Agent availability instead of treating the Session as removed.
+
+```ts cordis-catalog
+/**
+ * A Session's live Agent was released while the stored Session remains.
+ * Consumers keep the row, its history, and the draft, and clear live-Agent
+ * availability instead of treating the Session as removed.
+ * @mode emit
+ * @param sessionId - Session whose Agent detached.
+ */
+'api-session/detached'(sessionId: SessionId): void
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/api/session-controller/src/types.ts`](../../packages/api/session-controller/src/types.ts)
+
 <a id="api-sessionerror--emit"></a>
 
 #### `api-session/error` — emit
@@ -1211,11 +1243,13 @@ Source: [`packages/api/session-controller/src/types.ts`](../../packages/api/sess
 
 #### `api-session/removed` — emit
 
-A Session left the live Host registry.
+A durable subagent row left the live Host catalog with its run. An ordinary conversation detaches instead, because its stored Session remains openable.
 
 ```ts cordis-catalog
 /**
- * A Session left the live Host registry.
+ * A durable subagent row left the live Host catalog with its run. An
+ * ordinary conversation detaches instead, because its stored Session
+ * remains openable.
  * @mode emit
  * @param sessionId - removed Session identity.
  */

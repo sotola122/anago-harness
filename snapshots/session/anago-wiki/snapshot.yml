@@ -1,0 +1,12 @@
+version: 1
+scenario: anago-wiki
+profile: headless
+composition: anago
+recording: live
+header:
+  class: anago
+  systemPromptSource: anago-memory
+  toolSchemasSource: anago-memory
+platform: posix
+workspace:
+  setup: git-worktree

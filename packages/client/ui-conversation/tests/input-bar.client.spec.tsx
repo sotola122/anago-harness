@@ -83,7 +83,7 @@ interface BenchOptions {
   subagent?: Exclude<SessionSnapshot['subagent'], null>
   disabled?: boolean
   inert?: boolean
-  blocked?: { readonly reason: string }
+  blocked?: { readonly reason: string; readonly lock?: 'message' | 'all' }
   workspacePickerOpen?: boolean
   onRequestWorkspace?: () => void
   promptError?: SessionSnapshot['promptError']
@@ -1864,6 +1864,23 @@ describe('command launcher chrome and control seats', () => {
     const liveControls = live.slotCalls.filter(call => controlKeys.has(call.key))
     expect(liveControls.every(c => !(c.owner as { locked: boolean }).locked)).toBe(true)
     expect(attachmentOwner(live.slotCalls).canAcceptDrop).toBe(true)
+  })
+
+  it('a block leaves the model seat live unless it declares lock all', () => {
+    const modelLocked = (calls: readonly { key: string; owner: unknown }[]): boolean => {
+      const call = calls.find(entry => entry.key === 'conversation.input.model')
+      return (call?.owner as { locked: boolean }).locked
+    }
+
+    // The default block is cleared by choosing a model, so the seat stays live.
+    const message = bench({ blocked: { reason: 'another DSH is running this session' } })
+    expect(modelLocked(message.slotCalls)).toBe(false)
+    cleanup()
+
+    // An outside cause is not cleared by a model choice; the whole composer locks.
+    const all = bench({ blocked: { reason: 'another DSH is running this session', lock: 'all' } })
+    expect(modelLocked(all.slotCalls)).toBe(true)
+    cleanup()
   })
 
   it('disabled locks the command launcher while running does not', () => {

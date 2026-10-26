@@ -86,6 +86,27 @@ describe('AgentRegistry', () => {
     expect(lifecycle).toEqual(['created:a1', 'disposed:a1'])
   })
 
+  it('counts holds and releases them idempotently with the agent', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    const agent = stubAgent('held')
+    const dispose = await ctx.agents.register(agent)
+
+    expect(ctx.agents.holds(agent)).toBe(0)
+    const first = ctx.agents.hold(agent)
+    const second = ctx.agents.hold(agent)
+    expect(ctx.agents.holds(agent)).toBe(2)
+    first[Symbol.dispose]()
+    first[Symbol.dispose]()
+    expect(ctx.agents.holds(agent)).toBe(1)
+
+    await dispose()
+    // Disposal releases the remaining hold with the entry.
+    second[Symbol.dispose]()
+    expect(ctx.agents.holds(agent)).toBe(0)
+    expect(() => ctx.agents.hold(agent)).toThrow(/is not live/)
+  })
+
   it('rejects an agent whose registry and session identities differ', async () => {
     const ctx = new Context()
     await ctx.plugin(AgentRegistry)

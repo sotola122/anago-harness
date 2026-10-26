@@ -410,6 +410,23 @@ abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise<S
  * @returns one snapshot per stored session.
  */
 abstract list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]>
+
+/**
+ * Report who currently owns one stored session's write path without taking
+ * ownership and without creating the session directory or its lock file.
+ *
+ * This is a diagnostic probe, not exclusion: it classifies the moment it
+ * runs, and a caller presents or refuses a Session based on that answer but
+ * must not treat it as permission to write. `missing` states that no stored
+ * session matches the id; `unknown` states that the probe could not decide,
+ * for example because of a permission or I/O failure, and never that the
+ * session is unused. An in-process write claim answers `owned-here` even
+ * before a lazily materialized session reaches storage.
+ * @param id - the stored session to probe.
+ * @param options - optional cancellation.
+ * @returns the ownership classification observed at probe time.
+ */
+abstract ownership(id: SessionId, options?: SessionPersistenceStatOptions): Promise<SessionOwnership>
 ```
 
 Types: [SessionId](core.zh.md)

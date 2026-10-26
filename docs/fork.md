@@ -14,9 +14,13 @@ Package names (`@deepseek-ai/dsh-*`), the `dsh` command, `DSH_*` environment var
 
 `@anago-harness/fork-policy` installs an egress guard that refuses the hosts the harness contacts on its own; `api.deepseek.com` stays reachable. Upstream publication, preview, issue, and approval workflows are not run from this repository. Changes stay in fork-only files and a small set of hook points so upstream updates remain mergeable.
 
+The fork ships its own capabilities as private packages under `packages/fork/` and mounts them through four bundles: `@anago-harness/anago-core` (memory, the LLM wiki, the Japanese-response instruction, the Cursor subagent, and the Exa and Brave search providers), `@anago-harness/anago-web` (the Exa and Brave search settings cards), `@anago-harness/xai-oauth` (the `/xai-*` commands that sign in to xAI through the pi-ai OAuth flow), and `@anago-harness/copilot-oauth` (the `/copilot-*` commands that sign in to GitHub Copilot through the pi-ai OAuth flow). The `web` and `headless` profile templates select the core bundle, `web` also selects the browser bundle, and a profile selects `xai-oauth` or `copilot-oauth` when it should sign in to that provider. The terminal surface is the separately installed dsh-TUI bundle, not a fork package.
+
+The fork composition is recorded in keyless snapshots under `snapshots/session/`: `anago-memory`, `anago-wiki`, and `anago-search` replay the injected memory snapshot and `memory` tool, the wiki existence notice, and the Brave-over-Exa search selection from committed Sessions, so those rows are verified without a model key.
+
 ## What comes next
 
-[PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) plans the remaining fork work: product branding, Japanese fonts, the `ash` command, Exa as the default web search, and desktop installers.
+[PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) plans the remaining fork work: product branding, Japanese fonts, the `ash` command, and desktop installers. [ANAGO_PLUGINS_DESIGN.md](../ANAGO_PLUGINS_DESIGN.md) records the package split and the settings-card design.
 
 ## Documentation and license
 

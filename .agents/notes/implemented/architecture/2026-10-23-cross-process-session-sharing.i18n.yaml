@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-23-cross-process-session-sharing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-23-cross-process-session-sharing.md
+/agent-note-cross-process-session-sharing-between-the-web-ui-and-the-terminal-ui:
+  en: b6c26b288204aa0d
+  zh: 3cbf28feafdcdfa7
+/agent-note-cross-process-session-sharing-between-the-web-ui-and-the-terminal-ui/problem:
+  en: 58096a0ea25d4efe
+  zh: f62a6df2b1a389f4
+/agent-note-cross-process-session-sharing-between-the-web-ui-and-the-terminal-ui/decision:
+  en: 6b5f1eb9fea9117b
+  zh: ce301afed494a9dc
+/agent-note-cross-process-session-sharing-between-the-web-ui-and-the-terminal-ui/alternatives-considered:
+  en: 71c604b9acb64332
+  zh: 06712918d5e0f0ab
+/agent-note-cross-process-session-sharing-between-the-web-ui-and-the-terminal-ui/consequences:
+  en: 8cc5a634b98b8abb
+  zh: 6fc817b1ba0e21a1

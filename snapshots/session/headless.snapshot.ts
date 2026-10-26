@@ -1,6 +1,7 @@
 /** Recorded-session replay through the shipped headless `dsh` profile. */
 
 import { startHttpMcpFixture } from '../../packages/mcp/mcp-client/tests/http-fixture.ts'
+import { startSearchFixture, type SearchFixture } from './anago-search/search-fixture.ts'
 import { cp, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, utimes, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
@@ -603,6 +604,19 @@ for (const scenario of scenarios) {
   }
 }
 
+/**
+ * Fork-owned compositions mount `@anago-harness/anago-core` (the profile
+ * template already lists it) and must see the rows the shipped bundle inserts:
+ * memory, the wiki, the response-language section, the Cursor and pi subagents,
+ * and the Exa and Brave search providers. The `anago` / `anago-*` naming rule
+ * selects that composition instead of the upstream compat layer.
+ * @param composition - the scenario manifest's composition name.
+ * @returns true for an anago-owned composition.
+ */
+function forkOwnedComposition(composition: string): boolean {
+  return composition === 'anago' || composition.startsWith('anago-')
+}
+
 function ownerOf(scenario: HeadlessScenario): HeadlessScenario {
   const owner = compositionOwners.get(scenario.manifest.composition)
   if (owner === undefined) throw new Error(`${scenario.name}: composition has no cordis.yml owner`)
@@ -769,6 +783,13 @@ async function verifyBackgroundConfinementFailure(log: string, cwd: string): Pro
   expect(text).toContain('[status: failed,')
   expect(text).toContain('fixture asynchronous confinement refused')
   expect(JSON.parse(await readFile(join(cwd, 'confinement-audit.json'), 'utf8'))).toEqual({ confineCalls: 1, spawnCalls: 0 })
+}
+
+/** Require the configured fork search provider to serve the turn while its mounted alternative records nothing. */
+function verifySearchProviderSelection(fixture: SearchFixture | undefined): void {
+  if (fixture === undefined) throw new Error('anago-search: search fixture was not started')
+  expect(fixture.calls.brave, 'the configured brave provider serves the recorded search').toBeGreaterThan(0)
+  expect(fixture.calls.exa, 'the registered exa provider must not serve a search the composition gave to brave').toBe(0)
 }
 
 /** Directory changes remain user context while relative tools follow the committed directory. */
@@ -1256,6 +1277,11 @@ describe('headless recorded-session snapshots', () => {
       const compositionPatch = join(composition.dir, replaying ? 'cordis.snapshot.yml' : 'cordis.yml')
       const patchSources = [
         join(baseComposition.dir, 'cordis.yml'),
+        // anago: the compat layer restores the upstream composition above the
+        // fork's bundle rows so upstream recordings replay unchanged. A
+        // fork-owned composition (`anago-*`) mounts those rows instead, so it
+        // must not be shadowed by the compat layer.
+        ...(forkOwnedComposition(scenario.manifest.composition) ? [] : [join(snapshotsRoot, 'upstream-compat.cordis.yml')]),
         ...composition === baseComposition && !replaying ? [] : [compositionPatch],
         join(baseComposition.dir, 'model.cordis.yml'),
         ...existsSync(join(scenario.dir, 'runtime.cordis.yml')) ? [join(scenario.dir, 'runtime.cordis.yml')] : [],
@@ -1269,6 +1295,7 @@ describe('headless recorded-session snapshots', () => {
       const spillRoot = await mkdtemp(join(tmpdir(), 'acp-snap-spill-'))
       const locatorRoot = snapshotSpillRoot(join(scenario.dir, fixtureFiles[0] as string))
       const mcpDemo = scenario.name === 'plugin-manager-mcp' ? await startHttpMcpFixture() : undefined
+      const searchFixture = scenario.name === 'anago-search' ? await startSearchFixture() : undefined
       let result: Awaited<ReturnType<typeof runLoaderSmoke>>
       try {
         result = await runLoaderSmoke({
@@ -1312,6 +1339,7 @@ describe('headless recorded-session snapshots', () => {
             NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
             DSH_TELEMETRY_DISABLED: '1',
             ...(mcpDemo === undefined ? {} : { DSH_MCP_DEMO_URL: mcpDemo.url }),
+            ...(searchFixture === undefined ? {} : { DSH_SNAPSHOT_SEARCH_FIXTURE_URL: searchFixture.url }),
           },
           prepare: async (cwd) => {
             if (scenario.manifest.workspace?.parent === 'outside-temp') assertWorkspaceOutsideTemp(cwd)
@@ -1371,6 +1399,7 @@ describe('headless recorded-session snapshots', () => {
             if (scenario.name === 'working-directory') {
               verifyWorkingDirectory(actualLogs[0]!.content, await realpath(cwd))
             }
+            if (scenario.name === 'anago-search') verifySearchProviderSelection(searchFixture)
             if (scenario.name === 'worktree') {
               await verifyWorktree(actualLogs[0]!.content, await realpath(cwd))
             }
@@ -1385,6 +1414,7 @@ describe('headless recorded-session snapshots', () => {
         })
       } finally {
         await mcpDemo?.close()
+        await searchFixture?.close()
         await rm(spillRoot, { recursive: true, force: true })
       }
 

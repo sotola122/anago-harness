@@ -80,7 +80,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`client/`](client/README.zh.md) | web GUI 浏览器半侧：shell、协议层、对象服务、slot、`ui-*` 插件 |
 | [`test-support/`](test-support/README.zh.md) | 测试基础设施（testkit、回放、Loader 冒烟测试） |
 | [`util/`](util/README.zh.md) | 组间共享的低层零依赖工具（`Branded<B>`、home／路径辅助函数、超时、留存） |
-| [`fork/`](fork/README.zh.md) | 私有 fork 策略：针对 harness 自行发起流量的 Node 出站守卫 |
+| [`fork/`](fork/README.zh.md) | fork 私有包：Node 出站守卫、同捆的主机能力（`anago-core`）、浏览器卡片（`anago-web`）与终端应用（`anago-tui`） |
 
 -----
 

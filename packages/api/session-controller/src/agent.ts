@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import type {
-  Agent, AgentOptions, AgentSetup, ModelSelection as AgentModelSelection, ModelSelectionRef,
+  Agent, AgentHandle, AgentOptions, AgentSetup, ModelSelection as AgentModelSelection, ModelSelectionRef,
 } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
@@ -166,15 +166,44 @@ export async function inspectApiSession(
   }
 }
 
+/** Release policy for idle Web Agents owned by this controller. */
+export interface AgentReleasePolicy {
+  /** Whether an idle Agent releases its Session write ownership. */
+  readonly releaseOnIdle: boolean
+  /** Delay after the latest idle signal before the first quiescence check. */
+  readonly releaseIdleDelayMs: number
+  /** Delay between checks while an idle Agent still has work or child Agents. */
+  readonly releaseRetryMs: number
+}
+
+/** One live Agent handle and its retirement schedule. */
+interface AgentLifecycle {
+  readonly handle: AgentHandle
+  timer: NodeJS.Timeout | undefined
+  /** Admissions that resolved the Agent and have not settled. */
+  inflight: number
+}
+
 /** Owns every operation that may create, resume, or configure a Web Agent. */
 export class ApiSessionAgentController {
   private readonly resumes = new Map<SessionId, Promise<Agent>>()
   private readonly claims = new Map<SessionId, Promise<void>>()
   private readonly selections = new WeakMap<Agent, InstalledSelection>()
   private readonly imageAdmissionChains = new WeakMap<Agent, Promise<void>>()
+  private readonly lifecycles = new Map<SessionId, AgentLifecycle>()
 
-  /** @param ctx - Host context carrying Agent, model, persistence, and Typert services. */
-  constructor(private readonly ctx: Context) {
+  /**
+   * @param ctx - Host context carrying Agent, model, persistence, and Typert services.
+   * @param release - idle-release policy; the disabled default keeps every Agent attached.
+   */
+  constructor(
+    private readonly ctx: Context,
+    private readonly release: AgentReleasePolicy = {
+      releaseOnIdle: false,
+      releaseIdleDelayMs: 0,
+      releaseRetryMs: 1000,
+    },
+  ) {
     ctx.typert.lookups.configure('agent', async (sessionId: SessionId) => {
       const found = await this.resolveAgent(sessionId)
       if ('error' in found) throw found.error
@@ -190,6 +219,127 @@ export class ApiSessionAgentController {
       if ('error' in found) throw found.error
       return found.agent.ctx
     })
+    // A turn ending is the normal release trigger; background holders that
+    // finish without a turn are caught by the retry timer.
+    ctx.on('agent/status', ({ agent, status }) => {
+      if (status === 'idle') this.scheduleRelease(agent.id, this.release.releaseIdleDelayMs)
+    }, { global: true })
+    ctx.on('agent/disposed', ({ agent }) => {
+      const lifecycle = this.lifecycles.get(agent.id)
+      if (lifecycle?.handle.agent === agent) this.lifecycles.delete(agent.id)
+    }, { global: true })
+  }
+
+  /**
+   * Run one admission against a Session's Agent. A pending idle release is
+   * cancelled for the duration so the operation cannot race its own Agent
+   * disposal; the release is reconsidered when the operation settles.
+   * @param sessionId - ordinary Session identity.
+   * @param operation - admission body that may create, resume, or configure the Agent.
+   * @returns the operation result.
+   */
+  async admit<Value>(sessionId: SessionId, operation: () => Promise<Value>): Promise<Value> {
+    this.cancelRelease(sessionId)
+    const before = this.lifecycles.get(sessionId)
+    if (before !== undefined) before.inflight += 1
+    try {
+      return await operation()
+    } finally {
+      const after = this.lifecycles.get(sessionId) ?? before
+      if (after !== undefined) {
+        after.inflight -= 1
+        this.scheduleRelease(sessionId, this.release.releaseIdleDelayMs)
+      }
+    }
+  }
+
+  /** Adopt one created or resumed handle as the Session's releasable lifecycle. */
+  private adopt(handle: AgentHandle): Agent {
+    const sessionId = handle.agent.id
+    const existing = this.lifecycles.get(sessionId)
+    /* v8 ignore next 2 -- a second adopt only follows an external registry change */
+    if (existing?.timer !== undefined) clearTimeout(existing.timer)
+    this.lifecycles.set(sessionId, { handle, timer: undefined, inflight: 0 })
+    this.scheduleRelease(sessionId, this.release.releaseIdleDelayMs)
+    return handle.agent
+  }
+
+  /** Schedule one quiescence check, replacing any pending check for the Session. */
+  private scheduleRelease(sessionId: SessionId, delayMs: number): void {
+    if (!this.release.releaseOnIdle) return
+    const lifecycle = this.lifecycles.get(sessionId)
+    /* v8 ignore next -- an idle event for an Agent this controller never adopted (a subagent) has no lifecycle */
+    if (lifecycle === undefined) return
+    // clearTimeout ignores an absent timer; callers need not branch on it.
+    clearTimeout(lifecycle.timer)
+    lifecycle.timer = setTimeout(() => {
+      lifecycle.timer = undefined
+      void this.releaseIfQuiescent(sessionId, lifecycle)
+    }, delayMs)
+    lifecycle.timer.unref()
+  }
+
+  /** Cancel one pending quiescence check. */
+  private cancelRelease(sessionId: SessionId): void {
+    const lifecycle = this.lifecycles.get(sessionId)
+    if (lifecycle?.timer === undefined) return
+    clearTimeout(lifecycle.timer)
+    lifecycle.timer = undefined
+  }
+
+  /**
+   * Release one Agent once no work can observe it: idle, empty inbox, no
+   * holds, no live children, and no admission in flight. Every failed
+   * condition schedules another check instead of dropping the release.
+   */
+  private async releaseIfQuiescent(sessionId: SessionId, lifecycle: AgentLifecycle): Promise<void> {
+    /* v8 ignore next -- a replaced lifecycle belongs to an Agent this controller no longer owns */
+    if (this.lifecycles.get(sessionId) !== lifecycle) return
+    /* v8 ignore next -- an admission cancels the timer before it resolves an Agent; this guards a callback already dequeued */
+    if (lifecycle.inflight > 0) return
+    const agent = this.ctx.agents.get(sessionId)
+    /* v8 ignore next 4 -- the registry replaced the Agent without a lifecycle event; drop the stale schedule */
+    if (agent !== lifecycle.handle.agent) {
+      this.lifecycles.delete(sessionId)
+      return
+    }
+    if (!this.isQuiescent(agent)) {
+      this.scheduleRelease(sessionId, this.release.releaseRetryMs)
+      return
+    }
+    // A maintenance task (manual compaction, a command) runs in the Agent's
+    // `maintenance` phase, which reports `idle`. whenIdle() waits for that task
+    // and for any waking work it releases, so quiescence must be re-checked
+    // after it settles.
+    await agent.whenIdle()
+    const settled = this.ctx.agents.get(sessionId)
+    /* v8 ignore next 4 -- a concurrent close or replacement while whenIdle() awaited owns the new lifecycle */
+    if (settled !== agent) {
+      if (this.lifecycles.get(sessionId) === lifecycle) this.lifecycles.delete(sessionId)
+      return
+    }
+    if (!this.isQuiescent(agent)) {
+      this.scheduleRelease(sessionId, this.release.releaseRetryMs)
+      return
+    }
+    try {
+      await lifecycle.handle.dispose()
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`session-controller: idle release for "${sessionId}" failed: ${String(error)}`)
+      this.scheduleRelease(sessionId, this.release.releaseRetryMs)
+      return
+    }
+    /* v8 ignore next -- a re-adopt during disposal owns the new lifecycle and must keep it */
+    if (this.lifecycles.get(sessionId) === lifecycle) this.lifecycles.delete(sessionId)
+  }
+
+  /** Whether the Agent has no turn, waking inbox, hold, or live child Agent. */
+  private isQuiescent(agent: Agent): boolean {
+    return agent.status === 'idle'
+      && agent.inbox.nextTurn.length === 0
+      && agent.inbox.nextStep.length === 0
+      && this.ctx.agents.holds(agent) === 0
+      && !this.ctx.agents.list().some(child => this.ctx.agents.isOwnedBy(child.id, agent))
   }
 
   /**
@@ -437,11 +587,11 @@ export class ApiSessionAgentController {
     if (published !== undefined && hasApiSessionSubagentOwner(this.ctx, published, live)) {
       throw new ApiSessionSubagentOwnership(sessionId)
     }
-    return (await this.ctx.agents.resume({
+    return this.adopt(await this.ctx.agents.resume({
       resumeSessionId: sessionId,
       agentOptions: this.agentOptions(),
       setup: composition.setup,
-    })).agent
+    }))
   }
 
   private async inOrder<Value>(sessionId: SessionId, operation: () => Promise<Value>): Promise<Value> {
@@ -491,11 +641,11 @@ export class ApiSessionAgentController {
     if (!reusable) return this.createMinted(request.cwd, composition)
     this.assertPresetApplicable(sessionId, request.agentPreset)
     try {
-      return (await this.ctx.agents.resume({
+      return this.adopt(await this.ctx.agents.resume({
         resumeSessionId: sessionId,
         agentOptions: this.agentOptions(),
         setup: this.reuseSetup(composition),
-      })).agent
+      }))
     } catch (error: unknown) {
       if (error instanceof ApiSessionStartedSinceObserved) return this.createMinted(request.cwd, composition)
       if (!(error instanceof Error) || error.name !== 'SessionAlreadyOwnedError') throw error
@@ -566,7 +716,7 @@ export class ApiSessionAgentController {
     } catch (error: unknown) {
       throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
     }
-    return (await this.ctx.agents.create({
+    return this.adopt(await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
       meta: {
@@ -574,7 +724,7 @@ export class ApiSessionAgentController {
         ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }),
       },
       setup: composition.setup,
-    })).agent
+    }))
   }
 
   private agentOptions(): AgentOptions {

@@ -396,6 +396,14 @@ export class ClientSessions implements ISessions {
   }
 
   /**
+   * Apply one remotely forwarded Agent detach.
+   * @param sessionId - Session whose live Agent was released.
+   */
+  handleSessionDetached(sessionId: Parameters<SessionManager['handleSessionDetached']>[0]): void {
+    this.manager.handleSessionDetached(sessionId)
+  }
+
+  /**
    * Apply one remotely forwarded running-state change.
    * @param args - Session identity and current Agent running state.
    */

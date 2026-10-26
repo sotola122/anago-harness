@@ -9,7 +9,7 @@ import type {
   AttachmentAdmissionPart,
   ImageAttachmentLimits,
 } from '@deepseek-ai/dsh-attachment'
-import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader, SessionId, SessionOwnership } from '@deepseek-ai/dsh-session'
 import type { SessionProjectionsValue } from '../src/types.ts'
 import {
   SessionPersistenceNotFoundError,
@@ -104,6 +104,12 @@ export interface TestSessionRemoteDefaults {
   readonly openFileApplication?: SessionControllerInternals['openFileApplication']
   readonly revealPath?: (path: string, signal: AbortSignal) => Promise<void>
   readonly canOpenPath?: () => boolean
+  /** Enable idle release for the composed controller (test fixture for the release timeline). */
+  readonly releaseOnIdle?: boolean
+  /** Delay before the first release check. */
+  readonly releaseIdleDelayMs?: number
+  /** Delay between checks while work remains. */
+  readonly releaseRetryMs?: number
 }
 
 const installed = new WeakMap<Context, SessionController>()
@@ -138,6 +144,7 @@ type LegacyTestPersistence = Record<string, unknown> & {
     access: SessionAccess,
     options?: SessionPersistenceOpenOptions,
   ) => Promise<SessionHandle>
+  readonly ownership?: (id: SessionId) => Promise<SessionOwnership>
 }
 
 /** One immutable read handle over a double's inspected header and events. */
@@ -299,6 +306,9 @@ function installControllers(
       ctx,
       {
         ...defaults.nativeOpen === undefined ? {} : { nativeOpen: defaults.nativeOpen },
+        ...defaults.releaseOnIdle === undefined ? {} : { releaseOnIdle: defaults.releaseOnIdle },
+        ...defaults.releaseIdleDelayMs === undefined ? {} : { releaseIdleDelayMs: defaults.releaseIdleDelayMs },
+        ...defaults.releaseRetryMs === undefined ? {} : { releaseRetryMs: defaults.releaseRetryMs },
       },
       {
         ...defaults.openPath === undefined ? {} : { openPath: defaults.openPath },

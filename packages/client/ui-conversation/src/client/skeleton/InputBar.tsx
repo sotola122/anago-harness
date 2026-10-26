@@ -139,11 +139,13 @@ export const InputBar = memo(function InputBar({
   // adjudicating and submitting render read-only so the draft stays visible.
   const disabled = removed || inert || !live || blocked !== undefined || parentOffline
   const locked = disabled
-  // The model seat is the ONE control a block leaves live: every block this
-  // contract has is cleared by choosing a model, so locking it too would leave
-  // the composer asking for the only thing it prevents. The other reasons to
-  // be disabled do lock it — there is no session to choose a model for.
-  const modelSeatLocked = removed || inert || !live
+  // The model seat is the ONE control a block normally leaves live: every block
+  // the conversation itself raises is cleared by choosing a model, so locking it
+  // would leave the composer asking for the only thing it prevents. A block that
+  // declares `lock: 'all'` is different — its cause is outside model choice, and
+  // a model change could activate work that cause forbids. The other reasons to
+  // be disabled also lock it; there is no session to choose a model for.
+  const modelSeatLocked = removed || inert || !live || blocked?.lock === 'all'
   const machineBusy = input?.phase === 'adjudicating' || input?.phase === 'submitting'
   // The no-workspace surface remains the resident DOM node but acts as the
   // existing picker trigger. Message controls stay locked until a Session

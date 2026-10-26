@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/fork/client-ui-fonts-anago/README.md
+/:
+  en: 27b06f0f751b9f00
+  zh: cb2b7d3bc11e8923
+/anago-harness-client-ui-fonts-anago:
+  en: 1272418a8ce14feb
+  zh: 238dabccc9ff3740
+/anago-harness-client-ui-fonts-anago/summary:
+  en: dd7a56f5f0a337f7
+  zh: 5a2542b2f68b0c73
+/anago-harness-client-ui-fonts-anago/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/anago-harness-client-ui-fonts-anago/use-this-package:
+  en: f6e0292b2e8b16ea
+  zh: 0f192f5a2d701f44
+/anago-harness-client-ui-fonts-anago/understand-the-implementation:
+  en: 7833b641974d97c4
+  zh: 68cdbe9c8afd4e87
+/anago-harness-client-ui-fonts-anago/further-exploration:
+  en: 5eecc565b5177eeb
+  zh: d993d1248ae1bcdb
+/anago-harness-client-ui-fonts-anago/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/anago-harness-client-ui-fonts-anago/model-experience/no-model-context-contribution:
+  en: fef2d7ffd357282c
+  zh: 8f0c433293f26203
+/anago-harness-client-ui-fonts-anago/model-experience/no-model-context-contribution/what-the-model-sees:
+  en: 10295cbbcf67358c
+  zh: 74ab1489ee74af09
+/anago-harness-client-ui-fonts-anago/model-experience/no-model-context-contribution/token-effect:
+  en: a021831ff57572b0
+  zh: 0cf9ef80f67dbf51
+/anago-harness-client-ui-fonts-anago/model-experience/no-model-context-contribution/kv-cache-effect:
+  en: e5f089f4e73fc676
+  zh: cd3f66de1e6c358d
+/anago-harness-client-ui-fonts-anago/known-limitations-and-deferred-work:
+  en: 20cfb6ef260bd601
+  zh: 3f32cef9d03970a5
+/anago-harness-client-ui-fonts-anago/known-limitations-and-deferred-work/dev-note:
+  en: 6101a13442211d89
+  zh: e54fbee0cf5bd980

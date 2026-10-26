@@ -1,0 +1,24 @@
+# Both fork search providers are mounted by `@anago-harness/anago-core` and
+# both are usable here. The composition selects Brave, so a `web_search` call
+# must be served by the Brave endpoint; the Exa endpoint records no request.
+# The harness starts the fixture listener and passes its base URL, so the
+# recorded authority never enters the Session and replay needs no network.
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: brave
+    fetchProvider: http
+
+- id: web-search-brave
+  name: '@anago-harness/web-search-brave'
+  config:
+    apiKey: snapshot-brave-key
+    apiKeyEnv: BRAVE_API_KEY
+    baseURL: !!js process.env.DSH_SNAPSHOT_SEARCH_FIXTURE_URL + '/brave'
+
+- id: web-search-exa
+  name: '@anago-harness/web-search-exa'
+  config:
+    apiKey: snapshot-exa-key
+    apiKeyEnv: EXA_API_KEY
+    baseURL: !!js process.env.DSH_SNAPSHOT_SEARCH_FIXTURE_URL + '/exa'

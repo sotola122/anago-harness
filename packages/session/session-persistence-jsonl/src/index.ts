@@ -33,9 +33,9 @@ import {
   type SessionPersistenceRevision as PersistenceRevision,
 } from '@deepseek-ai/dsh-session-persistence'
 import { JsonlBackendTracker, JsonlSessionHandle, type StorageHandleState } from './storage.ts'
-import { SessionWriteLease } from './lease.ts'
+import { probeLease, SessionWriteLease } from './lease.ts'
 import { SESSION_FORMAT_VERSION, SessionId as makeSessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
-import type { SessionEvent, SessionId, SessionHeader, SessionLogOffset as SessionLogOffsetType } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionId, SessionHeader, SessionLogOffset as SessionLogOffsetType, SessionOwnership } from '@deepseek-ai/dsh-session'
 import {
   assertNoRetiredHeaderFields, encodeSegment, eventLines, generationLogFilename, generationLogPath, logPath, logSuffix,
   parseGenerationLogFilename, projectDir, scanLog, sessionDir, SessionLogScanner, toHeaderLine,
@@ -559,6 +559,41 @@ class JsonlSessionPersistence extends SessionPersistence {
     }
     signal?.throwIfAborted()
     return snapshots
+  }
+
+  /**
+   * Report who owns one stored session's write path without taking ownership
+   * or creating the session directory or lock file; see the seam contract.
+   * An in-process write claim answers `owned-here` even before a lazily
+   * materialized session reaches storage, and the classification describes
+   * one moment: another process may take or drop the lock immediately
+   * afterwards.
+   * @param id - the stored session to probe.
+   * @param options - optional cancellation.
+   * @returns the ownership classification, or `unknown` when a storage or
+   *   layout failure prevents the probe from deciding.
+   */
+  async ownership(id: SessionId, options?: SessionPersistenceStatOptions): Promise<SessionOwnership> {
+    const signal = options?.signal
+    signal?.throwIfAborted()
+    if (this.tracker.hasWriter(id)) return 'owned-here'
+    let ownership: SessionOwnership
+    try {
+      ownership = await this.classifyOwnership(id, signal)
+    } catch {
+      // A store read or lock probe that failed cannot decide ownership;
+      // cancellation is reported below instead of as `unknown`.
+      ownership = 'unknown'
+    }
+    signal?.throwIfAborted()
+    return ownership
+  }
+
+  /** Classify one stored session's writer for {@link ownership}; storage failures propagate. */
+  private async classifyOwnership(id: SessionId, signal?: AbortSignal): Promise<SessionOwnership> {
+    const selected = await this.findLog(id, signal)
+    if (selected === undefined) return 'missing'
+    return await probeLease(dirname(selected.sourcePath)) === 'held' ? 'held-elsewhere' : 'free'
   }
 
   // --- handle-facing storage internals (package-private via the handle class below) ---

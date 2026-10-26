@@ -4,20 +4,24 @@
 
 ## 本仓库是什么
 
-Anago Harness 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的非官方 fork。DeepSeek Harness 是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。本 fork 保留上游架构与许可证，与 DeepSeek AI 没有隶属关系，也未获其背书；设计基线见 [PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md)。
+Anago Harness 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的非官方 fork，后者是 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness。本 fork 保留上游架构与许可，与 DeepSeek AI 无隶属关系，也未获其背书，并在 [PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) 中记录设计基线。
 
-## 保持上游兼容的部分
+## 保持与上游兼容的部分
 
-包名（`@deepseek-ai/dsh-*`）、`dsh` 命令、`DSH_*` 环境变量和 `~/.dsh` 主目录沿用上游名称，上游插件、profile、配置和文档引用继续可用。
+包名（`@deepseek-ai/dsh-*`）、`dsh` 命令、`DSH_*` 环境变量与 `~/.dsh` 主目录沿用上游名称，因此上游插件、配置、配置文件与文档引用继续可用。
 
-## 本 fork 变更的部分
+## fork 改变了什么
 
-`@anago-harness/fork-policy` 安装出站守卫，拒绝 harness 自行发起的、指向 denylist 主机的连接；`api.deepseek.com` 保持可达。本仓库不运行上游的发布、预览、Issue 与审批工作流。变更仅限 fork 专有文件和少量 hook 点，以便上游更新继续合并。
+`@anago-harness/fork-policy` 安装出站守卫，拒绝 harness 自行联系的主机；`api.deepseek.com` 保持可达。本仓库不运行上游的发布、预览、issue 与审批工作流。改动集中在 fork 私有文件与少量 hook 点，便于合并上游更新。
 
-## 后续工作
+fork 以 `packages/fork/` 下的私有包提供自己的能力，并通过四个捆绑包挂载：`@anago-harness/anago-core`（记忆、LLM wiki、日语响应指令、Cursor 子代理，以及 Exa 与 Brave 搜索提供方）、`@anago-harness/anago-web`（Exa 与 Brave 搜索设置卡片）、`@anago-harness/xai-oauth`（通过 pi-ai OAuth 流程登录 xAI 的 `/xai-*` 命令）以及 `@anago-harness/copilot-oauth`（通过 pi-ai OAuth 流程登录 GitHub Copilot 的 `/copilot-*` 命令）。`web` 与 `headless` 配置模板选择核心捆绑包，`web` 还选择浏览器捆绑包；需要登录对应提供方的配置会选择 `xai-oauth` 或 `copilot-oauth`。终端界面由单独安装的 dsh-TUI 捆绑包提供，不是 fork 包。
 
-[PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) 规划剩余工作：产品品牌、日文字体、`ash` 命令、默认使用 Exa 搜索，以及桌面安装包。
+fork 组合由 `snapshots/session/` 下的无密钥快照记录：`anago-memory`、`anago-wiki` 与 `anago-search` 从已提交的 Session 回放注入的记忆快照与 `memory` 工具、wiki 存在性通知，以及 Brave 优先于 Exa 的搜索选择，因此无需模型密钥即可验证这些行。
 
-## 文档与许可证
+## 接下来
 
-代码的权威文档仍是[上游文档](https://deepseek-harness.github.io/deepseek-harness/)。本 fork 按上游 MIT 许可证分发，见 [LICENSE](../LICENSE) 与 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
+[PROJECT_GUIDELINE.md](../PROJECT_GUIDELINE.md) 规划剩余的 fork 工作：产品品牌、日语字体、`ash` 命令与桌面安装包。[ANAGO_PLUGINS_DESIGN.md](../ANAGO_PLUGINS_DESIGN.md) 记录包划分与设置卡片设计。
+
+## 文档与许可
+
+[上游文档](https://deepseek-harness.github.io/deepseek-harness/) 仍是代码的参考。本 fork 依上游 MIT 许可分发；见 [LICENSE](../LICENSE) 与 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。

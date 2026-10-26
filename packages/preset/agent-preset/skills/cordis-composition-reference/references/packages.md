@@ -233,6 +233,23 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-command-feedback` | no | Log-only session feedback: the record event, the sessionFeedback Host Remote, and the human-facing slash command |
 | `@deepseek-ai/dsh-message-feedback` | yes | Canonical Session-log ratings and notes for finalized assistant messages |
 
+## fork
+
+| Package | Config | Description |
+|---|---|---|
+| `@anago-harness/client-ui-fonts-anago` | no | Japanese-first Web UI fonts: UDEV Gothic for kana, kanji and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP as the broad fallback. |
+| `@anago-harness/client-ui-session-share` | no | Read-only composer for Sessions another DSH process holds the write lease on, so viewing a Session in the anago Web UI never becomes a second writer. |
+| `@anago-harness/client-ui-settings-web-search` | no | Web-search provider settings cards for the anago Web UI: Exa and Brave keys, provider selection, and result bounds. |
+| `@anago-harness/copilot-oauth` | no | Sign in to GitHub Copilot through the pi-ai OAuth flow and drive it from /copilot-* commands. |
+| `@anago-harness/llm-wiki` | yes | LLM wiki: project and global wiki stores with write, search, and lint tools plus a skill. |
+| `@anago-harness/memory` | yes | Persistent agent memory: global and workspace stores, the memory tool, and injected snapshots. |
+| `@anago-harness/response-language` | yes | Fixed Japanese-response instruction injected as a global system-prompt section. |
+| `@anago-harness/subagent-cursor` | yes | Cursor Agent CLI one-shot subagent provider for the DSH subagent seam. |
+| `@anago-harness/subagent-pi` | yes | Pi coding agent CLI one-shot subagent provider for the DSH subagent seam. |
+| `@anago-harness/web-search-brave` | yes | Brave Search provider for the ctx.web capability seam. |
+| `@anago-harness/web-search-exa` | yes | Exa search provider that resolves its key through the credentials service. |
+| `@anago-harness/xai-oauth` | no | Sign in to xAI (SuperGrok / X Premium) through the pi-ai OAuth flow and drive it from /xai-* commands. |
+
 ## fs
 
 | Package | Config | Description |

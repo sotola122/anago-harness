@@ -80,7 +80,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`client/`](client/README.md) | Web-GUI browser half: shell, wire, object services, slots, `ui-*` plugins |
 | [`test-support/`](test-support/README.md) | Test infrastructure (testkits, replay, Loader smokes) |
 | [`util/`](util/README.md) | Low-level zero-dependency utilities shared across groups (`Branded<B>`, home/path helpers, timeout, retention) |
-| [`fork/`](fork/README.md) | Private fork policy: Node egress guard for harness-initiated hosts |
+| [`fork/`](fork/README.md) | Private fork packages: the Node egress guard, the bundled host capabilities (`anago-core`), the browser cards (`anago-web`), and the terminal application (`anago-tui`) |
 
 -----
 

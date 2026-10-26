@@ -72,6 +72,23 @@ describe('Session Controller Client apply', () => {
     await vi.waitFor(() => { expect(connected).toHaveBeenCalledTimes(2) })
   }, COLD_BOOT_TIMEOUT_MS)
 
+  it('keeps a detached Session listed with its Agent cleared', async ({ mock, start }) => {
+    const detached = vi.spyOn(ClientSessions.prototype, 'handleSessionDetached')
+    const { sessions } = await bench(start)
+    const sessionId = sid('session-detached')
+    await emit(mock, 'api-session/added', { agentAvailable: true, sessionId, updatedAt: 1, running: true, blank: false })
+    await vi.waitFor(() => {
+      expect(sessions.list.getSnapshot().byId[sessionId]).toMatchObject({ running: true })
+    })
+
+    await emit(mock, 'api-session/detached', sessionId)
+    await vi.waitFor(() => {
+      // The row survives; only the live Agent disappears.
+      expect(detached).toHaveBeenCalledWith(sessionId)
+      expect(sessions.list.getSnapshot().byId[sessionId]).toMatchObject({ running: false })
+    })
+  }, COLD_BOOT_TIMEOUT_MS)
+
   it('runs handleConnected at apply when the Host is already connected, as a reload of the row does', async ({ start }) => {
     const connected = vi.spyOn(ClientSessions.prototype, 'handleConnected')
     const { client } = await bench(start)

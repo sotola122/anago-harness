@@ -66,6 +66,19 @@ export type SessionSeqCursor = SessionSeq | -1
 export type OptionalSessionSeq = SessionSeq | null
 
 /**
+ * Write ownership of one stored Session as observed by a persistence probe.
+ *
+ * `owned-here` means this process already holds the Session's write handle or
+ * write claim; `held-elsewhere` means another instance or process holds the
+ * kernel write lock; `free` means the Session is stored and no writer holds
+ * it; `missing` means no stored Session matches the id; `unknown` means the
+ * probe could not decide, for example after a permission or I/O failure. A
+ * probe answers for one moment only: it reports current facts and never
+ * reserves or transfers ownership.
+ */
+export type SessionOwnership = 'free' | 'owned-here' | 'held-elsewhere' | 'missing' | 'unknown'
+
+/**
  * Current logical Session format version, stamped into every newly written
  * {@link SessionHeader}. Current Session and persistence code accept only this
  * value; header-only readers classify supported historical formats, while an

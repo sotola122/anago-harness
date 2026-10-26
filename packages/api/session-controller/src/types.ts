@@ -506,6 +506,16 @@ export interface SessionFollowRequest extends Pick<SessionPageRequest, 'maxMessa
   readonly address: SessionAddress
   /** Include process-local assistant presentation frames for the Web client. */
   readonly assistantStream?: true
+  /**
+   * `read` observes the stored Session without activating an Agent: no
+   * background resume, and the opening cursor is the last physically persisted
+   * event so a repair closer cannot pass for durable history. While no Agent
+   * of this process owns the Session, appends from its writer arrive by
+   * polling the stored revision; a polling failure ends the stream with
+   * `gateway/internal`. `activate` is the default and keeps the historical
+   * behavior.
+   */
+  readonly mode?: 'activate' | 'read'
 }
 
 /** One active assistant attempt in a reconnect opening snapshot. */
@@ -608,11 +618,21 @@ declare module '@deepseek-ai/cordis' {
      */
     'api-session/added'(summary: SessionSummary): void
     /**
-     * A Session left the live Host registry.
+     * A durable subagent row left the live Host catalog with its run. An
+     * ordinary conversation detaches instead, because its stored Session
+     * remains openable.
      * @mode emit
      * @param sessionId - removed Session identity.
      */
     'api-session/removed'(sessionId: SessionId): void
+    /**
+     * A Session's live Agent was released while the stored Session remains.
+     * Consumers keep the row, its history, and the draft, and clear live-Agent
+     * availability instead of treating the Session as removed.
+     * @mode emit
+     * @param sessionId - Session whose Agent detached.
+     */
+    'api-session/detached'(sessionId: SessionId): void
     /**
      * One Agent changed running state.
      * @mode emit

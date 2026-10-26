@@ -9,7 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import { errorChain, ReasoningEffortId, type MessageSource } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-client-file-upload'
 import { canOpenNativePath, nativeFileManager, nativeFileApplications, openNativeFileApplication, openNativeAssociatedPath, revealNativePath } from '@deepseek-ai/dsh-native-command'
-import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionId, SessionOwnership } from '@deepseek-ai/dsh-session'
 import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
 import type {} from '@deepseek-ai/dsh-session-projection-cache'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
@@ -24,7 +24,7 @@ import {
 } from './agent.ts'
 import { SessionCommandController, hasPromptContent } from './commands.ts'
 import { SessionControlController } from './control.ts'
-import { SessionHistoryController } from './history.ts'
+import { DEFAULT_FOREIGN_POLL_MS, SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog, hasProviderApiKey } from './catalog.ts'
@@ -90,16 +90,39 @@ function addressedSession(request: { readonly address: SessionAddress }): Sessio
   return request.address.kind === 'session' ? request.address.sessionId : request.address.childSessionId
 }
 
+/** Maximum Sessions one ownership probe may name. */
+const OWNERSHIP_PROBE_LIMIT = 200
+
 /** Session Controller deployment policy. */
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
   /** Positive integral milliseconds of list work before yielding between complete rows. */
   readonly listWorkSliceMs?: number
+  /**
+   * Release an idle Agent's Session write ownership so another DSH process can
+   * open it. Off by default: an attached Agent keeps the Session's writer lease.
+   */
+  readonly releaseOnIdle?: boolean
+  /** Non-negative milliseconds between the idle signal and the first release check. */
+  readonly releaseIdleDelayMs?: number
+  /** Positive milliseconds between release checks while work or child Agents remain. */
+  readonly releaseRetryMs?: number
+  /**
+   * Positive milliseconds between persistence revision polls for a read-only
+   * follower whose Session writer is another process.
+   */
+  readonly foreignPollMs?: number
 }
 
 /** Deployment policy after schema defaults have been applied. */
-type ResolvedConfig = Config & { readonly listWorkSliceMs: number }
+type ResolvedConfig = Config & {
+  readonly listWorkSliceMs: number
+  readonly releaseOnIdle: boolean
+  readonly releaseIdleDelayMs: number
+  readonly releaseRetryMs: number
+  readonly foreignPollMs: number
+}
 
 /** Host integrations replaceable by direct unit tests. */
 export interface SessionControllerInternals {
@@ -126,6 +149,7 @@ export class SessionController extends TypertRemoteService {
     'llm',
     'remoteAccess',
     'sessions',
+    'sessionPersistence',
     'sessionProjections',
     'sessionQuery',
     'typert',
@@ -135,6 +159,10 @@ export class SessionController extends TypertRemoteService {
   static Config: z<Config, ResolvedConfig> = z.object({
     nativeOpen: z.boolean(),
     listWorkSliceMs: z.natural().min(1).default(16),
+    releaseOnIdle: z.boolean().default(false),
+    releaseIdleDelayMs: z.natural().default(0),
+    releaseRetryMs: z.natural().min(1).default(1000),
+    foreignPollMs: z.natural().min(1).default(DEFAULT_FOREIGN_POLL_MS),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -159,7 +187,11 @@ export class SessionController extends TypertRemoteService {
     ctx.typert.resources.register('session', { field: 'sessionId' })
     const resolved = SessionController.Config(config)
     installModelSelectionProjection(ctx)
-    this.agents = new ApiSessionAgentController(ctx)
+    this.agents = new ApiSessionAgentController(ctx, {
+      releaseOnIdle: resolved.releaseOnIdle,
+      releaseIdleDelayMs: resolved.releaseIdleDelayMs,
+      releaseRetryMs: resolved.releaseRetryMs,
+    })
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
     ctx.effect(() => ctx.fileUploads.registerAgentResolver(async (sessionId) => {
       const result = await this.agents.resolveAgent(sessionId)
@@ -172,7 +204,11 @@ export class SessionController extends TypertRemoteService {
     ctx.effect(() => async () => {
       await Promise.allSettled([...this.promotions])
     }, 'session-controller.promotions')
-    this.history = new SessionHistoryController(ctx, (observation) => { this.promote(observation) })
+    this.history = new SessionHistoryController(
+      ctx,
+      (observation) => { this.promote(observation) },
+      resolved.foreignPollMs,
+    )
     this.listState = new ApiSessionList(ctx, resolved.listWorkSliceMs)
     this.fileApplications = internals.fileApplications ?? nativeFileApplications
     this.openFileApplication = internals.openFileApplication ?? openNativeFileApplication
@@ -191,8 +227,14 @@ export class SessionController extends TypertRemoteService {
     ctx.on('session/created', (session) => {
       ctx.emit('api-session/added', this.listState.summaryFor(session))
     })
+    // An Agent detaching closes its Session, but the stored Session remains
+    // openable. An ordinary conversation therefore detaches: clients keep the
+    // row, history, and draft. A durable subagent row leaves the live catalog
+    // with its run, which keeps the removal signal (and the client's
+    // subagent-specific handling of it).
     ctx.on('session/disposed', (session) => {
-      ctx.emit('api-session/removed', session.id)
+      if (session.header.origin === 'subagent') ctx.emit('api-session/removed', session.id)
+      else ctx.emit('api-session/detached', session.id)
     })
     const publishAgentAvailability = ({ agent }: { agent: Agent }): undefined => {
       if (ctx.sessions.get(agent.id) === agent.session) {
@@ -293,6 +335,25 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
+   * Report which process holds each Session's write ownership. The answer is
+   * advisory: only the open and prompt paths' kernel lease decides whether a
+   * write succeeds. A non-owner caller learns nothing about Sessions its
+   * access policy refuses.
+   * @param ids - Session identities to probe; at most 200 after de-duplication.
+   * @returns one ownership state per requested identity.
+   * @throws RemoteError `gateway/bad-request` for an oversized batch.
+   */
+  @Remote
+  async ownership(ids: readonly SessionId[]): Promise<Record<string, SessionOwnership>> {
+    const unique = [...new Set(ids)].filter(id => this.ctx.remoteAccess.allows({ kind: 'session', id }))
+    if (unique.length > OWNERSHIP_PROBE_LIMIT) {
+      throw new RemoteError('gateway/bad-request', `ownership accepts at most ${String(OWNERSHIP_PROBE_LIMIT)} Sessions`, {})
+    }
+    const entries = await Promise.all(unique.map(async id => [id, await this.ctx.sessionPersistence.ownership(id)] as const))
+    return Object.fromEntries(entries)
+  }
+
+  /**
    * Create one ordinary Session for a new conversation, reusing the named blank Session while it is reusable.
    * @param request - optional blank Session to reuse, location, and Agent preset.
    * @returns the created or reused Session identity and its preset when configured.
@@ -309,7 +370,7 @@ export class SessionController extends TypertRemoteService {
    */
   @Remote('selectModel')
   selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue> {
-    return this.commands.selectModel(request)
+    return this.agents.admit(request.sessionId, () => this.commands.selectModel(request))
   }
 
   /**
@@ -429,7 +490,7 @@ export class SessionController extends TypertRemoteService {
    */
   @Remote('rename')
   rename(request: SessionRenameRequest): Promise<SessionRenameValue> {
-    return this.commands.rename(request)
+    return this.agents.admit(request.sessionId, () => this.commands.rename(request))
   }
 
   /**
@@ -449,7 +510,7 @@ export class SessionController extends TypertRemoteService {
         })
       }
     }
-    return this.commands.fork(request)
+    return this.agents.admit(request.sessionId, () => this.commands.fork(request))
   }
 
   /**
@@ -482,7 +543,7 @@ export class SessionController extends TypertRemoteService {
       ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
       ...(principal === undefined ? {} : { principal }),
     }
-    return this.commands.prompt(request, source)
+    return this.agents.admit(request.sessionId, () => this.commands.prompt(request, source))
   }
 
   /**
@@ -492,7 +553,7 @@ export class SessionController extends TypertRemoteService {
    */
   @Remote('attachment')
   attachment(request: SessionAttachmentRequest): Promise<SessionAttachmentValue> {
-    return this.commands.attachment(request)
+    return this.agents.admit(request.sessionId, () => this.commands.attachment(request))
   }
 
   /**
@@ -502,7 +563,7 @@ export class SessionController extends TypertRemoteService {
    */
   @Remote('updateQueue')
   updateQueue(request: SessionUpdateQueueRequest): Promise<SessionUpdateQueueValue> {
-    return this.commands.updateQueue(request)
+    return this.agents.admit(request.sessionId, () => this.commands.updateQueue(request))
   }
 
   /**

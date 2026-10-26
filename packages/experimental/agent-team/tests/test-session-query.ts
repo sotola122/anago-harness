@@ -17,6 +17,7 @@ function cut(
     inheritedEventCount: SessionLogOffset(0),
     events,
     cursor: events.at(-1)?.seq ?? -1,
+    savedCursor: events.at(-1)?.seq ?? -1,
     retain: lease,
     [Symbol.dispose]: () => {},
   })

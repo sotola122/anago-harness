@@ -142,10 +142,20 @@ export function apply(ctx: Context): void {
     }
   }
 
-  /** Process admitted work at quiescence, then reserve at most one next round. */
+  /**
+   * Process admitted work at quiescence, then reserve at most one next round.
+   *
+   * The driver holds the agent for the whole pass. The durability checkpoint,
+   * the descendant wait, and the goal recheck are awaited while the agent is
+   * idle, so a controller that releases idle agents could otherwise dispose it
+   * between the decision and the enqueue. The hold is disposed on every exit
+   * path, including a pass that decides not to reserve a round.
+   */
   async function drive(state: DriverState): Promise<void> {
     const { agent } = state
     if (!readyToDrive(state)) return
+    // Held for effect only: `using` disposes it when this pass returns.
+    using _hold = ctx.agents.hold(agent)
 
     if (state.needsCheckpoint) {
       state.needsCheckpoint = false

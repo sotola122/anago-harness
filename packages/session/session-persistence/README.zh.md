@@ -33,7 +33,7 @@ seam 随产品交付 [JSONL](../session-persistence-jsonl/README.zh.md) 后端�
 
 ### 服务提供什么
 
-挂载后端后，五个服务方法寻址已存储会话：
+挂载后端后，六个服务方法寻址已存储会话：
 
 ```text
 const handle = await ctx.sessionPersistence.create(header)     // store a new session, take write ownership
@@ -41,6 +41,7 @@ const handle = await ctx.sessionPersistence.open(id, 'write')  // claim single-w
 const reader = await ctx.sessionPersistence.open(id, 'read')   // observe without ownership
 const snap = await ctx.sessionPersistence.stat(id)             // header + revision (+ eventCount / sizeBytes) without a log read
 const all = await ctx.sessionPersistence.list()                // one snapshot per visible stored session
+const owner = await ctx.sessionPersistence.ownership(id)       // free | owned-here | held-elsewhere | missing | unknown
 await ctx.sessionPersistence.flush()                           // backend-wide durability barrier over every active write handle
 ```
 
@@ -51,6 +52,8 @@ await ctx.sessionPersistence.flush()                           // backend-wide d
 ### 所有权与可见性
 
 `create` 与 `open(id, 'write')` 取得进程内单写者所有权：在持有者活跃期间第二次以写模式打开会以 `SessionAlreadyOwnedError` 拒绝，对已占用 id 执行 `create` 会以 `SessionAlreadyExistsError` 拒绝，在 `read` 句柄上执行修改会以 `SessionReadOnlyError` 拒绝——一种句柄类型，运行时拒绝。对已关闭句柄的任何操作会以 `SessionHandleClosedError` 拒绝，`SessionOwnershipLostError` 标记写所有权已永久丢失的写句柄（关闭并重新打开）。已创建的会话自 `create` 完成之刻起即可在本进程内被观察到，而后端可以把物理实体化推迟到第一次 `append` 或 `flush`；其他进程只能看到已实体化的会话，一个在崩溃前从未实体化的会话等于从未存在。
+
+`ownership(id)` 在不取得所有权、也不创建会话目录或锁文件的前提下，判定一个已存储会话的写入路径由谁持有。本进程持有写句柄或写声明时（包括已创建但尚未实体化的会话）返回 `owned-here`；其他实例或进程持有内核写锁时返回 `held-elsewhere`；会话已存储且没有写入者持有时返回 `free`；没有任何已存储会话匹配该 id 时返回 `missing`；权限或 I/O 故障使探测无法判断时返回 `unknown`。该答案只描述某一时刻，不构成互斥：它用于展示或拒绝某个会话，绝不是绕过 `open(id, 'write')` 直接写入的许可。
 
 ### 实时写路径与关闭排空
 
@@ -153,6 +156,7 @@ seam 不添加提示词或 schema。恢复会将已存储的表层事件还原�
 - **无删除或保留接口**——剪枝已存储会话属于带外后端维护。
 - **`list()` 无分页且无过滤**——它返回每个已存储会话的快照；适合本地存储，大规模时无索引。
 - **合成 closer 是唯一崩溃方案**——恢复通过写句柄追加 `interruptedTurnClosers`；没有继续中断轮次而不先关闭它的部分轮次恢复。
+- **`ownership` 是快照而非预留**——其他实例可能在探测结束后立刻取得或释放写锁，因此过期的 `free` 结果不能替代取得写所有权。
 
 <a id="dev-note"></a>
 ### 开发备注

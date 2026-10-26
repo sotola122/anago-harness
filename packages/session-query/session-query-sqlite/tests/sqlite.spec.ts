@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import SessionStore, { SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import type { SessionEvent, SessionHeader, SessionId as SessionIdType } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader, SessionId as SessionIdType, SessionOwnership } from '@deepseek-ai/dsh-session'
 import SessionPersistence, {
   SessionPersistenceNotFoundError,
   SessionPersistenceRevision,
@@ -186,6 +186,10 @@ class TestPersistence extends SessionPersistence {
       header: structuredClone(entry.meta),
       revision: SessionPersistenceRevision(`test:${TestPersistence.revisions.get(id)}`),
     })
+  }
+
+  ownership(id: SessionIdType): Promise<SessionOwnership> {
+    return Promise.resolve(TestPersistence.entries.has(id) ? 'free' : 'missing')
   }
 
   async list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]> {
