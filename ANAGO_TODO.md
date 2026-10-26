@@ -271,3 +271,13 @@
 - 検証: サインイン後のピッカーは `github-copilot` **21 モデル**（アカウントの `availableModelIds` 24 件 ∩ カタログ 34 件）に絞られ、`gpt-5.6-sol` を選択して実チャット成功（`Completed` 3 秒、応答 "COPILOT"）。追加テスト 3 件、`provider.ts`/`adapter.ts` のカバレッジ 100%。
 - 残る差: アカウントの 24 件のうち `claude-haiku-5.5` / `claude-opus-4.8-fast` / `gemini-4-argon` は pi-ai 1.1.0 の静的カタログに存在せず表示されない。pi-ai 1.4.0 では `claude-haiku-5.5` と `gemini-4-argon` が追加される（`claude-opus-4.8-fast` は依然なし）が、本リポジトリは 1.1.0 をピンしローカルパッチを当てているため、依存更新はパッチ再検証を含む別作業。
 - 3083 検証ホストは停止済み。
+
+### pi-ai 1.4.0 への更新（2026-10-26）
+
+- `@earendil-works/pi-ai` を 1.1.0 → **1.4.0**（`@earendil-works/pi-telemetry` も 1.4.0）。`pnpm-workspace.yaml` のピン、`llm-pi-ai` の依存、`pnpm-lock.yaml` を更新。
+- ローカルパッチ（ストリーミング JSON の逐次再パース除去）を 1.4.0 向けに再作成し、`patches/@earendil-works__pi-ai@1.4.0.patch` に差し替え。
+- 互換ドリフトゲートに 1.4.0 の新フィールド `supportsMidConvoEffort` を追加（`withhold`）。`provider-data.generated.ts` を再生成。
+- 全プロバイダのカタログが更新: github-copilot 26、openai 42、anthropic 17、google 24、mistral 37 など。Copilot の実アカウント（availableModelIds 24）では **23 モデル**が表示され、`claude-haiku-5.5` と `gemini-4-argon` が追加された（`claude-opus-4.8-fast` は 1.4.0 にも無い）。
+- 上流の挙動変更にテストを追随: 別モデルが生成した思考はテキスト化されず**破棄**される。Codex のツール追加は tool search ではなく `additional_tools` 入力で送られる。
+- アップグレードガイド `docs/upgrade-guide/v0.2.1-rc.2/pi-ai-catalog-refresh/` を追加。`llm-pi-ai` README のパッチリンクを更新。
+- 検証: `llm-pi-ai` テスト **417 件**、`provider.ts`/`adapter.ts`/`catalog.ts` カバレッジ 100%、`typecheck` 5/5、`verify-upgrade-guides`・`verify-provider-data`・`verify-md-links`・翻訳ペアリング緑。
