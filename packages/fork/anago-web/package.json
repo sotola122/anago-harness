@@ -36,7 +36,8 @@
     "@anago-harness/client-ui-settings-web-search": "workspace:*",
     "@deepseek-ai/dsh-api-session-controller": "workspace:*",
     "@deepseek-ai/dsh-client-locale": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-settings-web-search": "workspace:*"
+    "@deepseek-ai/dsh-client-ui-settings-web-search": "workspace:*",
+    "@deepseek-ai/dsh-tool-subagent": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~"
