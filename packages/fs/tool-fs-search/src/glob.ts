@@ -26,17 +26,18 @@ import { acceptedDirectCallValue } from './direct-call.ts'
 export const GLOB_MAX_RESULTS = 100
 
 /**
- * Keep ripgrep's modification-time order, and sort a run of equal mtimes by path.
+ * Keep ripgrep's modification-time order, and sort paths from the same second by path.
+ * Checkout copies often share a second, and ripgrep does not break that tie.
  * A path that cannot be stat'd keeps the original order of the whole list.
  * @param workdir - directory the displayed paths are relative to.
  * @param paths - discovered paths in ripgrep's `--sort=modified` order.
- * @returns the same paths, with equal-mtime runs in path order.
+ * @returns the same paths, with same-second runs in path order.
  */
 export async function stabilizeGlobMtimeTies(workdir: string, paths: readonly string[]): Promise<string[]> {
-  const mtimes: number[] = []
+  const seconds: number[] = []
   for (const path of paths) {
     try {
-      mtimes.push((await stat(join(workdir, path))).mtimeMs)
+      seconds.push(Math.floor((await stat(join(workdir, path))).mtimeMs / 1000))
     } catch (error) {
       // A fake or raced path has no mtime; leave ripgrep's order unchanged.
       void error
@@ -47,7 +48,7 @@ export async function stabilizeGlobMtimeTies(workdir: string, paths: readonly st
   let index = 0
   while (index < paths.length) {
     let end = index + 1
-    while (end < paths.length && mtimes[end] === mtimes[index]) end += 1
+    while (end < paths.length && seconds[end] === seconds[index]) end += 1
     const run = paths.slice(index, end)
     if (run.length > 1) run.sort((left, right) => left < right ? -1 : 1)
     out.push(...run)
