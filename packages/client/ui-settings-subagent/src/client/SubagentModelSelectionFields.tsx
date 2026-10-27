@@ -8,6 +8,7 @@ import type {
   SubagentModelSelectionCardState,
 } from './subagent-model-selection-card-controller.ts'
 import css from './SubagentModelSelectionFields.module.css'
+import { catalogNoticeProps, ModelCatalogStatus } from './settings-catalog.tsx'
 
 /** Plain model state and callbacks supplied by the owning Subagent card. */
 export type SubagentModelSelectionFieldsProps = PropsLocale<'settings.subagent'>
@@ -77,19 +78,7 @@ export function SubagentModelSelectionFields(props: SubagentModelSelectionFields
       {state.enabled
         ? (
           <div className={css.selection}>
-            {state.catalogStatus === 'loading'
-              ? <p className={css.notice} role="status">{t('subagentModelSelectionLoading')}</p>
-              : null}
-            {state.catalogStatus === 'error'
-              ? (
-                <div className={css.catalogError} role="alert">
-                  <span>{t('subagentModelSelectionLoadFailed')}</span>
-                  <button type="button" disabled={state.saving} onClick={props.retryCatalog}>
-                    {t('subagentModelSelectionRetry')}
-                  </button>
-                </div>
-              )
-              : null}
+            <ModelCatalogStatus {...catalogNoticeProps(t, state, props.retryCatalog, css.notice, css.catalogError)} />
             {state.catalogPartial
               ? <p className={css.notice}>{t('subagentModelSelectionPartial')}</p>
               : null}

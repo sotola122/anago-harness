@@ -179,7 +179,8 @@ export function purposeTableFromStored(stored: StoredPurposeRouteTable): Purpose
     if (!Array.isArray(routes)) {
       throw new Error(`purpose route slot "${slot}" is required`)
     }
-    return routes.map(route => ({
+    // Array.isArray widens the element type, so index the slot again.
+    return stored[slot].map(route => ({
       provider: route.provider,
       model: route.model,
       reasoningEffort: ReasoningEffortId(route.reasoningEffort),

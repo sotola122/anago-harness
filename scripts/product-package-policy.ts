@@ -46,6 +46,14 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/client/ui-message-feedback': { category: 'optional', reason: 'The anago Web profile disables the upstream feedback surface.' },
   'packages/client/ui-settings-account': { category: 'optional', reason: 'The anago Web profile disables the DeepSeek account card and controller.' },
   'packages/client/ui-settings-web-search': { category: 'optional', reason: 'The anago Web profile replaces it with the anago search cards.' },
+  'packages/fork/copilot-oauth': {
+    category: 'optional',
+    reason: 'Separately selected profile bundle that signs in to GitHub Copilot; shipped templates do not mount it.',
+  },
+  'packages/fork/xai-oauth': {
+    category: 'optional',
+    reason: 'Separately selected profile bundle that signs in to xAI; shipped templates do not mount it.',
+  },
   'packages/client/ui-deepseek-model-label-1017': { category: 'optional', reason: 'The anago Web profile disables the upstream model label.' },
   'packages/client/web': { category: 'web-distribution', reason: 'Browser boot kernel bundled into the Web distribution.' },
   'packages/client/ui-dockkit': { category: 'web-distribution', reason: 'Layout library bundled into the Web distribution.' },

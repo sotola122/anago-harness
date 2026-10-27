@@ -158,7 +158,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Official native subagent bundl
     expect(notice.data.content).toContainEqual({ type: 'text', text: RESPONSE })
     expect(dispatches[0]?.content).toEqual([expect.objectContaining({
       type: 'text',
-      text: expect.stringMatching(new RegExp(`^started subagent ${notice.data.source.senderSessionId}(?: · .+)?$`)),
+      text: expect.stringMatching(new RegExp(`^started subagent ${notice.data.source.senderSessionId}(?: · .+)?$`)) as string,
     })])
     expect(events.filter(event => event.type === 'turn/end')).toHaveLength(2)
     expect(server.requests).toHaveLength(1)

@@ -12,6 +12,7 @@ import type {
   SubagentPurposeRoutesCardState,
 } from './subagent-purpose-routes-card-controller.ts'
 import css from './SubagentPurposeRoutesFields.module.css'
+import { catalogNoticeProps, ModelCatalogStatus } from './settings-catalog.tsx'
 
 /** Plain purpose-route state and callbacks supplied by the owning card. */
 export type SubagentPurposeRoutesFieldsProps = PropsLocale<'settings.subagent'>
@@ -140,17 +141,7 @@ export function SubagentPurposeRoutesFields(props: SubagentPurposeRoutesFieldsPr
       {state.configured
         ? (
           <>
-            {state.catalogStatus === 'loading'
-              ? <p className={css.notice} role="status">{t('subagentModelSelectionLoading')}</p>
-              : null}
-            {state.catalogStatus === 'error'
-              ? (
-                <div className={css.catalogError} role="alert">
-                  <span>{t('subagentModelSelectionLoadFailed')}</span>
-                  <button type="button" disabled={state.saving} onClick={props.retryCatalog}>{t('subagentModelSelectionRetry')}</button>
-                </div>
-              )
-              : null}
+            <ModelCatalogStatus {...catalogNoticeProps(t, state, props.retryCatalog, css.notice, css.catalogError)} />
             {state.catalogPartial ? <p className={css.notice}>{t('subagentModelSelectionPartial')}</p> : null}
             <div className={css.rows}>
               {state.rows.map(row => (

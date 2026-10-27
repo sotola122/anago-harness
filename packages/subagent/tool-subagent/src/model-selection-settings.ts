@@ -84,14 +84,12 @@ export class SubagentModelSelectionConfig extends Service {
 }
 
 /**
- * Read the live table. A direct `plugin()` call can omit the field; that is the null default.
+ * Read the live table. An omitted value is the null default.
  * @param config - settings plugin config.
  * @returns the current table, or null when none is configured.
  */
 function readPurposeRoutes(config: Config): StoredPurposeRouteTable | null {
-  const field = config.purposeRoutes
-  if (field === undefined) return null
-  return field.get() ?? null
+  return config.purposeRoutes.get() ?? null
 }
 
 export type { PurposeCategory, PurposeRoute, PurposeRouteSlot, PurposeRouteTable } from './purpose-routing.ts'

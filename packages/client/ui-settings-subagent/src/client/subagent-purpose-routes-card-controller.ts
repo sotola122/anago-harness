@@ -8,6 +8,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ModelProviderGroup } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsFormScope, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
+import { beginRevisionSave, loadSessionModelCatalog } from './settings-catalog.tsx'
 
 /**
  * Table rows in settings UI order. Matches the Host slot list; this package
@@ -477,16 +478,16 @@ export class SubagentPurposeRoutesCardController {
     const state = this.projection()
     if (this.disposed || snapshot.status !== 'ready' || !snapshot.writable || this.saving
       || desired === null || !state.dirty || state.invalid) return
-    if (this.draft !== undefined && snapshot.revision !== this.draftRevision) {
-      this.conflicted = true
-      this.publish()
-      return
-    }
-    const generation = this.saveGeneration
-    this.saving = true
-    this.failed = false
-    this.conflicted = false
-    this.publish()
+    /* jscpd:ignore-start -- both sections pass the same private save flags into beginRevisionSave. */
+    const generation = beginRevisionSave({
+      stale: this.draft !== undefined && snapshot.revision !== this.draftRevision,
+      saveGeneration: this.saveGeneration,
+      publish: () => { this.publish() },
+      markConflict: () => { this.conflicted = true },
+      markSaving: () => { this.saving = true; this.failed = false; this.conflicted = false },
+    })
+    if (generation === undefined) return
+    /* jscpd:ignore-end */
     await this.scope.mutate([{ op: 'set', path: ['purposeRoutes'], value: desired }], this.draftRevision)
     if (generation !== this.saveGeneration) return
     const landed = samePurposeRouteTable(this.currentTable(), desired)
@@ -496,23 +497,25 @@ export class SubagentPurposeRoutesCardController {
     this.publish()
   }
 
-  private async loadCatalog(): Promise<void> {
-    if (this.disposed || this.catalogStatus === 'loading') return
-    const generation = this.catalogGeneration
-    this.catalogStatus = 'loading'
-    this.catalogPartial = false
-    this.publish()
-    const response = await this.ctx.remote.session.modelCatalog()
-    if (generation !== this.catalogGeneration) return
-    if (response.ok) {
-      this.catalogGroups = response.value.groups
-      this.catalogPartial = response.value.failures.length > 0
-      this.catalogStatus = 'ready'
-    } else {
-      this.catalogStatus = 'error'
-    }
-    this.publish()
+  /* jscpd:ignore-start -- both sections pass the same private catalog fields into loadSessionModelCatalog. */
+  private loadCatalog(): Promise<void> {
+    return loadSessionModelCatalog({
+      disposed: this.disposed,
+      status: this.catalogStatus,
+      generation: this.catalogGeneration,
+      readGeneration: () => this.catalogGeneration,
+      publish: () => { this.publish() },
+      markLoading: () => { this.catalogStatus = 'loading'; this.catalogPartial = false },
+      fetch: () => this.ctx.remote.session.modelCatalog(),
+      applyReady: (groups, partial) => {
+        this.catalogGroups = groups
+        this.catalogPartial = partial
+        this.catalogStatus = 'ready'
+      },
+      applyError: () => { this.catalogStatus = 'error' },
+    })
   }
+  /* jscpd:ignore-end */
 
   private editor(route: DraftRoute, models: Map<string, CatalogModel>): PurposeRouteEditorState {
     const info = models.get(`${route.provider}\0${route.model}`)

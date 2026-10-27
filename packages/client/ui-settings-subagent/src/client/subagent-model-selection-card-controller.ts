@@ -4,6 +4,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ModelProviderGroup } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsFormScope, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
+import { beginRevisionSave, loadSessionModelCatalog } from './settings-catalog.tsx'
 
 /** Namespace of the Host-owned subagent model-selection preference. */
 export const SUBAGENT_MODEL_SELECTION_NS = 'subagent-model-selection-settings'
@@ -284,16 +285,14 @@ export class SubagentModelSelectionCardController {
     if (this.disposed || snapshot.status !== 'ready' || !snapshot.writable || this.saving
       || (this.currentEnabled() === desiredEnabled && sameRoutes(this.currentRoutes(), desired))
       || (desiredEnabled && desired.length === 0)) return
-    if (this.draftRoutes !== undefined && snapshot.revision !== this.draftRevision) {
-      this.conflicted = true
-      this.publish()
-      return
-    }
-    const generation = this.saveGeneration
-    this.saving = true
-    this.failed = false
-    this.conflicted = false
-    this.publish()
+    const generation = beginRevisionSave({
+      stale: this.draftRoutes !== undefined && snapshot.revision !== this.draftRevision,
+      saveGeneration: this.saveGeneration,
+      publish: () => { this.publish() },
+      markConflict: () => { this.conflicted = true },
+      markSaving: () => { this.saving = true; this.failed = false; this.conflicted = false },
+    })
+    if (generation === undefined) return
     await this.scope.mutate([
       { op: 'set', path: ['enabled'], value: desiredEnabled },
       {
@@ -330,22 +329,22 @@ export class SubagentModelSelectionCardController {
     this.refreshCatalog()
   }
 
-  private async loadCatalog(): Promise<void> {
-    if (this.disposed || this.catalogStatus === 'loading') return
-    const generation = this.catalogGeneration
-    this.catalogStatus = 'loading'
-    this.catalogPartial = false
-    this.publish()
-    const response = await this.ctx.remote.session.modelCatalog()
-    if (generation !== this.catalogGeneration) return
-    if (response.ok) {
-      this.catalogGroups = response.value.groups
-      this.catalogPartial = response.value.failures.length > 0
-      this.catalogStatus = 'ready'
-    } else {
-      this.catalogStatus = 'error'
-    }
-    this.publish()
+  private loadCatalog(): Promise<void> {
+    return loadSessionModelCatalog({
+      disposed: this.disposed,
+      status: this.catalogStatus,
+      generation: this.catalogGeneration,
+      readGeneration: () => this.catalogGeneration,
+      publish: () => { this.publish() },
+      markLoading: () => { this.catalogStatus = 'loading'; this.catalogPartial = false },
+      fetch: () => this.ctx.remote.session.modelCatalog(),
+      applyReady: (groups, partial) => {
+        this.catalogGroups = groups
+        this.catalogPartial = partial
+        this.catalogStatus = 'ready'
+      },
+      applyError: () => { this.catalogStatus = 'error' },
+    })
   }
 
   private projection(): SubagentModelSelectionCardState {

@@ -802,7 +802,7 @@ export class Session {
     ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : [opts?: { readonly ignorable: true }]
   ): SessionEvent<T> {
     const first = opts[0]
-    const ignorable = first !== undefined && 'ignorable' in first && first.ignorable === true
+    const ignorable = first !== undefined && 'ignorable' in first && first.ignorable
     const surfaceOpts: SurfaceIntent | undefined = first !== undefined && 'surfaceOp' in first ? first : undefined
     const surfaceMetadata = {
       ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
@@ -817,14 +817,16 @@ export class Session {
       throw new Error(`session event "${type}" carries non-JSON-serializable surface metadata`)
     }
     const entry = this.publicationEntry()
-    const event = deepFreeze({
+    // Snapshot spreads are not assignable to SessionEvent<T>.
+    const built: unknown = deepFreeze({
       type,
       seq: SessionSeq(this.log.length),
       time: Date.now(),
       data: dataSnapshot,
       ...(surfaceMetadataSnapshot as { surfaceOp?: unknown; sourceEventSeqs?: unknown }),
       ...(ignorable ? { ignorable: true } : {}),
-    } as unknown as SessionEvent<T>)
+    })
+    const event = built as SessionEvent<T>
     validateSessionEventData(event, `session event "${type}" at seq ${event.seq}`)
     this.commit(event as SessionEvent, entry)
     return event

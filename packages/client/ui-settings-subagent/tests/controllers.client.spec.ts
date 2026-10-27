@@ -121,7 +121,7 @@ describe('SubagentModelSelectionCardController', () => {
       expect(face.hooks.subagentModelSelectionCard.getSnapshot().candidates).toHaveLength(1)
     })
     face.toggleModel('alpha\0fast')
-    face.save()
+    void face.save()
     await vi.waitFor(() => {
       expect(host.mutate).toHaveBeenCalledWith([
         { op: 'set', path: ['enabled'], value: true },
@@ -164,7 +164,7 @@ describe('SubagentModelSelectionCardController', () => {
       expect(face.hooks.subagentModelSelectionCard.getSnapshot().candidates).toHaveLength(1)
     })
     face.toggleModel('alpha\0fast')
-    face.save()
+    void face.save()
     await vi.waitFor(() => {
       expect(face.hooks.subagentModelSelectionCard.getSnapshot().failed).toBe(true)
     })
@@ -220,7 +220,7 @@ describe('SubagentModelSelectionCardController', () => {
     await vi.waitFor(() => { expect(models.models).toHaveBeenCalledOnce() })
 
     face.toggleEnabled()
-    face.save()
+    void face.save()
     await vi.waitFor(() => {
       expect(host.mutate).toHaveBeenCalledWith([
         { op: 'set', path: ['enabled'], value: false },
@@ -270,7 +270,7 @@ describe('SubagentModelSelectionCardController', () => {
     expect(face.hooks.subagentModelSelectionCard.getSnapshot()).toMatchObject({
       conflicted: true, failed: false, dirty: true,
     })
-    face.save()
+    void face.save()
     await Promise.resolve()
 
     expect(host.mutate).not.toHaveBeenCalled()
@@ -343,7 +343,7 @@ describe('SubagentModelSelectionCardController', () => {
       expect.objectContaining({ key: 'alpha\0fast', available: false, selected: true }),
     ])
 
-    face.save()
+    void face.save()
     await vi.waitFor(() => {
       expect(host.mutate).toHaveBeenCalledWith([
         { op: 'set', path: ['enabled'], value: true },
@@ -376,7 +376,7 @@ describe('SubagentModelSelectionCardController', () => {
     expect(face.hooks.subagentModelSelectionCard.getSnapshot()).toMatchObject({
       conflicted: false, dirty: false, enabled: true,
     })
-    face.save()
+    void face.save()
     await Promise.resolve()
     expect(host.mutate).not.toHaveBeenCalled()
   })
@@ -431,19 +431,19 @@ describe('SubagentModelSelectionCardController', () => {
     const controller = new SubagentModelSelectionCardController({ ...host.scope, mutate }, catalog.ctx)
     const face = controller.inject()
 
-    face.save()
+    void face.save()
     face.toggleModel('alpha\0fast')
     host.publish({ status: 'ready', writable: true, value: { enabled: false, allowedModels: [] }, user: {} })
-    face.save()
+    void face.save()
     face.toggleEnabled()
     await vi.waitFor(() => { expect(face.hooks.subagentModelSelectionCard.getSnapshot().catalogStatus).toBe('ready') })
-    face.save()
+    void face.save()
     face.toggleModel('alpha\0fast')
-    face.save()
+    void face.save()
     expect(face.hooks.subagentModelSelectionCard.getSnapshot().saving).toBe(true)
     face.toggleEnabled()
     face.toggleModel('alpha\0fast')
-    face.save()
+    void face.save()
     face.discard()
     controller.dispose()
     write.resolve(undefined)
@@ -488,7 +488,7 @@ describe('SubagentModelSelectionCardController', () => {
 
     face.toggleEnabled()
     face.toggleModel('alpha\0fast')
-    face.save()
+    void face.save()
     expect(host.mutate).not.toHaveBeenCalled()
 
     controller.dispose()
@@ -496,7 +496,7 @@ describe('SubagentModelSelectionCardController', () => {
     controller.resetConnection()
     face.toggleEnabled()
     face.retryCatalog()
-    face.save()
+    void face.save()
     host.publish({ value: { enabled: true, allowedModels: [{ provider: 'alpha', model: 'fast' }] } })
     expect(host.mutate).not.toHaveBeenCalled()
     expect(face.hooks.subagentModelSelectionCard.getSnapshot().enabled).toBe(false)
@@ -525,7 +525,7 @@ describe('model selection sibling revision', () => {
     expect(face.hooks.subagentModelSelectionCard.getSnapshot()).toMatchObject({
       conflicted: false, dirty: true, enabled: true,
     })
-    face.save()
+    void face.save()
     expect(host.mutate).toHaveBeenCalledWith([
       { op: 'set', path: ['enabled'], value: true },
       { op: 'set', path: ['allowedModels'], value: [{ provider: 'alpha', model: 'fast' }] },
@@ -714,6 +714,9 @@ describe('SubagentPurposeRoutesCardController', () => {
     })?.medium).toEqual([{ provider: 'a', model: 'b', reasoningEffort: 'c' }])
     expect(samePurposeRouteTable(null, null)).toBe(true)
     expect(samePurposeRouteTable(null, purposeTable())).toBe(false)
+    const holed = purposeTable()
+    holed.light = Array.from({ length: holed.light.length })
+    expect(samePurposeRouteTable(purposeTable(), holed)).toBe(false)
   })
 
   it('shows the empty state for a null table and does not save one', async () => {
@@ -722,7 +725,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     expect(state()).toMatchObject({ configured: false, rows: [], dirty: false, invalid: false })
     face.addReviewer()
     face.editRoute('light', 0, 'provider', 'alpha')
-    face.save()
+    void face.save()
     await Promise.resolve()
     expect(host.mutate).not.toHaveBeenCalled()
     expect(state().configured).toBe(false)
@@ -741,7 +744,7 @@ describe('SubagentPurposeRoutesCardController', () => {
       provider: 'alpha', model: 'fast', reasoningEffort: 'low',
     })
     face.editRoute('deep', 0, 'effort', 'low')
-    face.save()
+    void face.save()
     await vi.waitFor(() => { expect(state().dirty).toBe(false) })
     expect(host.mutate).toHaveBeenCalledWith([{
       op: 'set',
@@ -766,7 +769,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     face.moveReviewer(1, 'earlier')
     face.removeReviewer(5)
     expect(efforts()).toEqual(['low', 'high'])
-    face.save()
+    void face.save()
     await vi.waitFor(() => { expect(state().dirty).toBe(false) })
     expect(host.mutate.mock.calls[0]?.[0]).toEqual([{
       op: 'set',
@@ -791,7 +794,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     face.editRoute('review', 1, 'effort', 'high')
     expect(state()).toMatchObject({ invalid: true, dirty: true })
     expect(state().rows.find(row => row.slot === 'review')?.duplicate).toBe(true)
-    face.save()
+    void face.save()
     await Promise.resolve()
     expect(host.mutate).not.toHaveBeenCalled()
 
@@ -827,13 +830,13 @@ describe('SubagentPurposeRoutesCardController', () => {
     await vi.waitFor(() => { expect(state().catalogStatus).toBe('loading') })
     face.editRoute('default', 0, 'effort', 'low')
     expect(state().invalid).toBe(true)
-    face.save()
+    void face.save()
     expect(host.mutate).not.toHaveBeenCalled()
     pending.resolve({ ok: true, value: { groups: [], failures: [] } } as never)
     await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
     expect(state().rows.find(row => row.slot === 'review')?.routes[0]?.available).toBe(false)
     acceptWrites(host)
-    face.save()
+    void face.save()
     await vi.waitFor(() => { expect(state().dirty).toBe(false) })
     expect(host.mutate).toHaveBeenCalledOnce()
   })
@@ -846,7 +849,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     face.editRoute('light', 0, 'effort', 'high')
     host.publish({ revision: 5, value: { purposeRoutes: replaced } })
     expect(state()).toMatchObject({ conflicted: true, dirty: true })
-    face.save()
+    void face.save()
     await Promise.resolve()
     expect(host.mutate).not.toHaveBeenCalled()
     face.discard()
@@ -856,7 +859,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     host.publish({ revision: 6, value: { purposeRoutes: replaced } })
     expect(state()).toMatchObject({ conflicted: false, dirty: true })
     acceptWrites(host)
-    face.save()
+    void face.save()
     await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalled() })
     expect(host.mutate.mock.calls[0]?.[1]).toBe(6)
   })
@@ -866,7 +869,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
     await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
     face.editRoute('medium', 0, 'model', 'fast')
-    face.save()
+    void face.save()
     await vi.waitFor(() => { expect(state().failed).toBe(true) })
     expect(state()).toMatchObject({ dirty: true, saving: false })
 
@@ -903,7 +906,7 @@ describe('SubagentPurposeRoutesCardController', () => {
     expect(state().rows.find(row => row.slot === 'writing')?.empty).toBe(false)
     expect(state().rows.find(row => row.slot === 'light')?.routes).toHaveLength(1)
     expect(state().invalid).toBe(false)
-    face.save()
+    void face.save()
     await vi.waitFor(() => { expect(state().dirty).toBe(false) })
     expect(host.mutate.mock.calls[0]?.[0]).toEqual([{
       op: 'set',
@@ -960,10 +963,10 @@ describe('SubagentPurposeRoutesCardController', () => {
     face.removeReviewer(-1)
     face.moveReviewer(9, 'later')
     expect(state().rows.find(row => row.slot === 'review')?.routes).toHaveLength(1)
-    face.save()
+    void face.save()
     expect(host.mutate).not.toHaveBeenCalled()
     host.publish({ writable: false })
-    face.save()
+    void face.save()
     expect(host.mutate).not.toHaveBeenCalled()
   })
 
