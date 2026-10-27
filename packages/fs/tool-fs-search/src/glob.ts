@@ -378,7 +378,12 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
         const displayPath = toWorkdirRelative(line, run.workdir)
         all.push(displayPath)
       }
-      return { root, paths: await stabilizeGlobMtimeTies(run.workdir, all) }
+      // Over-cap sampling reads this order. Only a result that is shown whole
+      // can break same-second ties without changing which paths are sampled.
+      const paths = all.length <= caps.maxResults
+        ? await stabilizeGlobMtimeTies(run.workdir, all)
+        : all
+      return { root, paths }
     },
     presentCall: presentGlobCall,
     presentResult: presentGlobResult,
