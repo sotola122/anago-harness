@@ -490,10 +490,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     subagentId: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     subagentId: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   todo_write: {
     todos: ({
