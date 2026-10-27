@@ -10,7 +10,8 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { sep } from 'node:path'
+import { stat } from 'node:fs/promises'
+import { join, sep } from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, SearchResultView, ToolResult } from '@deepseek-ai/dsh-tools'
 import type { SpillRef } from '@deepseek-ai/dsh-spill'
@@ -23,6 +24,37 @@ import { acceptedDirectCallValue } from './direct-call.ts'
  * config), matching Claude Code's default `GlobTool` result limit.
  */
 export const GLOB_MAX_RESULTS = 100
+
+/**
+ * Keep ripgrep's modification-time order, and sort a run of equal mtimes by path.
+ * A path that cannot be stat'd keeps the original order of the whole list.
+ * @param workdir - directory the displayed paths are relative to.
+ * @param paths - discovered paths in ripgrep's `--sort=modified` order.
+ * @returns the same paths, with equal-mtime runs in path order.
+ */
+export async function stabilizeGlobMtimeTies(workdir: string, paths: readonly string[]): Promise<string[]> {
+  const mtimes: number[] = []
+  for (const path of paths) {
+    try {
+      mtimes.push((await stat(join(workdir, path))).mtimeMs)
+    } catch (error) {
+      // A fake or raced path has no mtime; leave ripgrep's order unchanged.
+      void error
+      return [...paths]
+    }
+  }
+  const out: string[] = []
+  let index = 0
+  while (index < paths.length) {
+    let end = index + 1
+    while (end < paths.length && mtimes[end] === mtimes[index]) end += 1
+    const run = paths.slice(index, end)
+    if (run.length > 1) run.sort((left, right) => left < right ? -1 : 1)
+    out.push(...run)
+    index = end
+  }
+  return out
+}
 
 /**
  * Directory names ripgrep must never descend into for a discovery listing: VCS
@@ -345,7 +377,7 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
         const displayPath = toWorkdirRelative(line, run.workdir)
         all.push(displayPath)
       }
-      return { root, paths: all }
+      return { root, paths: await stabilizeGlobMtimeTies(run.workdir, all) }
     },
     presentCall: presentGlobCall,
     presentResult: presentGlobResult,
