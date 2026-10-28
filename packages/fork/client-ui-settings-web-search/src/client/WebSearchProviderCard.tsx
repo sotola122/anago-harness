@@ -156,6 +156,7 @@ export function WebSearchProviderCard(props: WebSearchProviderCardProps) {
         <p style={HINT_STYLE}>{t('switchHint')}</p>
         {state.switchAvailable ? null : <p style={HINT_STYLE}>{t('switchUnavailable')}</p>}
       </div>
+      {/* jscpd:ignore-start -- anago reuses the upstream secret-field row for a different settings document. */}
       <SettingsSecretField
         id="plugin-config-web-search-api-key"
         label={t('apiKey')}
@@ -168,6 +169,7 @@ export function WebSearchProviderCard(props: WebSearchProviderCardProps) {
         stateLabel={state.apiKeyConfigured ? t('apiKeySet') : t('apiKeyUnset')}
         onEdit={(text) => { props.edit('apiKey', text) }}
       />
+      {/* jscpd:ignore-end */}
       {panel}
     </SettingsForm>
   )

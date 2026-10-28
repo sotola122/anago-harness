@@ -27,8 +27,6 @@ fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` �
 | [`memory`](memory/README.zh.md) | 全局与工作区记忆、`memory` 工具与注入的快照 | `memory` |
 | [`llm-wiki`](llm-wiki/README.zh.md) | 项目与全局 wiki 工具、lint 与 wiki 技能 | `llm-wiki` |
 | [`response-language`](response-language/README.zh.md) | 固定的日语响应系统提示段落 | `response-language` |
-| [`subagent-cursor`](subagent-cursor/README.zh.md) | Cursor Agent CLI 子代理提供方 | `subagent-cursor` |
-| [`subagent-pi`](subagent-pi/README.zh.md) | Pi coding agent 子代理提供方 | `subagent-pi` |
 | [`web-search-brave`](web-search-brave/README.zh.md) | `ctx.web` 的 Brave 搜索提供方 | `web-search-brave` |
 | [`web-search-exa`](web-search-exa/README.zh.md) | 通过 `ctx.credentials` 解析密钥的 Exa 搜索提供方 | `web-search-exa` |
 | [`web-search-credentials`](web-search-credentials/README.zh.md) | 搜索提供方共享的 API 密钥查找顺序 | （库） |

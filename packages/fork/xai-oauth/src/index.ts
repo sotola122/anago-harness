@@ -49,6 +49,7 @@ type Phase =
   | { readonly status: 'failed'; readonly failure: string }
 
 /** One sign-in attempt this plugin started and the notices it produced. */
+/* jscpd:ignore-start -- xai-oauth mirrors copilot-oauth's device-code command flow. */
 interface Attempt {
   readonly controller: AbortController
   readonly notices: AuthorizationNotice[]
@@ -229,6 +230,7 @@ export function apply(ctx: Context): void {
     attempt = undefined
     const info = await ctx.credentials.describeRecord(KEY)
     if (!info.configured) return { kind: 'success', text: 'Not signed in to xAI; nothing to remove.' }
+    /* jscpd:ignore-end */
     await ctx.credentials.deleteRecord(KEY)
     return { kind: 'success', text: 'Signed out of xAI (removed the llm-pi-ai/xai credential).' }
   }

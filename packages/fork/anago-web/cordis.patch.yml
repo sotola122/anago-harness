@@ -36,9 +36,11 @@
     toolName: subagent
     modelSelectionSettings: true
 
-# An idle Agent hands its Session write ownership back so the TUI can open the
-# same stored Session. The controller keeps the Agent while a turn, queued
-# inbox work, a live child Agent, or a background hold is outstanding.
+# An idle Agent hands its Session write ownership back so any other DSH
+# process can open the same stored Session for writing: headless --session-id,
+# SDK/ACP resume, or a second Web process. The controller keeps the Agent
+# while a turn, queued inbox work, a live child Agent, or a background hold
+# is outstanding.
 - id: session-controller
   name: '@deepseek-ai/dsh-api-session-controller'
   config:

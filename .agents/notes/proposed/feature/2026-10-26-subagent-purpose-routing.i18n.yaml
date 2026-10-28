@@ -1,0 +1,73 @@
+# Bilingual-pair consistency record for 2026-10-26-subagent-purpose-routing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-10-26-subagent-purpose-routing.md
+/agent-note-subagent-purpose-routing:
+  en: d53864c66524280d
+  zh: 2bc79d41acd04625
+/agent-note-subagent-purpose-routing/problem:
+  en: c2c8c446096f8970
+  zh: 7cb1c5b2bd66b09b
+/agent-note-subagent-purpose-routing/proposal:
+  en: 3378f31d0ceee62b
+  zh: ebfe6932e3dbb98e
+/agent-note-subagent-purpose-routing/proposal/non-goals:
+  en: f717dfc6ff1a8ecf
+  zh: 717d71b081121b73
+/agent-note-subagent-purpose-routing/proposal/categories-and-the-purpose-table:
+  en: 9c5683a176940165
+  zh: 7a5123719fcb9872
+/agent-note-subagent-purpose-routing/proposal/host-settings-and-load-checks:
+  en: 421f149ddb6bc8a0
+  zh: b4ca26b4ff1efe0f
+/agent-note-subagent-purpose-routing/proposal/tool-schema:
+  en: 0d41d47633274efb
+  zh: cd7493b34f656854
+/agent-note-subagent-purpose-routing/proposal/resolution:
+  en: c291bae4afd027e3
+  zh: 59d106b07014ffee
+/agent-note-subagent-purpose-routing/proposal/settings-card-and-delegation-card:
+  en: a583e888fd305cdd
+  zh: 6bf3704abe33c699
+/agent-note-subagent-purpose-routing/proposal/session-log:
+  en: 89729a15c419fa6f
+  zh: 6c0712e33d4c8334
+/agent-note-subagent-purpose-routing/proposal/same-category-retry:
+  en: 57d5e314ec853755
+  zh: 578372d556897b5b
+/agent-note-subagent-purpose-routing/proposal/review-fan-out:
+  en: fba628e9e5d4fc65
+  zh: 5f6b48cb0163a7dc
+/agent-note-subagent-purpose-routing/proposal/cursor-and-pi-retirement:
+  en: 3ef57a2138076002
+  zh: f5cf0384cffb2873
+/agent-note-subagent-purpose-routing/proposal/delivery:
+  en: cecc8ec8531df530
+  zh: 44fe69b7a4b24498
+/agent-note-subagent-purpose-routing/alternatives-considered:
+  en: 6119e2aff3b6be5a
+  zh: 4237c596c10e1ee9
+/agent-note-subagent-purpose-routing/alternatives-considered/why-not-rewrite-arguments-before-execute:
+  en: c7730cee9e193f3b
+  zh: 1021e3278711ed1c
+/agent-note-subagent-purpose-routing/alternatives-considered/why-not-one-tool-instance-per-purpose:
+  en: d31837ef77e9f12c
+  zh: 79697fa11bdb4c97
+/agent-note-subagent-purpose-routing/alternatives-considered/why-not-replace-the-whole-preset:
+  en: b280840651dce697
+  zh: e17ab5d907907858
+/agent-note-subagent-purpose-routing/alternatives-considered/why-not-sample-the-category-argument-per-session:
+  en: 55d0e92148b879ba
+  zh: 5f82091b5e90f448
+/agent-note-subagent-purpose-routing/alternatives-considered/why-not-a-fallback-route:
+  en: abd1d326d8ce0f1e
+  zh: 7b5335072c630a56
+/agent-note-subagent-purpose-routing/alternatives-considered/why-not-enforce-retry-with-a-child-id-now:
+  en: ba3898ca1c505e9c
+  zh: 53963f6d12e769b8
+/agent-note-subagent-purpose-routing/acceptance-criteria:
+  en: 6541216f52f96a58
+  zh: 2ef08eebbae7dd63
+/agent-note-subagent-purpose-routing/risks:
+  en: d4bf863a6bef8dc0
+  zh: 1008307b11576bca

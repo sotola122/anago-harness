@@ -277,6 +277,9 @@ class ListAgentsOutput1(TypedDict):
     id: str
     label: str
     status: Literal["running", "inactive"]
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    reasoningEffort: NotRequired[str]
     parent: NotRequired[str]
     depth: NotRequired[float]
 
@@ -375,6 +378,9 @@ class SubagentArgs(TypedDict):
 class SubagentOutput(TypedDict):
     kind: Literal["activation"]
     subagentId: str
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    reasoningEffort: NotRequired[str]
 
 class SubagentForkArgs(TypedDict):
     # Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent.
@@ -388,6 +394,9 @@ class SubagentForkArgs(TypedDict):
 class SubagentForkOutput(TypedDict):
     kind: Literal["activation"]
     subagentId: str
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    reasoningEffort: NotRequired[str]
 
 class TodoWriteArgsTodos(TypedDict):
     # What the task is — a short imperative line.
@@ -534,7 +543,7 @@ class Tools(Protocol):
     async def job_output(self, args: JobOutputArgs) -> JobOutputOutput:
         """Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job."""
     async def list_agents(self, args: ListAgentsArgs) -> list[ListAgentsOutput1 | ListAgentsOutput2]:
-        """List subagents you started, with their ids, labels, and status. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation."""
+        """List subagents you started, with their ids, labels, status, and recorded provider, model, and reasoning effort. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation."""
     async def read(self, args: ReadArgs) -> ReadOutput:
         """Read a UTF-8 text file and return line-numbered content."""
     async def read_image(self, args: ReadImageArgs) -> ReadImageOutput:

@@ -4,6 +4,15 @@ import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmRuntime } from '@deepseek-ai/dsh-llm'
 import type { AgentOptions } from '@deepseek-ai/dsh-agent'
 import z from '@deepseek-ai/schemastery'
+import {
+  categoryCombinedError,
+  categoryUnavailableError,
+  isPurposeCategory,
+  purposeTableMissingError,
+  resolvePurposeRoutes,
+  unknownCategoryError,
+} from './purpose-routing.ts'
+import type { PurposeRoute, PurposeRouteSlot, PurposeRouteTable } from './purpose-routing.ts'
 
 /** One exact child LLM route authorized by a user setting. */
 export interface AllowedModelRoute {
@@ -219,4 +228,121 @@ export async function preflightChildLlmRoute(
     model,
     ...reasoningEffort === undefined ? {} : { reasoningEffort },
   }, signal)
+}
+
+/** How a call chose its child route. */
+export type ChildRouteSource =
+  | { readonly kind: 'configured' }
+  | { readonly kind: 'explicit' }
+  | { readonly kind: 'purpose'; readonly slot: PurposeRouteSlot }
+
+/** One child to preflight and start. */
+export interface ResolvedChildRoute {
+  /** Options passed to the child. Undefined only on the configured path when no layer sets one. */
+  readonly options: AgentOptions | undefined
+  /** Table route, present only for a purpose-selected child. */
+  readonly route?: PurposeRoute
+}
+
+/**
+ * Children to start for one call.
+ * `enforceAllowlist` is true only for an explicit route or effort selection.
+ * A purpose selection skips `allowedModels` and always runs {@link preflightChildLlmRoute}.
+ */
+export interface ChildRouteResolution {
+  readonly source: ChildRouteSource
+  /** One entry per child to start. More than one only for `review`. */
+  readonly children: readonly ResolvedChildRoute[]
+  /** Whether {@link assertAllowedModelSelection} applies to the single explicit child. */
+  readonly enforceAllowlist: boolean
+}
+
+/** Inputs for {@link resolveChildRoutes}. The table is read by the caller at call time. */
+export interface ResolveChildRoutesInput {
+  /** Whether this tool instance resolves omitted and labeled calls from the purpose table. */
+  readonly purposeRouting: boolean
+  /** Model-facing label, when the call supplied one. */
+  readonly category?: string
+  /** Model-facing route fields. */
+  readonly modelRequest: DelegationModelRequest
+  /**
+   * Live table. `undefined` means the settings service is missing.
+   * `null` means the service has no table.
+   */
+  readonly table: PurposeRouteTable | null | undefined
+  /** Current parent values that supply missing child values. */
+  readonly parentOptions: AgentOptions
+  /** Tool-instance child defaults. Route fields cannot coexist with purpose routing. */
+  readonly configured: AgentOptions | undefined
+  /** Provider-owned route defaults, when the backend advertises them. */
+  readonly providerRouteDefaults: AgentOptions | undefined
+  /** Whether this tool instance permits model-facing provider/model/effort selection. */
+  readonly modelSelectionEnabled: boolean
+}
+
+/**
+ * Resolve which children a call starts, without preflight or session I/O.
+ * Priority: explicit route arguments, then `category` (omission selects `default`),
+ * then configured child defaults, then provider route defaults, then parent inheritance.
+ * An explicit selection is subject to `allowedModels`. A category selection is not.
+ * @param input - call fields and the table read for this call.
+ * @returns the children to preflight and start, and whether the allowlist applies.
+ * @throws when `category` is combined with a route argument, is unknown, is used
+ *   while purpose routing is off, or the table or settings service is missing.
+ */
+export function resolveChildRoutes(input: ResolveChildRoutesInput): ChildRouteResolution {
+  const { purposeRouting, category, modelRequest, table, parentOptions, configured, providerRouteDefaults, modelSelectionEnabled } = input
+  if (!purposeRouting && category !== undefined) throw categoryUnavailableError()
+  if (category !== undefined && hasDelegationModelRequest(modelRequest)) throw categoryCombinedError()
+  if (purposeRouting && (table === undefined || table === null)) throw purposeTableMissingError()
+
+  if (hasDelegationModelRequest(modelRequest)) {
+    const defaultRoute = table?.default[0]
+    if (purposeRouting && defaultRoute === undefined) throw purposeTableMissingError()
+    const explicitBase = purposeRouting && defaultRoute !== undefined
+      ? { ...configured, ...routeOptions(defaultRoute) }
+      : configured
+    return {
+      source: { kind: 'explicit' },
+      enforceAllowlist: true,
+      children: [{
+        options: requestedAgentOptions(parentOptions, explicitBase, modelRequest, modelSelectionEnabled),
+      }],
+    }
+  }
+
+  if (purposeRouting && table !== undefined && table !== null) {
+    if (category !== undefined && !isPurposeCategory(category)) throw unknownCategoryError(category)
+    const slot: PurposeRouteSlot = category ?? 'default'
+    return {
+      source: { kind: 'purpose', slot },
+      enforceAllowlist: false,
+      children: resolvePurposeRoutes(table, slot).map(route => ({
+        route,
+        options: {
+          ...providerRouteDefaults,
+          ...configured,
+          ...routeOptions(route),
+        },
+      })),
+    }
+  }
+
+  const configuredOptions = providerRouteDefaults !== undefined
+    ? { ...providerRouteDefaults, ...configured }
+    : configured
+  return {
+    source: { kind: 'configured' },
+    enforceAllowlist: false,
+    children: [{ options: configuredOptions }],
+  }
+}
+
+/** Spread one table route into agent-option fields. */
+function routeOptions(route: PurposeRoute): Pick<AgentOptions, 'provider' | 'model' | 'reasoningEffort'> {
+  return {
+    provider: route.provider,
+    model: route.model,
+    reasoningEffort: route.reasoningEffort,
+  }
 }

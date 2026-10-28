@@ -99,6 +99,13 @@ GUI 模型选择要求确切提供方／模型对出现在可用目录中；不�
 |---|---:|---|
 | `nativeOpen` | 平台探测 | 是否能把 Session 工作区路径交给原生桌面打开器 |
 | `listWorkSliceMs` | `16` | 列表工作时间片，单位为毫秒，取正整数；在完整条目之间检查 |
+| `releaseOnIdle` | `false` | 让空闲 Agent 释放其 Session 写入租约，以便另一个 DSH 进程以写入方式打开同一已存储 Session |
+| `releaseIdleDelayMs` | `0` | idle 信号之后、首次释放检查之前的毫秒数 |
+| `releaseRetryMs` | `1000` | 仍有工作或子 Agent 时，两次释放检查之间的毫秒数 |
+
+### 空闲释放
+
+`releaseOnIdle`（默认 `false`）让空闲 Agent 释放其 Session 写入租约，以便另一个 DSH 进程以写入方式打开同一已存储 Session；关闭时，已接入的 Agent 保持该租约。查看从不取得该租约。释放仅在 Agent 处于 idle、收件箱为空、没有 hold、且没有存活的子 Agent 时发生。`releaseIdleDelayMs`（默认 `0`）是 idle 信号之后、首次检查之前的延迟，单位为毫秒。`releaseRetryMs`（默认 `1000`）是仍有工作或子 Agent 时两次检查之间的延迟，单位为毫秒。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-api-session-controller)是所有受支持字段及其 JSDoc 的完整来源。
 

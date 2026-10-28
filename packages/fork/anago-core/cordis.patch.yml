@@ -13,24 +13,6 @@
       name: '@anago-harness/response-language'
       config:
         enabled: true
-    - id: subagent-cursor
-      name: '@anago-harness/subagent-cursor'
-    - id: tool-subagent-cursor
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: cursor
-        toolName: subagent_cursor
-        maxDepth: provider-managed
-        providerOwnedRoute: true
-    - id: subagent-pi
-      name: '@anago-harness/subagent-pi'
-    - id: tool-subagent-pi
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: pi
-        toolName: subagent_pi
-        maxDepth: provider-managed
-        providerOwnedRoute: true
     - id: web-search-exa
       name: '@anago-harness/web-search-exa'
       config:

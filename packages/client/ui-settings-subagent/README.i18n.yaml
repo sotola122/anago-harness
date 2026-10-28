@@ -3,23 +3,23 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-subagent/README.md
 /:
-  en: 91ac9c71d17a231a
-  zh: c0f89c3d36b51581
+  en: a7a3349df3467161
+  zh: 605fe438305fa4b1
 /deepseek-ai-dsh-client-ui-settings-subagent:
   en: d1fc570c45a5f42e
   zh: 01eabcac395bca62
 /deepseek-ai-dsh-client-ui-settings-subagent/summary:
-  en: 4b6bf8db1752b902
-  zh: b8ac25ba6bdb96fb
+  en: 88c25991a82432d0
+  zh: 2cd1ff8841f4ca60
 /deepseek-ai-dsh-client-ui-settings-subagent/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-client-ui-settings-subagent/use-this-package:
-  en: 09ac65efa3352ef4
-  zh: 0a6f9e74e304ef1f
+  en: 8752bf8ac26359bd
+  zh: 545d0f133bc46c6a
 /deepseek-ai-dsh-client-ui-settings-subagent/understand-the-implementation:
-  en: 5124ebc1880ba9fa
-  zh: 89c2eb2d483962a7
+  en: c46a9d2168f09872
+  zh: f42d490cc60759cb
 /deepseek-ai-dsh-client-ui-settings-subagent/further-exploration:
   en: 9b43ebcd30efbdea
   zh: e6ec50d755fb5e24

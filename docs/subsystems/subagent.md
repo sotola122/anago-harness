@@ -412,6 +412,13 @@ Singleton settings owner read when delegation tools are composed for a Session.
  * @returns the enabled state and exact allowed routes.
  */
 current(): SubagentModelSelectionSettings
+
+/**
+ * Read a detached copy of the current purpose routing table.
+ * @returns the validated table, or null when none is configured.
+ * @throws when a configured table is empty, has an extra non-review route, or repeats a triple.
+ */
+purposeRoutes(): PurposeRouteTable | null
 ```
 
 Source: [`packages/subagent/tool-subagent/src/model-selection-settings.ts`](../../packages/subagent/tool-subagent/src/model-selection-settings.ts)

@@ -4,6 +4,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ModelProviderGroup } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsFormScope, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
+import { beginRevisionSave, loadSessionModelCatalog } from './settings-catalog.tsx'
 
 /** Namespace of the Host-owned subagent model-selection preference. */
 export const SUBAGENT_MODEL_SELECTION_NS = 'subagent-model-selection-settings'
@@ -63,7 +64,7 @@ export interface SubagentModelSelectionCardFace {
   /** Retry the adapter directory. */
   retryCatalog: () => void
   /** Persist the switch and exact routes as one revision-fenced mutation. */
-  save: () => void
+  save: () => Promise<void>
   /** Drop the staged enabled state and route choices. */
   discard: () => void
 }
@@ -131,6 +132,9 @@ export class SubagentModelSelectionCardController {
   private draftEnabled: boolean | undefined
   private draftRoutes: Map<string, AllowedSubagentModel> | undefined
   private draftRevision: number | undefined
+  /** Own fields when the draft started. A sibling write on this form does not invalidate it. */
+  private baselineEnabled = false
+  private baselineRoutes: AllowedSubagentModel[] = []
   private saving = false
   private failed = false
   private conflicted = false
@@ -151,12 +155,7 @@ export class SubagentModelSelectionCardController {
   ) {
     this.store = createSnapshotStore(this.projection())
     this.unsubscribe = scope.subscribe(() => {
-      if (!this.saving && this.draftRoutes !== undefined
-        && this.scope.getSnapshot().revision !== this.draftRevision) {
-        if (this.currentEnabled() === this.enabled()
-          && sameRoutes(this.currentRoutes(), this.desiredRoutes())) this.clearDraft()
-        else this.conflicted = true
-      }
+      this.noteRevision()
       if (this.enabled() && this.catalogStatus === 'idle') void this.loadCatalog()
       this.publish()
     })
@@ -181,7 +180,7 @@ export class SubagentModelSelectionCardController {
       toggleEnabled: () => { this.toggleEnabled() },
       toggleModel: (key) => { this.toggleModel(key) },
       retryCatalog: () => { void this.loadCatalog() },
-      save: () => { void this.save() },
+      save: () => this.save(),
       discard: () => { this.discard() },
     }
   }
@@ -205,13 +204,32 @@ export class SubagentModelSelectionCardController {
   private beginDraft(): Map<string, AllowedSubagentModel> {
     if (this.draftRoutes === undefined) {
       const snapshot = this.scope.getSnapshot()
-      this.draftEnabled = snapshot.value?.enabled ?? false
-      this.draftRoutes = new Map(
-        snapshot.value?.allowedModels.map(route => [subagentModelKey(route), { ...route }]) ?? [],
-      )
+      this.baselineEnabled = snapshot.value?.enabled ?? false
+      this.baselineRoutes = snapshot.value?.allowedModels.map(route => ({ ...route })) ?? []
+      this.draftEnabled = this.baselineEnabled
+      this.draftRoutes = new Map(this.baselineRoutes.map(route => [subagentModelKey(route), { ...route }]))
       this.draftRevision = snapshot.revision
     }
     return this.draftRoutes
+  }
+
+  /**
+   * A revision that lands this draft clears it. A revision that leaves these
+   * fields untouched advances the fence so a sibling field write can commit.
+   */
+  private noteRevision(): void {
+    if (this.saving || this.draftRoutes === undefined) return
+    if (this.scope.getSnapshot().revision === this.draftRevision) return
+    if (this.currentEnabled() === this.enabled() && sameRoutes(this.currentRoutes(), this.desiredRoutes())) {
+      this.clearDraft()
+      return
+    }
+    if (this.currentEnabled() === this.baselineEnabled && sameRoutes(this.currentRoutes(), this.baselineRoutes)) {
+      this.draftRevision = this.scope.getSnapshot().revision
+      this.conflicted = false
+      return
+    }
+    this.conflicted = true
   }
 
   private toggleEnabled(): void {
@@ -239,6 +257,7 @@ export class SubagentModelSelectionCardController {
     this.draftEnabled = undefined
     this.draftRoutes = undefined
     this.draftRevision = undefined
+    this.baselineRoutes = []
     this.failed = false
     this.conflicted = false
   }
@@ -266,16 +285,14 @@ export class SubagentModelSelectionCardController {
     if (this.disposed || snapshot.status !== 'ready' || !snapshot.writable || this.saving
       || (this.currentEnabled() === desiredEnabled && sameRoutes(this.currentRoutes(), desired))
       || (desiredEnabled && desired.length === 0)) return
-    if (this.draftRoutes !== undefined && snapshot.revision !== this.draftRevision) {
-      this.conflicted = true
-      this.publish()
-      return
-    }
-    const generation = this.saveGeneration
-    this.saving = true
-    this.failed = false
-    this.conflicted = false
-    this.publish()
+    const generation = beginRevisionSave({
+      stale: this.draftRoutes !== undefined && snapshot.revision !== this.draftRevision,
+      saveGeneration: this.saveGeneration,
+      publish: () => { this.publish() },
+      markConflict: () => { this.conflicted = true },
+      markSaving: () => { this.saving = true; this.failed = false; this.conflicted = false },
+    })
+    if (generation === undefined) return
     await this.scope.mutate([
       { op: 'set', path: ['enabled'], value: desiredEnabled },
       {
@@ -312,22 +329,22 @@ export class SubagentModelSelectionCardController {
     this.refreshCatalog()
   }
 
-  private async loadCatalog(): Promise<void> {
-    if (this.disposed || this.catalogStatus === 'loading') return
-    const generation = this.catalogGeneration
-    this.catalogStatus = 'loading'
-    this.catalogPartial = false
-    this.publish()
-    const response = await this.ctx.remote.session.modelCatalog()
-    if (generation !== this.catalogGeneration) return
-    if (response.ok) {
-      this.catalogGroups = response.value.groups
-      this.catalogPartial = response.value.failures.length > 0
-      this.catalogStatus = 'ready'
-    } else {
-      this.catalogStatus = 'error'
-    }
-    this.publish()
+  private loadCatalog(): Promise<void> {
+    return loadSessionModelCatalog({
+      disposed: this.disposed,
+      status: this.catalogStatus,
+      generation: this.catalogGeneration,
+      readGeneration: () => this.catalogGeneration,
+      publish: () => { this.publish() },
+      markLoading: () => { this.catalogStatus = 'loading'; this.catalogPartial = false },
+      fetch: () => this.ctx.remote.session.modelCatalog(),
+      applyReady: (groups, partial) => {
+        this.catalogGroups = groups
+        this.catalogPartial = partial
+        this.catalogStatus = 'ready'
+      },
+      applyError: () => { this.catalogStatus = 'error' },
+    })
   }
 
   private projection(): SubagentModelSelectionCardState {

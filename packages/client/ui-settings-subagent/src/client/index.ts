@@ -1,9 +1,9 @@
 /**
  * The Subagent settings page, browser half: the delegation limits over the
- * `subagent` namespace and the models agents may choose over the
- * `subagent-model-selection` namespace, on one page with one save. The page
- * registers into the Plugins page's `plugins.item` slot while the Host serves
- * either namespace and shows the sections it serves.
+ * `subagent` namespace, and the models agents may choose plus the purpose
+ * routing table over the `subagent-model-selection` namespace, on one page
+ * with one save. The page registers into the Plugins page's `plugins.item`
+ * slot while the Host serves either namespace and shows the sections it serves.
  */
 
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -23,6 +23,7 @@ import { SubagentLimitsCardController } from './subagent-limits-card-controller.
 import {
   SUBAGENT_MODEL_SELECTION_NS, SubagentModelSelectionCardController,
 } from './subagent-model-selection-card-controller.ts'
+import { SubagentPurposeRoutesCardController } from './subagent-purpose-routes-card-controller.ts'
 import { en, zh, type SubagentSettingsLocaleKey } from './locales.ts'
 
 export type { SubagentCardProps } from './SubagentCard.tsx'
@@ -31,6 +32,9 @@ export type { SubagentLimitsCardFace, SubagentLimitsCardState, SubagentLimitsSet
 export type {
   SubagentModelSelectionCardFace, SubagentModelSelectionCardState, SubagentModelSelectionSettings,
 } from './subagent-model-selection-card-controller.ts'
+export type {
+  SubagentPurposeRoutesCardFace, SubagentPurposeRoutesCardState,
+} from './subagent-purpose-routes-card-controller.ts'
 export type { SubagentSettingsLocaleKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -65,29 +69,44 @@ export function apply(ctx: ClientContext): void {
     ctx.configForms.get(SUBAGENT_MODEL_SELECTION_NS),
     ctx,
   )
+  const purpose = new SubagentPurposeRoutesCardController(
+    ctx.configForms.get(SUBAGENT_MODEL_SELECTION_NS),
+    ctx,
+  )
   const limitsFace = limits.inject()
   const modelsFace = models.inject()
+  const purposeFace = purpose.inject()
   // The model catalogue is not part of any settings section: adapters come and
   // go, and a document commit elsewhere can change which routes are stored.
   ctx.effect(
-    () => ctx.remote.$on('llm/adapters-updated', () => { models.refreshCatalog() }),
+    () => ctx.remote.$on('llm/adapters-updated', () => {
+      models.refreshCatalog()
+      purpose.refreshCatalog()
+    }),
     'ui-settings-subagent: adapter invalidations',
   )
   ctx.effect(
-    () => ctx.remote.$on('settings/document-updated', () => { models.refreshCatalog() }),
+    () => ctx.remote.$on('settings/document-updated', () => {
+      models.refreshCatalog()
+      purpose.refreshCatalog()
+    }),
     'ui-settings-subagent: settings invalidations',
   )
   ctx.effect(
-    () => ctx.on('connection/reset', () => { models.resetConnection() }),
+    () => ctx.on('connection/reset', () => {
+      models.resetConnection()
+      purpose.resetConnection()
+    }),
     'ui-settings-subagent: connection generation',
   )
   ctx.effect(() => () => { models.dispose() }, 'ui-settings-subagent: model preference')
+  ctx.effect(() => () => { purpose.dispose() }, 'ui-settings-subagent: purpose routes')
   ctx.effect(() => ctx.configForms.whileServed([SUBAGENT_NS, SUBAGENT_MODEL_SELECTION_NS], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
     name: 'plugins.item',
     id: 'subagent',
     order: 10,
     label: () => t('subagentTitle'),
     locale: NS,
-    inject: () => subagentCardFace(limitsFace, modelsFace),
+    inject: () => subagentCardFace(limitsFace, modelsFace, purposeFace),
   }, SubagentCard))), 'ui-settings-subagent: page')
 }

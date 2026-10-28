@@ -10,7 +10,8 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { sep } from 'node:path'
+import { stat } from 'node:fs/promises'
+import { join, sep } from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, SearchResultView, ToolResult } from '@deepseek-ai/dsh-tools'
 import type { SpillRef } from '@deepseek-ai/dsh-spill'
@@ -23,6 +24,38 @@ import { acceptedDirectCallValue } from './direct-call.ts'
  * config), matching Claude Code's default `GlobTool` result limit.
  */
 export const GLOB_MAX_RESULTS = 100
+
+/**
+ * Keep ripgrep's modification-time order, and sort paths from the same second by path.
+ * Checkout copies often share a second, and ripgrep does not break that tie.
+ * A path that cannot be stat'd keeps the original order of the whole list.
+ * @param workdir - directory the displayed paths are relative to.
+ * @param paths - discovered paths in ripgrep's `--sort=modified` order.
+ * @returns the same paths, with same-second runs in path order.
+ */
+export async function stabilizeGlobMtimeTies(workdir: string, paths: readonly string[]): Promise<string[]> {
+  const seconds: number[] = []
+  for (const path of paths) {
+    try {
+      seconds.push(Math.floor((await stat(join(workdir, path))).mtimeMs / 1000))
+    } catch (error) {
+      // A fake or raced path has no mtime; leave ripgrep's order unchanged.
+      void error
+      return [...paths]
+    }
+  }
+  const out: string[] = []
+  let index = 0
+  while (index < paths.length) {
+    let end = index + 1
+    while (end < paths.length && seconds[end] === seconds[index]) end += 1
+    const run = paths.slice(index, end)
+    if (run.length > 1) run.sort((left, right) => left < right ? -1 : 1)
+    out.push(...run)
+    index = end
+  }
+  return out
+}
 
 /**
  * Directory names ripgrep must never descend into for a discovery listing: VCS
@@ -345,7 +378,12 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
         const displayPath = toWorkdirRelative(line, run.workdir)
         all.push(displayPath)
       }
-      return { root, paths: all }
+      // Over-cap sampling reads this order. Only a result that is shown whole
+      // can break same-second ties without changing which paths are sampled.
+      const paths = all.length <= caps.maxResults
+        ? await stabilizeGlobMtimeTies(run.workdir, all)
+        : all
+      return { root, paths }
     },
     presentCall: presentGlobCall,
     presentResult: presentGlobResult,

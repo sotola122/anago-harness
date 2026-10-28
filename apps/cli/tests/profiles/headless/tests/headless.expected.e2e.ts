@@ -839,6 +839,9 @@ describe('headless stream-json snapshots', () => {
               {
                 "role": "user",
               },
+              {
+                "role": "user",
+              },
             ],
             "tools": [],
           },
@@ -846,6 +849,9 @@ describe('headless stream-json snapshots', () => {
             "messages": [
               {
                 "role": "system",
+              },
+              {
+                "role": "user",
               },
               {
                 "role": "user",
@@ -876,6 +882,9 @@ describe('headless stream-json snapshots', () => {
             "messages": [
               {
                 "role": "system",
+              },
+              {
+                "role": "user",
               },
               {
                 "role": "user",

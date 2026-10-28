@@ -40,4 +40,4 @@ Host 自有的 `subagent-model-selection` 设置 section 保存显式 `enabled` 
 
 ## Related decisions
 
-路由参数、适配器预检、发现工具与 fork 缓存限制仍由[模型选择的 subagent 路由](../../../../packages/subagent/tool-subagent/README.zh.md)负责。
+路由参数、适配器预检、发现工具与 fork 缓存限制仍由[模型选择的 subagent 路由](../../../../packages/subagent/tool-subagent/README.zh.md)负责。[用途路由提案](../../proposed/feature/2026-10-26-subagent-purpose-routing.zh.md)在每次委派时读取另一张用途表。它不把 `allowedModels` 移出本 Session 快照，显式 route 仍受本决定约束。

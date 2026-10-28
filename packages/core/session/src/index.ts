@@ -775,8 +775,9 @@ export class Session {
    *   declare how it joins the surface, the sole source of derived model
    *   history) and
    *   rejected by the compiler for non-surface types like `turn/start` or
-   *   `assistant/attempt`. Assistant messages embed their exact provider
-   *   stream and cannot cite top-level source events.
+   *   `assistant/attempt`. A log-only event may instead pass `{ ignorable: true }`
+   *   so an older reader can skip a type it does not know. Assistant messages
+   *   embed their exact provider stream and cannot cite top-level source events.
    * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
    *   `data` that entered the log, so reading `event.data` back sees the logged
    *   value, never the caller's still-mutable input.
@@ -798,9 +799,11 @@ export class Session {
   append<T extends SessionEventType>(
     type: T,
     data: SessionEventMap[T],
-    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
+    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : [opts?: { readonly ignorable: true }]
   ): SessionEvent<T> {
-    const surfaceOpts: SurfaceIntent | undefined = opts[0]
+    const first = opts[0]
+    const ignorable = first !== undefined && 'ignorable' in first && first.ignorable
+    const surfaceOpts: SurfaceIntent | undefined = first !== undefined && 'surfaceOp' in first ? first : undefined
     const surfaceMetadata = {
       ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
       ...surfaceOpts?.surfaceOp === undefined ? {} : { surfaceOp: surfaceOpts.surfaceOp },
@@ -814,13 +817,16 @@ export class Session {
       throw new Error(`session event "${type}" carries non-JSON-serializable surface metadata`)
     }
     const entry = this.publicationEntry()
-    const event = deepFreeze({
+    // Snapshot spreads are not assignable to SessionEvent<T>.
+    const built: unknown = deepFreeze({
       type,
       seq: SessionSeq(this.log.length),
       time: Date.now(),
       data: dataSnapshot,
       ...(surfaceMetadataSnapshot as { surfaceOp?: unknown; sourceEventSeqs?: unknown }),
-    } as unknown as SessionEvent<T>)
+      ...(ignorable ? { ignorable: true } : {}),
+    })
+    const event = built as SessionEvent<T>
     validateSessionEventData(event, `session event "${type}" at seq ${event.seq}`)
     this.commit(event as SessionEvent, entry)
     return event

@@ -7,6 +7,7 @@ import { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives'
 import { formLabels } from './locales.ts'
 import { SubagentLimitsFields } from './SubagentLimitsFields.tsx'
 import { SubagentModelSelectionFields } from './SubagentModelSelectionFields.tsx'
+import { SubagentPurposeRoutesFields } from './SubagentPurposeRoutesFields.tsx'
 import { subagentCardShell, type SubagentCardFace } from './subagent-card-controller.ts'
 import css from './SubagentCard.module.css'
 
@@ -23,9 +24,10 @@ export function SubagentCard(props: SubagentCardProps) {
   const { t } = props
   const limits = props.useSubagentLimitsCard(snapshot => snapshot)
   const models = props.useSubagentModelSelectionCard(snapshot => snapshot)
+  const purpose = props.useSubagentPurposeRoutesCard(snapshot => snapshot)
   const headingId = useId()
   if (props.view === 'summary') return t('subagentDescription')
-  const state = subagentCardShell(limits, models)
+  const state = subagentCardShell(limits, models, purpose)
   return (
     <SettingsForm labels={formLabels(t)}
       state={state} onSave={props.save} onDiscard={props.discard}>
@@ -44,6 +46,17 @@ export function SubagentCard(props: SubagentCardProps) {
             <h3 className={css.heading} id={`${headingId}-models`}>{t('subagentModelSelectionTitle')}</h3>
             <SubagentModelSelectionFields t={t} state={{ ...models, saving: state.saving }}
               toggleEnabled={props.toggleEnabled} toggleModel={props.toggleModel} retryCatalog={props.retryCatalog} />
+          </section>
+        )
+        : null}
+      {purpose.available
+        ? (
+          <section className={css.section} aria-labelledby={`${headingId}-purpose`}>
+            <h3 className={css.heading} id={`${headingId}-purpose`}>{t('purposeRoutes.title')}</h3>
+            <SubagentPurposeRoutesFields t={t} state={{ ...purpose, saving: state.saving }}
+              editRoute={props.editPurposeRoute} addReviewer={props.addReviewer}
+              removeReviewer={props.removeReviewer} moveReviewer={props.moveReviewer}
+              retryCatalog={props.retryPurposeCatalog} />
           </section>
         )
         : null}

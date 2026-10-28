@@ -26,6 +26,9 @@ import { rgPath } from '@vscode/ripgrep'
 import { SpillLocator, SpillStore } from '@deepseek-ai/dsh-spill'
 import type { SaveTextSpill, SpillRef } from '@deepseek-ai/dsh-spill'
 import * as ToolFsSearch from '@deepseek-ai/dsh-tool-fs-search'
+import { mkdtemp, rm, utimes, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { stabilizeGlobMtimeTies } from '../src/glob.ts'
 import {
   buildGlobCommand,
   buildGrepCommand,
@@ -335,6 +338,22 @@ describe('config validation', () => {
 })
 
 describe('command construction (plain argv)', () => {
+  it('glob: equal modification times break ties by path, and a missing path keeps ripgrep order', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-glob-tie-'))
+    await writeFile(join(root, 'b.md'), 'b')
+    await writeFile(join(root, 'a.md'), 'a')
+    const same = new Date(2020, 0, 1, 0, 0, 0)
+    await utimes(join(root, 'a.md'), same, new Date(same.getTime() + 200))
+    await utimes(join(root, 'b.md'), same, new Date(same.getTime() + 800))
+    await expect(stabilizeGlobMtimeTies(root, ['b.md', 'a.md'])).resolves.toEqual(['a.md', 'b.md'])
+    await writeFile(join(root, 'newer.md'), 'n')
+    await utimes(join(root, 'newer.md'), new Date(2024, 0, 1), new Date(2024, 0, 1))
+    await expect(stabilizeGlobMtimeTies(root, ['newer.md', 'b.md', 'a.md'])).resolves.toEqual(['newer.md', 'a.md', 'b.md'])
+    await expect(stabilizeGlobMtimeTies(root, ['missing.md', 'a.md'])).resolves.toEqual(['missing.md', 'a.md'])
+    await expect(stabilizeGlobMtimeTies(root, [])).resolves.toEqual([])
+    await rm(root, { recursive: true, force: true })
+  })
+
   it('glob: fixed rg --files argv with the pattern and paired VCS excludes', () => {
     expect(buildGlobCommand({ pattern: '**/*.ts' })).toEqual([
       '--files',
