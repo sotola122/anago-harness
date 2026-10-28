@@ -71,14 +71,17 @@ const purposeRoutingTools = new WeakMap<ToolDefinition, true>()
  * @param description - the description to publish.
  * @returns whether `category` was present and updated.
  */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function writeCategoryDescription(parameters: unknown, description: string): boolean {
-  if (typeof parameters !== 'object' || parameters === null || Array.isArray(parameters)) return false
-  const properties = Reflect.get(parameters, 'properties')
-  if (typeof properties !== 'object' || properties === null || Array.isArray(properties)) return false
-  const category = Reflect.get(properties, 'category')
-  if (typeof category !== 'object' || category === null || Array.isArray(category)) return false
-  if (typeof Reflect.get(category, 'description') !== 'string') return false
-  Reflect.set(category, 'description', description)
+  if (!isRecord(parameters)) return false
+  const properties = parameters.properties
+  if (!isRecord(properties)) return false
+  const category = properties.category
+  if (!isRecord(category) || typeof category.description !== 'string') return false
+  category.description = description
   return true
 }
 

@@ -25,7 +25,7 @@ function shell(name: string, calls: { n: number }): ToolDefinition {
     name,
     description: name,
     parameters: { type: 'object', properties: { command: { type: 'string' } } },
-    output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: String(value) }] },
+    output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }] },
     execute: () => {
       calls.n += 1
       return Promise.resolve('ran')
