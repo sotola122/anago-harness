@@ -914,11 +914,17 @@
           "content": [
             {
               "type": "text",
-              "text": "started subagent {{child-1}}"
+              "text": "started subagent {{child-1}} · smoke-model · high"
             }
           ],
           "isError": false,
           "id": "{{messageId}}"
+        },
+        "meta": {
+          "subagentId": "{{child-1}}",
+          "provider": "deepseek-official",
+          "model": "smoke-model",
+          "reasoningEffort": "high"
         }
       },
       "sourceEventSeqs": [
@@ -2734,11 +2740,17 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "started subagent {{child-1}}"
+                  "text": "started subagent {{child-1}} · smoke-model · high"
                 }
               ],
               "isError": false,
               "id": "{{messageId}}"
+            },
+            "meta": {
+              "subagentId": "{{child-1}}",
+              "provider": "deepseek-official",
+              "model": "smoke-model",
+              "reasoningEffort": "high"
             }
           },
           "sourceEventSeqs": [

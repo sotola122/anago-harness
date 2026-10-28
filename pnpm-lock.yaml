@@ -2982,6 +2982,9 @@ importers:
       '@deepseek-ai/dsh-office-to-pdf':
         specifier: workspace:*
         version: link:../../document/office-to-pdf
+      '@deepseek-ai/dsh-orchestrator-policy':
+        specifier: workspace:*
+        version: link:../../preset/orchestrator-policy
       '@deepseek-ai/dsh-persona':
         specifier: workspace:*
         version: link:../../preset/persona
@@ -12032,6 +12035,37 @@ importers:
         specifier: ^4.0.9
         version: 4.0.9
 
+  packages/preset/orchestrator-policy:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-scope':
+        specifier: workspace:*
+        version: link:../../core/scope
+      '@deepseek-ai/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+
   packages/preset/persona:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -16002,6 +16036,9 @@ importers:
       '@deepseek-ai/dsh-native-command':
         specifier: workspace:*
         version: link:../../packages/util/native-command
+      '@deepseek-ai/dsh-orchestrator-policy':
+        specifier: workspace:*
+        version: link:../../packages/preset/orchestrator-policy
       '@deepseek-ai/dsh-otel':
         specifier: workspace:*
         version: link:../../packages/telemetry/otel

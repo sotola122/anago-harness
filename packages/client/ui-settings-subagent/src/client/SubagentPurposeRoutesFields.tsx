@@ -4,6 +4,8 @@ import { useId } from 'react'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SubagentSettingsLocaleKey } from './locales.ts'
 import type {
+  GuidanceFieldState,
+  GuidanceSlot,
   PurposeRouteEditorState,
   PurposeRouteField,
   PurposeRouteMove,
@@ -16,7 +18,7 @@ import { catalogNoticeProps, ModelCatalogStatus } from './settings-catalog.tsx'
 
 /** Plain purpose-route state and callbacks supplied by the owning card. */
 export type SubagentPurposeRoutesFieldsProps = PropsLocale<'settings.subagent'>
-  & Pick<SubagentPurposeRoutesCardFace, 'editRoute' | 'addReviewer' | 'removeReviewer' | 'moveReviewer' | 'retryCatalog'>
+  & Pick<SubagentPurposeRoutesCardFace, 'editRoute' | 'addReviewer' | 'removeReviewer' | 'moveReviewer' | 'retryCatalog' | 'editGuidance' | 'resetGuidance'>
   & { state: SubagentPurposeRoutesCardState }
 
 type Translate = (key: SubagentSettingsLocaleKey) => string
@@ -30,6 +32,42 @@ function slotLabel(t: Translate, slot: PurposeRouteSlot): string {
     case 'writing': return t('purposeRoutes.slot.writing.label')
     case 'default': return t('purposeRoutes.slot.default.label')
   }
+}
+
+function guidanceError(t: Translate, field: GuidanceFieldState): string | undefined {
+  if (field.issue === 'empty') return t('purposeRoutes.errors.guidanceEmpty')
+  if (field.issue === 'long') return t('purposeRoutes.errors.guidanceLong')
+  if (field.issue === 'identifier') return `${t('purposeRoutes.errors.guidanceIdentifier')} ${field.identifier ?? ''}`
+  return undefined
+}
+
+function GuidanceEditor(props: {
+  t: Translate
+  field: GuidanceFieldState
+  label: string
+  hint: string
+  disabled: boolean
+  editGuidance: (slot: GuidanceSlot, value: string) => void
+}) {
+  const id = useId()
+  const error = guidanceError(props.t, props.field)
+  const errorId = `${id}-error`
+  return (
+    <div className={css.field}>
+      <label htmlFor={id}>{props.label}</label>
+      <textarea
+        id={id}
+        rows={Math.min(6, Math.max(2, props.field.text.split('\n').length))}
+        value={props.field.text}
+        disabled={props.disabled}
+        aria-invalid={props.field.issue !== undefined || undefined}
+        aria-describedby={error === undefined ? undefined : errorId}
+        onChange={(event) => { props.editGuidance(props.field.slot, event.target.value) }}
+      />
+      <span className={css.hint}>{props.hint}</span>
+      {error === undefined ? null : <p id={errorId} className={css.invalid} role="alert">{error}</p>}
+    </div>
+  )
 }
 
 function slotHint(t: Translate, slot: PurposeRouteSlot): string {
@@ -148,7 +186,14 @@ export function SubagentPurposeRoutesFields(props: SubagentPurposeRoutesFieldsPr
                 <section key={row.slot} className={css.row} aria-labelledby={`${headingId}-${row.slot}`}>
                   <div className={css.purpose}>
                     <h4 className={css.label} id={`${headingId}-${row.slot}`}>{slotLabel(t, row.slot)}</h4>
-                    <p className={css.hint}>{slotHint(t, row.slot)}</p>
+                    <GuidanceEditor
+                      t={t}
+                      field={row.guidance}
+                      label={t('purposeRoutes.guidance.sentence')}
+                      hint={slotHint(t, row.slot)}
+                      disabled={disabled}
+                      editGuidance={props.editGuidance}
+                    />
                   </div>
                   <div className={css.routes} role="group" aria-label={t('purposeRoutes.primary')}>
                     {row.empty ? <p className={css.notice} role="status">{t('purposeRoutes.emptySlot')}</p> : null}
@@ -179,6 +224,18 @@ export function SubagentPurposeRoutesFields(props: SubagentPurposeRoutesFieldsPr
                   </div>
                 </section>
               ))}
+            </div>
+            <GuidanceEditor
+              t={t}
+              field={state.splitting}
+              label={t('purposeRoutes.guidance.splitting')}
+              hint={t('purposeRoutes.guidance.splittingHint')}
+              disabled={disabled}
+              editGuidance={props.editGuidance}
+            />
+            <p className={css.hint}>{state.guidanceBuiltin ? t('purposeRoutes.guidance.builtin') : t('purposeRoutes.guidance.hint')}</p>
+            <div className={css.actions}>
+              <button type="button" disabled={disabled || state.guidanceBuiltin} onClick={props.resetGuidance}>{t('purposeRoutes.guidance.reset')}</button>
             </div>
           </>
         )

@@ -9,7 +9,7 @@ import { SubagentCard, type SubagentCardProps } from '../src/client/SubagentCard
 import type { SubagentLimitsCardState } from '../src/client/subagent-limits-card-controller.ts'
 import type { SettingsFieldState, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SubagentModelSelectionCardState } from '../src/client/subagent-model-selection-card-controller.ts'
-import type { SubagentPurposeRoutesCardState } from '../src/client/subagent-purpose-routes-card-controller.ts'
+import type { GuidanceFieldState, SubagentPurposeRoutesCardState } from '../src/client/subagent-purpose-routes-card-controller.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -61,6 +61,8 @@ function renderSubagent(
     catalogStatus: 'idle',
     catalogPartial: false,
     conflicted: false,
+    splitting: guidanceField('splitting', ''),
+    guidanceBuiltin: true,
     ...purposeState,
   })
   const actions = {
@@ -74,6 +76,8 @@ function renderSubagent(
     removeReviewer: vi.fn(),
     moveReviewer: vi.fn(),
     retryPurposeCatalog: vi.fn(),
+    editGuidance: vi.fn(),
+    resetGuidance: vi.fn(),
     save: vi.fn(),
     discard: vi.fn(),
   }
@@ -336,8 +340,7 @@ describe('SubagentCard', () => {
     expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.medium.label'] })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.writing.label'] })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en['purposeRoutes.slot.default.label'] })).toBeTruthy()
-    expect(screen.getByText(en['purposeRoutes.slot.medium.hint'])).toBeTruthy()
-    expect(screen.getByText(en['purposeRoutes.slot.writing.hint'])).toBeTruthy()
+    expect(screen.getAllByText(en['purposeRoutes.slot.medium.hint']).length).toBeGreaterThan(0)
     expect(screen.getByText(en['purposeRoutes.slot.default.hint'])).toBeTruthy()
     expect(screen.getAllByRole('button', { name: en['purposeRoutes.addReviewer'] })).toHaveLength(1)
     expect(screen.getByText(en['purposeRoutes.warnings.providerUnavailable'])).toBeTruthy()
@@ -385,6 +388,35 @@ describe('SubagentCard', () => {
     expect(screen.getByText(en.subagentModelSelectionLoading)).toBeTruthy()
     expect(screen.getByText(en.subagentModelSelectionPartial)).toBeTruthy()
   })
+
+  it('edits a purpose sentence and reports an empty, long, or identifier sentence', () => {
+    const { actions } = renderSubagent({}, { available: false }, 'page', {
+      available: true,
+      configured: true,
+      guidanceBuiltin: false,
+      rows: [row('light', [route('light-1')], {
+        guidance: guidanceField('light', '', { issue: 'empty' }),
+      })],
+      splitting: guidanceField('splitting', 'x'.repeat(401), { issue: 'long' }),
+    })
+    expect(screen.getByText(en['purposeRoutes.errors.guidanceEmpty'])).toBeTruthy()
+    expect(screen.getByText(en['purposeRoutes.errors.guidanceLong'])).toBeTruthy()
+    fireEvent.change(screen.getAllByLabelText(en['purposeRoutes.guidance.sentence'])[0]!, { target: { value: 'A lookup.' } })
+    expect(actions.editGuidance).toHaveBeenCalledWith('light', 'A lookup.')
+    fireEvent.click(screen.getByRole('button', { name: en['purposeRoutes.guidance.reset'] }))
+    expect(actions.resetGuidance).toHaveBeenCalledOnce()
+    cleanup()
+    renderSubagent({}, { available: false }, 'page', {
+      available: true,
+      configured: true,
+      rows: [row('deep', [route('deep-1')], {
+        guidance: guidanceField('deep', 'use route-alpha', { issue: 'identifier', identifier: 'route-alpha' }),
+      })],
+      splitting: guidanceField('splitting', 'wider', { issue: 'identifier' }),
+    })
+    expect(screen.getByText(`${en['purposeRoutes.errors.guidanceIdentifier']} route-alpha`)).toBeTruthy()
+    expect(screen.getAllByRole('alert').some(item => item.textContent?.includes(en['purposeRoutes.errors.guidanceIdentifier']))).toBe(true)
+  })
 })
 
 function route(
@@ -406,10 +438,23 @@ function route(
   }
 }
 
+function guidanceField(slot: GuidanceFieldState['slot'], text: string, rest: Partial<GuidanceFieldState> = {}): GuidanceFieldState {
+  return { slot, text, ...rest }
+}
+
 function row(
   slot: import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteSlot,
   routes: import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteEditorState[],
   rest: Partial<import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteRowState> = {},
 ): import('../src/client/subagent-purpose-routes-card-controller.ts').PurposeRouteRowState {
-  return { slot, fanOut: false, routes, duplicate: false, extra: false, empty: false, ...rest }
+  return {
+    slot,
+    fanOut: false,
+    routes,
+    duplicate: false,
+    extra: false,
+    empty: false,
+    guidance: guidanceField(slot === 'default' ? 'omit' : slot, 'Built-in sentence.'),
+    ...rest,
+  }
 }

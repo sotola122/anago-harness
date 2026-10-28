@@ -83,6 +83,10 @@ Set `purposeRouting: true` to let a call pass `category` instead of naming a pro
 
 The settings row stores `purposeRoutes`, a volatile table that defaults to `null`. `light`, `medium`, `deep`, `writing`, and `default` each hold one route with a required `reasoningEffort`. `review` holds one or more. A missing slot fails schema validation. An empty list, a second route on a non-review slot, or a duplicate provider/model/effort triple fails when the table is read. The runtime reads the table on each delegation, so an edit applies to the next call and not to an in-flight call. An explicit `provider` / `model` / `reasoning_effort` selection, including an effort-only selection that uses the `default` row's provider and model, still checks the Session `allowedModels` list. A category route skips that list and still runs adapter preflight. The model-facing error for a failed category route omits provider and model names; the `subagent/purpose-route` event keeps the cause. The category enum is static, so a table edit does not change the prompt prefix. The tool text asks the parent to re-delegate a failed task once with the same `category`; the runtime does not enforce that count.
 
+The same settings row stores `purposeGuidance`, a volatile value that defaults to `null`. Null keeps the pinned `category` description byte for byte. A non-null value requires `light`, `medium`, `deep`, `review`, `writing`, and `omit`, each a non-empty sentence of at most 200 characters, and `splitting`, which may be empty and is at most 400 characters. A missing or over-long sentence fails when the value is loaded or read. Composition fails, and names the slot, when a sentence contains a provider or model identifier from the current table; it does not fall back to the built-in text. The failed text is not written into the schema. `list_subagent_categories` returns the same purpose clauses and replaces a failed read with the missing-table error so the identifier stays out of the model result.
+
+`purposeRouting: true` also registers `list_subagent_categories` in that tool scope. It takes no arguments. It returns the closed labels, the purpose text shared with the `category` parameter, whether the label starts one child per configured route, and whether omitting `category` can resolve the current `default` row. It does not return provider, model, reasoning effort, or route counts. A missing settings service or a null table still returns the five labels and reports the default row as unresolved. A table read that fails returns the missing-table error and omits the rejected route. The tool is absent when `purposeRouting` is false, including a `providerOwnedRoute` instance; combining those flags still fails at load.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -95,7 +99,7 @@ This section explains how the tool mirrors provider lifecycle and settles runs; 
 
 ### Design concept
 
-One instance is one provider plus one tool name. The plugin mirrors provider lifecycle: it registers the tool when the named provider appears and disposes it when the provider leaves, so sibling load order and HMR replacement cannot strand a dangling tool. Direct Agent setup passes its unpublished Session explicitly and awaits installation before publication. A standing preset with model or preset selection receives each matching Agent through `agent/created`, validates preset references, selects any model policy from its Session, and awaits installation through its Context; installation failure rejects creation. A numeric `maxDepth` or configured LLM selection the provider cannot enforce fails the mount instead of the first delegation. At most one instance in a tool scope may own model selection because `list_subagent_models` has a global name.
+One instance is one provider plus one tool name. The plugin mirrors provider lifecycle: it registers the tool when the named provider appears and disposes it when the provider leaves, so sibling load order and HMR replacement cannot strand a dangling tool. Direct Agent setup passes its unpublished Session explicitly and awaits installation before publication. A standing preset with model or preset selection receives each matching Agent through `agent/created`, validates preset references, selects any model policy from its Session, and awaits installation through its Context; installation failure rejects creation. A numeric `maxDepth` or configured LLM selection the provider cannot enforce fails the mount instead of the first delegation. At most one instance in a tool scope may own model selection because `list_subagent_models` has a global name. At most one `purposeRouting` instance in a tool scope may load, because `list_subagent_categories` has one name.
 
 ### Activation ownership
 
@@ -120,6 +124,7 @@ The tool's description derives from `provider.inheritsParentContext`: a fresh ch
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | Host-owned opt-in setting sampled for new Sessions |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | Session event that records and inherits the sampled decision |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` runtime discovery tool |
+| [`src/list-categories.ts`](src/list-categories.ts) | `list_subagent_categories` label and default-row discovery |
 
 </details>
 
@@ -145,11 +150,11 @@ Read these pages when the package-level contract is not enough; they move from t
 
 #### What the model sees
 
-The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) appears under the configured tool name while its provider exists. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus route guidance; the backend must support `agentOptions`. A `purposeRouting: true` instance also adds optional `category` and one retry sentence; that text names no provider or model. `allowedAgentPresets` adds the `agent_preset` enum and guidance from the presets' display descriptions. Context inheritance and continuation support determine the task and follow-up descriptions. A tool restriction removes both the schema and its `tool:<toolName>` guidance section.
+The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) appears under the configured tool name while its provider exists. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus route guidance; the backend must support `agentOptions`. A `purposeRouting: true` instance also adds optional `category` and one retry sentence; that text names no provider or model. Null `purposeGuidance` leaves the `category` description unchanged. A saved value replaces it on the next request. A sentence that contains a route identifier fails that request and is not written into the schema. The same instance registers `list_subagent_categories`. `allowedAgentPresets` adds the `agent_preset` enum and guidance from the presets' display descriptions. Context inheritance and continuation support determine the task and follow-up descriptions. A tool restriction removes both the schema and its `tool:<toolName>` guidance section.
 
 #### Token effect
 
-Fixed schema cost per parent request; LLM selection adds three parameters, while preset selection adds one enum parameter and preset descriptions. Purpose routing adds one enum parameter and one description sentence; editing the table does not change that prefix. Each tool instance adds one schema and one short system-prompt section.
+Fixed schema cost per parent request; LLM selection adds three parameters, while preset selection adds one enum parameter and preset descriptions. Purpose routing adds one enum parameter, one description sentence, and the fixed `list_subagent_categories` schema; editing the table does not change that prefix. Editing `purposeGuidance` replaces the `category` description. A visible purpose-routing tool also adds a fixed splitting paragraph, plus `splitting` when that sentence is non-empty. Each tool instance adds one schema and one short system-prompt section.
 
 #### KV Cache effect
 
@@ -169,11 +174,31 @@ One fixed discovery schema is present in enabled compositions. Directory content
 
 The schema is prefix-stable across adapter registration and catalog changes. Each discovery result is appended after the reusable prefix.
 
+### Category discovery
+
+#### What the model sees
+
+When `purposeRouting` is true, `list_subagent_categories` is registered with an empty parameter object. A call's visible text is one line per label, `` `<id> — <purpose> — one child` ``, with `review` using `one child per configured route`, then `Omitting category selects the configured default for general work: yes` or `: no`. The canonical value has `categories` and `omission` and no provider, model, or reasoning-effort fields. A failed table read returns `Error: no child model is configured for this tool; report that to the user`. The description is fixed:
+
+##### Category discovery description
+
+```markdown
+List subagent category labels, the job each label is for, and whether omitting category currently selects a configured default. This tool does not list providers, models, or reasoning efforts. It does not choose a child. Pass a listed label as subagent category, or omit category for general work.
+```
+
+#### Token effect
+
+One fixed schema is added for each `purposeRouting` session. The table is not part of that schema. The result is appended only when the model calls the tool.
+
+#### KV Cache effect
+
+The schema prefix stays stable while `purposeRouting` is unchanged and `purposeGuidance` is null. Editing the table does not invalidate it. Editing guidance changes the `category` description and therefore the prefix. Each call appends its result after the reusable prefix.
+
 ### System prompt
 
 #### What the model sees
 
-Visible delegation tools share one guidance paragraph, listing tools in name order and instructing the model to start independent delegations together and keep working while they run, and to end its turn instead of sleeping or polling when only waiting for their results remains. Hidden or unavailable tools are omitted; no guidance appears when none are visible. With both `subagent` and `subagent_fork` visible, the text is:
+Visible delegation tools share one guidance paragraph, listing tools in name order and instructing the model to start independent delegations together and keep working while they run, and to end its turn instead of sleeping or polling when only waiting for their results remains. When any visible delegation tool uses purpose routing, that paragraph is followed by a fixed splitting paragraph, then by `splitting` when that sentence is non-empty. A route-only edit does not change the paragraph. Hidden or unavailable tools are omitted; no guidance appears when none are visible. With both `subagent` and `subagent_fork` visible, the text is:
 
 ##### Tool-guidance section
 
@@ -248,6 +273,7 @@ These limits define what this tool does not return or enforce; they are current 
 - **Shipped fork tools cannot select a child LLM route** — they inherit the parent's provider and model to keep the copied conversation prefix eligible for KV Cache reuse. Re-enable selection only when route changes preserve reuse or expose a bounded recomputation cost.
 - **Depth limits are fixed per instance** — independently named tools can set different caps. LLM selection requires an enabled per-Session preference and a provider that advertises `agentOptions`; both in-process providers and DSH SDK advertise it, while ACP, Codex, and Claude Code reject it rather than ignore it.
 - **The same-category retry is not enforced** — the tool text tells the parent to re-delegate a failed task once with the same `category`, or to omit it again when the failed call omitted it. The runtime cannot tell that a later call is the same task.
+- **A null purpose table does not hide labels** — `list_subagent_categories` still returns the five labels and reports the default row as unresolved. A later `category` delegation fails with the missing-table error. The discovery call does not stop that delegation.
 
 <a id="dev-note"></a>
 ### Dev Note

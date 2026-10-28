@@ -10,8 +10,13 @@ import {
 } from '../src/client/subagent-model-selection-card-controller.ts'
 import {
   SubagentPurposeRoutesCardController,
+  BUILTIN_GUIDANCE,
+  guidanceIssue,
+  purposeGuidanceFromValue,
   purposeRouteTableFromValue,
+  samePurposeGuidance,
   samePurposeRouteTable,
+  type PurposeGuidanceDraft,
   type PurposeRouteTableDraft,
   type PurposeRoutesSettings,
 } from '../src/client/subagent-purpose-routes-card-controller.ts'
@@ -1066,5 +1071,99 @@ describe('SubagentPurposeRoutesCardController', () => {
       value: { ...purposeTable(), default: [route('alpha', 'fast', 'low')] },
     }])
     expect(models.hooks.subagentModelSelectionCard.getSnapshot().dirty).toBe(false)
+  })
+
+  it('shows built-in sentences, saves only a changed sentence, and blocks an invalid one', async () => {
+    expect(purposeGuidanceFromValue(undefined)).toBeNull()
+    expect(purposeGuidanceFromValue('nope')).toBeNull()
+    expect(purposeGuidanceFromValue({ light: 1, omit: 'keep' })?.omit).toBe('keep')
+    expect(purposeGuidanceFromValue({ light: 1, omit: 'keep' })?.light).toBe('')
+    expect(samePurposeGuidance(null, null)).toBe(true)
+    expect(samePurposeGuidance(null, { ...BUILTIN_GUIDANCE })).toBe(false)
+    expect(guidanceIssue('splitting', '', [])).toBeUndefined()
+    expect(guidanceIssue('light', '', [])).toEqual({ issue: 'empty' })
+    expect(guidanceIssue('omit', 'x'.repeat(201), [])).toEqual({ issue: 'long' })
+    expect(guidanceIssue('writing', 'use route-alpha', ['route-alpha'])).toEqual({ issue: 'identifier', identifier: 'route-alpha' })
+
+    const { host, face } = purposeHost(purposeTable())
+    acceptWrites(host)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    expect(state().guidanceBuiltin).toBe(true)
+    expect(state().rows.find(row => row.slot === 'light')?.guidance.text).toBe(BUILTIN_GUIDANCE.light)
+    expect(state().rows.find(row => row.slot === 'default')?.guidance.slot).toBe('omit')
+    face.editGuidance('light', 'A short lookup only.')
+    expect(state().dirty).toBe(true)
+    expect(state().guidanceBuiltin).toBe(false)
+    void face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    const saved = { ...BUILTIN_GUIDANCE, light: 'A short lookup only.' }
+    expect(host.mutate.mock.calls[0]?.[0]).toEqual([{ op: 'set', path: ['purposeGuidance'], value: saved }])
+
+    face.editGuidance('medium', '')
+    expect(state().invalid).toBe(true)
+    expect(state().rows.find(row => row.slot === 'medium')?.guidance.issue).toBe('empty')
+    void face.save()
+    await Promise.resolve()
+    expect(host.mutate).toHaveBeenCalledOnce()
+
+    face.editGuidance('medium', `mentions ${purposeTable().light[0]?.provider}`)
+    expect(state().rows.find(row => row.slot === 'medium')?.guidance.issue).toBe('identifier')
+    face.editGuidance('splitting', 'y'.repeat(401))
+    expect(state().splitting.issue).toBe('long')
+    face.resetGuidance()
+    expect(state().guidanceBuiltin).toBe(true)
+    expect(state().dirty).toBe(true)
+    void face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    expect(host.mutate.mock.calls[1]?.[0]).toEqual([{ op: 'set', path: ['purposeGuidance'], value: null }])
+  })
+
+  it('saves a guidance reset without rewriting the route table', async () => {
+    const stored: PurposeGuidanceDraft = { ...BUILTIN_GUIDANCE, omit: 'Only leftover work.' }
+    const host = stubConfigForm<PurposeRoutesSettings>()
+    acceptWrites(host)
+    host.publish({
+      status: 'ready', writable: true, revision: 2,
+      value: { purposeRoutes: purposeTable(), purposeGuidance: stored },
+      user: {},
+    })
+    const controller = new SubagentPurposeRoutesCardController(host.scope, modelsApi({
+      groups: [{ id: 'alpha', name: 'Alpha', models: [fast] }],
+    }).ctx)
+    const face = controller.inject()
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    expect(state().guidanceBuiltin).toBe(false)
+    expect(state().rows.find(row => row.slot === 'default')?.guidance.text).toBe('Only leftover work.')
+    face.resetGuidance()
+    face.editRoute('light', 0, 'effort', 'high')
+    void face.save()
+    await vi.waitFor(() => { expect(state().dirty).toBe(false) })
+    expect(host.mutate.mock.calls[0]?.[0]).toEqual([
+      { op: 'set', path: ['purposeRoutes'], value: { ...purposeTable(), light: [route('alpha', 'fast', 'high')] } },
+      { op: 'set', path: ['purposeGuidance'], value: null },
+    ])
+    host.publish({ writable: false })
+    face.editGuidance('light', 'ignored')
+    face.resetGuidance()
+    expect(state().rows.find(row => row.slot === 'light')?.guidance.text).toBe(BUILTIN_GUIDANCE.light)
+  })
+
+  it('advances the guidance fence for an untouched sentence and conflicts a replaced one', async () => {
+    const { host, face } = purposeHost(purposeTable(), 4)
+    const state = () => face.hooks.subagentPurposeRoutesCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+    face.editGuidance('writing', 'Prose only.')
+    host.publish({ revision: 5, value: { purposeRoutes: purposeTable() } })
+    expect(state()).toMatchObject({ conflicted: false, dirty: true })
+    host.publish({
+      revision: 6,
+      value: { purposeRoutes: purposeTable(), purposeGuidance: { ...BUILTIN_GUIDANCE, writing: 'Other prose.' } },
+    })
+    expect(state()).toMatchObject({ conflicted: true, dirty: true })
+    void face.save()
+    await Promise.resolve()
+    expect(host.mutate).not.toHaveBeenCalled()
   })
 })

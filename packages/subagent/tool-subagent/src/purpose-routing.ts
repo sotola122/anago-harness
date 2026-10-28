@@ -108,8 +108,188 @@ export interface StoredPurposeRoute {
 /** Appended to a `purposeRouting: true` tool description. Pinned model-facing text. */
 export const PURPOSE_TOOL_SENTENCE = 'Choose `category` to match the task; the runtime picks a suitable child model for it. Omit `category` for general work. If a subagent fails to start, ends with an error, or returns an unusable result, re-delegate the same task once with the same `category`. If the failed call omitted `category`, omit it again. If that also fails, stop retrying and report the failure.'
 
-/** `category` parameter description. Pinned model-facing text. */
-export const PURPOSE_CATEGORY_DESCRIPTION = 'Task purpose that selects the child model. `light`: quick lookups, small mechanical edits, short summaries. `medium`: ordinary implementation or investigation. `deep`: hard debugging, design, or long multi-step reasoning. `review`: independent review of a change, plan, or document; may start several reviewers in parallel, each reporting separately. `writing`: documentation, PR or issue text, translation, user-facing prose. Do not combine with `provider`, `model`, or `reasoning_effort`.'
+/**
+ * Purpose clause for each model-facing label.
+ * `PURPOSE_CATEGORY_DESCRIPTION` and `list_subagent_categories` both read this map.
+ */
+export const PURPOSE_CATEGORY_PURPOSES: { readonly [C in PurposeCategory]: string } = {
+  light: 'quick lookups, small mechanical edits, short summaries',
+  medium: 'ordinary implementation or investigation',
+  deep: 'hard debugging, design, or long multi-step reasoning',
+  review: 'independent review of a change, plan, or document; may start several reviewers in parallel, each reporting separately',
+  writing: 'documentation, PR or issue text, translation, user-facing prose',
+}
+
+/** `category` parameter description. Pinned model-facing text assembled from {@link PURPOSE_CATEGORY_PURPOSES}. */
+export const PURPOSE_CATEGORY_DESCRIPTION = `Task purpose that selects the child model. ${PURPOSE_CATEGORIES.map(category => `\`${category}\`: ${PURPOSE_CATEGORY_PURPOSES[category]}`).join('. ')}. Do not combine with \`provider\`, \`model\`, or \`reasoning_effort\`.`
+
+/** Slots of a deployment-authored purpose guidance value, in settings UI order. */
+export const PURPOSE_GUIDANCE_SLOTS = [...PURPOSE_CATEGORIES, 'omit', 'splitting'] as const
+
+/** One field of {@link PurposeGuidance}. */
+export type PurposeGuidanceSlot = typeof PURPOSE_GUIDANCE_SLOTS[number]
+
+/** Inclusive maximum length of one category or omission sentence. */
+export const PURPOSE_SENTENCE_MAX = 200
+
+/** Inclusive maximum length of the optional splitting paragraph. An empty string is allowed. */
+export const PURPOSE_SPLITTING_MAX = 400
+
+/**
+ * Deployment-authored sentences that replace the built-in category text.
+ * `null` on the settings service means the built-in text. A non-null value
+ * requires every field. `splitting` may be empty.
+ */
+export interface PurposeGuidance {
+  readonly light: string
+  readonly medium: string
+  readonly deep: string
+  readonly review: string
+  readonly writing: string
+  readonly omit: string
+  readonly splitting: string
+}
+
+const guidanceSentence = z.string().min(1).max(PURPOSE_SENTENCE_MAX)
+
+/**
+ * Schema for a complete guidance value. A missing sentence fails validation.
+ * Length is checked again when the text is composed, so a bypassed write still fails.
+ */
+export const PurposeGuidanceSchema = z.object({
+  light: guidanceSentence.required(),
+  medium: guidanceSentence.required(),
+  deep: guidanceSentence.required(),
+  review: guidanceSentence.required(),
+  writing: guidanceSentence.required(),
+  omit: guidanceSentence.required(),
+  splitting: z.string().max(PURPOSE_SPLITTING_MAX).required(),
+})
+
+/** Fixed clause appended after a configured `review` sentence. It is not editable. */
+export const PURPOSE_REVIEW_FANOUT_SENTENCE = 'Starts one child per configured reviewer; each reports separately.'
+
+/**
+ * Fixed splitting paragraph. Appended when any visible delegation tool uses
+ * purpose routing. A deployment cannot remove it.
+ */
+export const PURPOSE_SPLITTING_PARAGRAPH = 'One call is one task a child can finish without your intermediate decisions. Do not split work that shares files, a plan, or one acceptance check. Issue more than one call in the same message only when no call needs another\'s result. Do not delegate a lookup or edit you can finish in a few of your own tool calls. Do not start `review` together with another category on the same artifact.'
+
+const GUIDANCE_SENTENCE_SLOTS = ['light', 'medium', 'deep', 'review', 'writing', 'omit'] as const
+
+/**
+ * Reject a missing, empty, or over-long sentence. Does not fall back to built-in text.
+ * @param guidance - candidate guidance already present as an object.
+ * @throws when a required sentence is missing or a sentence exceeds its cap.
+ */
+export function assertPurposeGuidance(guidance: PurposeGuidance): void {
+  for (const slot of GUIDANCE_SENTENCE_SLOTS) {
+    const sentence = guidance[slot]
+    if (typeof sentence !== 'string' || sentence.length === 0) {
+      throw new Error(`purpose guidance slot "${slot}" requires a sentence`)
+    }
+    if (sentence.length > PURPOSE_SENTENCE_MAX) {
+      throw new Error(`purpose guidance slot "${slot}" exceeds ${PURPOSE_SENTENCE_MAX} characters`)
+    }
+  }
+  if (typeof guidance.splitting !== 'string') {
+    throw new Error('purpose guidance slot "splitting" requires a sentence')
+  }
+  if (guidance.splitting.length > PURPOSE_SPLITTING_MAX) {
+    throw new Error(`purpose guidance slot "splitting" exceeds ${PURPOSE_SPLITTING_MAX} characters`)
+  }
+}
+
+/**
+ * Reject a sentence that contains a provider or model id from the live table.
+ * A null table has no identifiers to hide. The first match names the slot and the id.
+ * @param guidance - sentences about to be shown to a model.
+ * @param table - the table read for this composition, or null when none is configured.
+ * @throws when a sentence contains a route identifier. The message names the slot and the id.
+ */
+export function assertGuidanceHidesRoutes(guidance: PurposeGuidance, table: PurposeRouteTable | null): void {
+  if (table === null) return
+  const identifiers: string[] = []
+  for (const slot of PURPOSE_ROUTE_SLOTS) {
+    for (const route of table[slot]) {
+      if (route.provider.length > 0 && !identifiers.includes(route.provider)) identifiers.push(route.provider)
+      if (route.model.length > 0 && !identifiers.includes(route.model)) identifiers.push(route.model)
+    }
+  }
+  for (const slot of PURPOSE_GUIDANCE_SLOTS) {
+    const sentence = guidance[slot]
+    for (const id of identifiers) {
+      if (sentence.includes(id)) {
+        throw new Error(`purpose guidance slot "${slot}" contains route identifier "${id}"`)
+      }
+    }
+  }
+}
+
+/**
+ * Category purposes the model reads. Null guidance is the pinned map.
+ * @param guidance - deployment sentences, or null for the built-in text.
+ * @returns the five purpose clauses, in {@link PURPOSE_CATEGORIES} order.
+ */
+export function effectiveCategoryPurposes(guidance: PurposeGuidance | null): { readonly [C in PurposeCategory]: string } {
+  if (guidance === null) return PURPOSE_CATEGORY_PURPOSES
+  return {
+    light: guidance.light,
+    medium: guidance.medium,
+    deep: guidance.deep,
+    review: guidance.review,
+    writing: guidance.writing,
+  }
+}
+
+/**
+ * Compose the `category` parameter description.
+ * Null guidance returns {@link PURPOSE_CATEGORY_DESCRIPTION} unchanged.
+ * A non-null value is not substituted with built-in text when a check fails; the caller must
+ * have already rejected an invalid or leaking value.
+ * @param guidance - deployment sentences, or null for the pinned description.
+ * @returns the model-facing parameter description.
+ */
+export function categoryDescriptionFor(guidance: PurposeGuidance | null): string {
+  if (guidance === null) return PURPOSE_CATEGORY_DESCRIPTION
+  return `Task purpose that selects the child model. \`light\`: ${guidance.light} \`medium\`: ${guidance.medium} \`deep\`: ${guidance.deep} \`review\`: ${guidance.review} ${PURPOSE_REVIEW_FANOUT_SENTENCE} \`writing\`: ${guidance.writing} Omit \`category\`: ${guidance.omit} Do not combine with \`provider\`, \`model\`, or \`reasoning_effort\`.`
+}
+
+/**
+ * Read guidance, reject an invalid or leaking value, and return the category description.
+ * A thrown error is the composition failure: callers must not publish the sentences.
+ * @param guidance - deployment sentences, or null for the pinned description.
+ * @param table - the table whose provider and model ids must stay out of the sentences.
+ * @returns the description to write into the tool schema.
+ * @throws when a sentence is missing, too long, or contains a route identifier.
+ */
+export function composeCategoryDescription(
+  guidance: PurposeGuidance | null,
+  table: PurposeRouteTable | null,
+): string {
+  if (guidance !== null) {
+    assertPurposeGuidance(guidance)
+    assertGuidanceHidesRoutes(guidance, table)
+  }
+  return categoryDescriptionFor(guidance)
+}
+
+/**
+ * Splitting text appended after the delegation paragraph when purpose routing is visible.
+ * The fixed paragraph is always included. A non-empty `splitting` sentence follows it.
+ * @param guidance - deployment sentences, or null when only the fixed paragraph applies.
+ * @param table - the table whose identifiers must stay out of `splitting`.
+ * @returns the paragraph, plus the deployment sentence when one is set.
+ * @throws when guidance is present and invalid or leaking.
+ */
+export function splittingAddition(guidance: PurposeGuidance | null, table: PurposeRouteTable | null): string {
+  if (guidance !== null) {
+    assertPurposeGuidance(guidance)
+    assertGuidanceHidesRoutes(guidance, table)
+  }
+  if (guidance === null || guidance.splitting === '') return PURPOSE_SPLITTING_PARAGRAPH
+  return `${PURPOSE_SPLITTING_PARAGRAPH}\n\n${guidance.splitting}`
+}
 
 /** Appended to route-argument descriptions when purpose routing and model selection are both on. */
 export const CATEGORY_EXCLUSIVITY_SUFFIX = ' Do not combine with `category`.'

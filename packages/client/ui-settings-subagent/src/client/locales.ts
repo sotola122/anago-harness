@@ -34,6 +34,10 @@ export type SubagentSettingsLocaleKey =
   | 'purposeRoutes.errors.duplicateRoute' | 'purposeRoutes.errors.effortUnsupported'
   | 'purposeRoutes.errors.missingRoute' | 'purposeRoutes.errors.extraRoute'
   | 'purposeRoutes.warnings.providerUnavailable' | 'purposeRoutes.emptySlot'
+  | 'purposeRoutes.guidance.hint' | 'purposeRoutes.guidance.sentence' | 'purposeRoutes.guidance.splitting'
+  | 'purposeRoutes.guidance.splittingHint' | 'purposeRoutes.guidance.reset' | 'purposeRoutes.guidance.builtin'
+  | 'purposeRoutes.errors.guidanceEmpty' | 'purposeRoutes.errors.guidanceLong'
+  | 'purposeRoutes.errors.guidanceIdentifier'
 
 /** English copy. */
 export const en: Record<SubagentSettingsLocaleKey, string> = {
@@ -88,23 +92,32 @@ export const en: Record<SubagentSettingsLocaleKey, string> = {
   'purposeRoutes.chooseModel': 'Choose a model',
   'purposeRoutes.chooseEffort': 'Choose an effort',
   'purposeRoutes.slot.light.label': 'Light',
-  'purposeRoutes.slot.light.hint': 'Quick lookups, small edits, and short summaries.',
+  'purposeRoutes.slot.light.hint': 'The sentence the parent model reads. Do not name a provider or model.',
   'purposeRoutes.slot.medium.label': 'Standard',
-  'purposeRoutes.slot.medium.hint': 'Ordinary implementation or investigation.',
+  'purposeRoutes.slot.medium.hint': 'The sentence the parent model reads. Do not name a provider or model.',
   'purposeRoutes.slot.deep.label': 'Deep',
-  'purposeRoutes.slot.deep.hint': 'Hard debugging, design, or long reasoning.',
+  'purposeRoutes.slot.deep.hint': 'The sentence the parent model reads. Do not name a provider or model.',
   'purposeRoutes.slot.review.label': 'Review',
-  'purposeRoutes.slot.review.hint': 'Independent review. Several reviewers can run together.',
+  'purposeRoutes.slot.review.hint': 'The sentence the parent model reads. Do not name a provider or model.',
   'purposeRoutes.slot.writing.label': 'Writing',
-  'purposeRoutes.slot.writing.hint': 'Documentation, pull requests, issues, and other prose.',
+  'purposeRoutes.slot.writing.hint': 'The sentence the parent model reads. Do not name a provider or model.',
   'purposeRoutes.slot.default.label': 'Default',
-  'purposeRoutes.slot.default.hint': 'Used when a delegation does not name a purpose.',
+  'purposeRoutes.slot.default.hint': 'The sentence the parent model reads when category is omitted. Do not name a provider or model.',
   'purposeRoutes.errors.duplicateRoute': 'This route is already listed for this purpose.',
   'purposeRoutes.errors.effortUnsupported': 'This model does not offer that effort.',
   'purposeRoutes.errors.missingRoute': 'Choose a provider, model, and effort.',
   'purposeRoutes.errors.extraRoute': 'This purpose accepts one route.',
   'purposeRoutes.warnings.providerUnavailable': 'Saved but currently unavailable. A later login can still use this route.',
   'purposeRoutes.emptySlot': 'No route is set for this purpose.',
+  'purposeRoutes.guidance.hint': 'The sentence the parent model reads. Do not name a provider or model.',
+  'purposeRoutes.guidance.sentence': 'Sentence',
+  'purposeRoutes.guidance.splitting': 'Additional splitting paragraph',
+  'purposeRoutes.guidance.splittingHint': 'Optional paragraph after the fixed splitting rule. Do not ask for a wider split.',
+  'purposeRoutes.guidance.reset': 'Use built-in sentences',
+  'purposeRoutes.guidance.builtin': 'Built-in sentences. An edit saves all of them.',
+  'purposeRoutes.errors.guidanceEmpty': 'Write a sentence for this purpose.',
+  'purposeRoutes.errors.guidanceLong': 'This sentence is too long.',
+  'purposeRoutes.errors.guidanceIdentifier': 'This sentence contains a route identifier:',
 }
 
 /** Simplified Chinese copy. */
@@ -160,23 +173,32 @@ export const zh: Record<SubagentSettingsLocaleKey, string> = {
   'purposeRoutes.chooseModel': '选择模型',
   'purposeRoutes.chooseEffort': '选择推理强度',
   'purposeRoutes.slot.light.label': '轻量',
-  'purposeRoutes.slot.light.hint': '快速查找、小改动和短摘要',
+  'purposeRoutes.slot.light.hint': '父模型读取的一句。不要写提供方或模型',
   'purposeRoutes.slot.medium.label': '标准',
-  'purposeRoutes.slot.medium.hint': '常规实现或调查',
+  'purposeRoutes.slot.medium.hint': '父模型读取的一句。不要写提供方或模型',
   'purposeRoutes.slot.deep.label': '深入',
-  'purposeRoutes.slot.deep.hint': '困难调试、设计或长推理',
+  'purposeRoutes.slot.deep.hint': '父模型读取的一句。不要写提供方或模型',
   'purposeRoutes.slot.review.label': '审阅',
-  'purposeRoutes.slot.review.hint': '独立审阅，可以同时启动多名审阅者',
+  'purposeRoutes.slot.review.hint': '父模型读取的一句。不要写提供方或模型',
   'purposeRoutes.slot.writing.label': '写作',
-  'purposeRoutes.slot.writing.hint': '文档、拉取请求、议题和其他面向读者的文字',
+  'purposeRoutes.slot.writing.hint': '父模型读取的一句。不要写提供方或模型',
   'purposeRoutes.slot.default.label': '默认',
-  'purposeRoutes.slot.default.hint': '委派未指定用途时使用',
+  'purposeRoutes.slot.default.hint': '省略 category 时父模型读取的一句。不要写提供方或模型',
   'purposeRoutes.errors.duplicateRoute': '同一用途中已有这条路由',
   'purposeRoutes.errors.effortUnsupported': '所选模型不提供这个推理强度',
   'purposeRoutes.errors.missingRoute': '请选择提供方、模型和推理强度',
   'purposeRoutes.errors.extraRoute': '此用途只能有一条路由',
   'purposeRoutes.warnings.providerUnavailable': '已保存但当前不可用，登录后仍可使用',
   'purposeRoutes.emptySlot': '此用途还没有路由',
+  'purposeRoutes.guidance.hint': '父模型读取的一句。不要写提供方或模型',
+  'purposeRoutes.guidance.sentence': '句子',
+  'purposeRoutes.guidance.splitting': '附加的分割段落',
+  'purposeRoutes.guidance.splittingHint': '固定分割规则之后的可选段落。不要要求更宽的分割',
+  'purposeRoutes.guidance.reset': '使用内置句子',
+  'purposeRoutes.guidance.builtin': '当前是内置句子。编辑后会保存全部句子',
+  'purposeRoutes.errors.guidanceEmpty': '请为这个用途写一句',
+  'purposeRoutes.errors.guidanceLong': '这句太长',
+  'purposeRoutes.errors.guidanceIdentifier': '这句包含路由标识符：',
 }
 
 /**

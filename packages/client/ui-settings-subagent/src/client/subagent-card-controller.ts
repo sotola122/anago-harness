@@ -24,6 +24,8 @@ export interface SubagentCardFace {
   removeReviewer: SubagentPurposeRoutesCardFace['removeReviewer']
   moveReviewer: SubagentPurposeRoutesCardFace['moveReviewer']
   retryPurposeCatalog: SubagentPurposeRoutesCardFace['retryCatalog']
+  editGuidance: SubagentPurposeRoutesCardFace['editGuidance']
+  resetGuidance: SubagentPurposeRoutesCardFace['resetGuidance']
   /** Save valid drafts through their owning controllers. */
   save: () => void
   /** Discard every draft without changing persisted settings. */
@@ -80,6 +82,8 @@ export function subagentCardFace(
     removeReviewer: purpose.removeReviewer,
     moveReviewer: purpose.moveReviewer,
     retryPurposeCatalog: purpose.retryCatalog,
+    editGuidance: purpose.editGuidance,
+    resetGuidance: purpose.resetGuidance,
     save: () => {
       const limitState = limits.hooks.subagentLimitsCard.getSnapshot()
       const modelState = models.hooks.subagentModelSelectionCard.getSnapshot()

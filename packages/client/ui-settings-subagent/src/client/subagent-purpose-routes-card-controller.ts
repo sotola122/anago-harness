@@ -35,9 +35,59 @@ export interface PurposeRouteDraft {
 /** Complete table. A missing slot is an empty list and cannot be saved. */
 export type PurposeRouteTableDraft = { [S in PurposeRouteSlot]: PurposeRouteDraft[] }
 
-/** Settings field this editor reads and writes. Other fields on the form are ignored. */
+/** Sentence fields, in settings UI order. `default` edits `omit`. */
+export const GUIDANCE_SLOTS = ['light', 'medium', 'deep', 'review', 'writing', 'omit', 'splitting'] as const
+
+/** One editable guidance sentence. */
+export type GuidanceSlot = typeof GUIDANCE_SLOTS[number]
+
+/** Inclusive cap for a category or omission sentence. Matches the Host schema. */
+export const GUIDANCE_SENTENCE_MAX = 200
+
+/** Inclusive cap for the optional splitting paragraph. An empty string is allowed. */
+export const GUIDANCE_SPLITTING_MAX = 400
+
+/**
+ * Sentences shown when `purposeGuidance` is null.
+ * Category clauses match the Host's pinned purpose text. The client does not import that module.
+ */
+export const BUILTIN_GUIDANCE: { readonly [S in GuidanceSlot]: string } = {
+  light: 'quick lookups, small mechanical edits, short summaries',
+  medium: 'ordinary implementation or investigation',
+  deep: 'hard debugging, design, or long multi-step reasoning',
+  review: 'independent review of a change, plan, or document; may start several reviewers in parallel, each reporting separately',
+  writing: 'documentation, PR or issue text, translation, user-facing prose',
+  omit: 'Only when the task fits no named purpose.',
+  splitting: '',
+}
+
+/** One complete guidance value. Null means the built-in sentences. */
+export interface PurposeGuidanceDraft {
+  light: string
+  medium: string
+  deep: string
+  review: string
+  writing: string
+  omit: string
+  splitting: string
+}
+
+/** Why one sentence cannot be saved. */
+export type GuidanceIssue = 'empty' | 'long' | 'identifier'
+
+/** One sentence as the card renders it. */
+export interface GuidanceFieldState {
+  slot: GuidanceSlot
+  text: string
+  issue?: GuidanceIssue
+  /** Route identifier found in the sentence, when `issue` is `identifier`. */
+  identifier?: string
+}
+
+/** Settings fields this editor reads and writes. Other fields on the form are ignored. */
 export interface PurposeRoutesSettings {
   purposeRoutes?: PurposeRouteTableDraft | null
+  purposeGuidance?: PurposeGuidanceDraft | null
 }
 
 /** One catalogue choice shown in a route picker. */
@@ -73,6 +123,8 @@ export interface PurposeRouteRowState {
   extra: boolean
   /** Whether the slot has no route. */
   empty: boolean
+  /** Model-facing sentence for this row. The default row edits `omit`. */
+  guidance: GuidanceFieldState
 }
 
 /** State rendered by the purpose-routes section. */
@@ -84,6 +136,10 @@ export interface SubagentPurposeRoutesCardState extends SettingsFormShell {
   catalogPartial: boolean
   /** Whether a newer Host revision invalidated the current draft. */
   conflicted: boolean
+  /** Optional splitting paragraph shown under the rows. */
+  splitting: GuidanceFieldState
+  /** Whether the displayed sentences are the built-in text. */
+  guidanceBuiltin: boolean
 }
 
 /** Registration-side face for the purpose-routes section. */
@@ -102,9 +158,13 @@ export interface SubagentPurposeRoutesCardFace {
   moveReviewer: (index: number, direction: PurposeRouteMove) => void
   /** Retry the adapter directory. */
   retryCatalog: () => void
-  /** Persist the whole table as one revision-fenced mutation. */
+  /** Stage one guidance sentence. The default row writes `omit`. */
+  editGuidance: (slot: GuidanceSlot, value: string) => void
+  /** Stage `purposeGuidance: null`, restoring the built-in sentences. */
+  resetGuidance: () => void
+  /** Persist changed routes and sentences as separate revision-fenced ops. */
   save: () => Promise<void>
-  /** Drop the staged table. */
+  /** Drop the staged table and sentences. */
   discard: () => void
 }
 
@@ -163,6 +223,82 @@ export function purposeRouteTableFromValue(raw: unknown): PurposeRouteTableDraft
     writing: normalizeRoutes(record.writing),
     default: normalizeRoutes(record.default),
   }
+}
+
+/**
+ * Whether two guidance values carry the same sentences. Null matches null.
+ * @param left - one value, or null for built-in text.
+ * @param right - the other value.
+ * @returns whether every sentence matches.
+ */
+export function samePurposeGuidance(
+  left: PurposeGuidanceDraft | null,
+  right: PurposeGuidanceDraft | null,
+): boolean {
+  if (left === null || right === null) return left === right
+  return GUIDANCE_SLOTS.every(slot => left[slot] === right[slot])
+}
+
+/**
+ * Read guidance from a settings value. Null and a missing field are built-in text.
+ * A present object is guidance even when a sentence is empty or not a string.
+ * @param raw - the `purposeGuidance` field.
+ * @returns the sentences, or null when the deployment uses built-in text.
+ */
+export function purposeGuidanceFromValue(raw: unknown): PurposeGuidanceDraft | null {
+  if (raw == null) return null
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null
+  const record = raw as Record<string, unknown>
+  return {
+    light: sentenceOf(record.light),
+    medium: sentenceOf(record.medium),
+    deep: sentenceOf(record.deep),
+    review: sentenceOf(record.review),
+    writing: sentenceOf(record.writing),
+    omit: sentenceOf(record.omit),
+    splitting: sentenceOf(record.splitting),
+  }
+}
+
+function sentenceOf(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function cloneGuidance(value: PurposeGuidanceDraft): PurposeGuidanceDraft {
+  return { ...value }
+}
+
+/**
+ * Find the first reason a sentence cannot be saved.
+ * Empty is allowed only for `splitting`. Identifier matching is a substring of a route id.
+ * @param slot - sentence being checked.
+ * @param text - the staged sentence.
+ * @param identifiers - provider and model ids from the table the save will leave in place.
+ * @returns the issue, or undefined when the sentence can be saved.
+ */
+export function guidanceIssue(
+  slot: GuidanceSlot,
+  text: string,
+  identifiers: readonly string[],
+): { issue: GuidanceIssue; identifier?: string } | undefined {
+  const max = slot === 'splitting' ? GUIDANCE_SPLITTING_MAX : GUIDANCE_SENTENCE_MAX
+  if (slot !== 'splitting' && text.length === 0) return { issue: 'empty' }
+  if (text.length > max) return { issue: 'long' }
+  const identifier = identifiers.find(id => id !== '' && text.includes(id))
+  if (identifier !== undefined) return { issue: 'identifier', identifier }
+  return undefined
+}
+
+function routeIdentifiers(table: PurposeRouteTableDraft | null): string[] {
+  if (table === null) return []
+  const identifiers: string[] = []
+  for (const slot of PURPOSE_ROUTE_SLOTS) {
+    for (const route of table[slot]) {
+      if (route.provider !== '' && !identifiers.includes(route.provider)) identifiers.push(route.provider)
+      if (route.model !== '' && !identifiers.includes(route.model)) identifiers.push(route.model)
+    }
+  }
+  return identifiers
 }
 
 function normalizeRoutes(value: unknown): PurposeRouteDraft[] {
@@ -230,6 +366,8 @@ export class SubagentPurposeRoutesCardController {
   private catalogStatus: SubagentPurposeRoutesCardState['catalogStatus'] = 'idle'
   private draft: DraftTable | undefined
   private baseline: PurposeRouteTableDraft = emptyTable()
+  private guidanceDraft: PurposeGuidanceDraft | null | undefined
+  private guidanceBaseline: PurposeGuidanceDraft | null = null
   private draftRevision: number | undefined
   private saving = false
   private failed = false
@@ -280,6 +418,8 @@ export class SubagentPurposeRoutesCardController {
       removeReviewer: (index) => { this.removeReviewer(index) },
       moveReviewer: (index, direction) => { this.moveReviewer(index, direction) },
       retryCatalog: () => { void this.loadCatalog() },
+      editGuidance: (slot, value) => { this.editGuidance(slot, value) },
+      resetGuidance: () => { this.resetGuidance() },
       save: () => this.save(),
       discard: () => { this.discard() },
     }
@@ -317,8 +457,21 @@ export class SubagentPurposeRoutesCardController {
     return this.draft === undefined ? this.currentTable() : strip(this.draft)
   }
 
+  private currentGuidance(): PurposeGuidanceDraft | null {
+    return purposeGuidanceFromValue(this.scope.getSnapshot().value?.purposeGuidance)
+  }
+
+  private desiredGuidance(): PurposeGuidanceDraft | null {
+    return this.guidanceDraft === undefined ? this.currentGuidance() : this.guidanceDraft
+  }
+
+  private displayedGuidance(): PurposeGuidanceDraft {
+    return this.desiredGuidance() ?? { ...BUILTIN_GUIDANCE }
+  }
+
   private dirty(): boolean {
     return !samePurposeRouteTable(this.currentTable(), this.desiredTable())
+      || !samePurposeGuidance(this.currentGuidance(), this.desiredGuidance())
   }
 
   private mint(): string {
@@ -350,9 +503,16 @@ export class SubagentPurposeRoutesCardController {
       draft[slot] = stored[slot].map((route, index) => ({ ...route, id: this.idFor(slot, index, route) }))
     }
     this.draft = draft
-    this.baseline = cloneTable(stored)
-    this.draftRevision = this.scope.getSnapshot().revision
+    this.beginTracking()
     return draft
+  }
+
+  private beginTracking(): void {
+    if (this.draftRevision !== undefined) return
+    const stored = this.currentTable()
+    this.baseline = stored === null ? emptyTable() : cloneTable(stored)
+    this.guidanceBaseline = this.currentGuidance()
+    this.draftRevision = this.scope.getSnapshot().revision
   }
 
   /**
@@ -360,18 +520,30 @@ export class SubagentPurposeRoutesCardController {
    * table untouched advances the fence so a sibling field write can commit.
    */
   private noteRevision(): void {
-    if (this.saving || this.draft === undefined) return
+    if (this.saving || (this.draft === undefined && this.guidanceDraft === undefined)) return
     if (this.scope.getSnapshot().revision === this.draftRevision) return
-    if (samePurposeRouteTable(this.currentTable(), this.desiredTable())) {
-      this.clearDraft()
+    const tableConflict = this.draft !== undefined
+      && !samePurposeRouteTable(this.currentTable(), this.desiredTable())
+      && !samePurposeRouteTable(this.currentTable(), this.baseline)
+    const guidanceConflict = this.guidanceDraft !== undefined
+      && !samePurposeGuidance(this.currentGuidance(), this.desiredGuidance())
+      && !samePurposeGuidance(this.currentGuidance(), this.guidanceBaseline)
+    if (tableConflict || guidanceConflict) {
+      this.conflicted = true
       return
     }
-    if (samePurposeRouteTable(this.currentTable(), this.baseline)) {
-      this.draftRevision = this.scope.getSnapshot().revision
-      this.conflicted = false
+    if (this.draft !== undefined && samePurposeRouteTable(this.currentTable(), this.desiredTable())) {
+      this.draft = undefined
+    }
+    if (this.guidanceDraft !== undefined && samePurposeGuidance(this.currentGuidance(), this.desiredGuidance())) {
+      this.guidanceDraft = undefined
+    }
+    if (this.draft === undefined && this.guidanceDraft === undefined) {
+      this.releaseTracking()
       return
     }
-    this.conflicted = true
+    this.draftRevision = this.scope.getSnapshot().revision
+    this.conflicted = false
   }
 
   private catalogModels(): Map<string, CatalogModel> {
@@ -458,12 +630,36 @@ export class SubagentPurposeRoutesCardController {
     this.publish()
   }
 
-  private clearDraft(): void {
-    this.draft = undefined
+  private releaseTracking(): void {
     this.baseline = emptyTable()
+    this.guidanceBaseline = null
     this.draftRevision = undefined
     this.failed = false
     this.conflicted = false
+  }
+
+  private clearDraft(): void {
+    this.draft = undefined
+    this.guidanceDraft = undefined
+    this.releaseTracking()
+  }
+
+  private editGuidance(slot: GuidanceSlot, value: string): void {
+    if (!this.canEdit()) return
+    const next = cloneGuidance(this.displayedGuidance())
+    next[slot] = value
+    this.guidanceDraft = next
+    this.beginTracking()
+    this.failed = false
+    this.publish()
+  }
+
+  private resetGuidance(): void {
+    if (!this.canEdit()) return
+    this.guidanceDraft = null
+    this.beginTracking()
+    this.failed = false
+    this.publish()
   }
 
   private discard(): void {
@@ -480,7 +676,7 @@ export class SubagentPurposeRoutesCardController {
       || desired === null || !state.dirty || state.invalid) return
     /* jscpd:ignore-start -- both sections pass the same private save flags into beginRevisionSave. */
     const generation = beginRevisionSave({
-      stale: this.draft !== undefined && snapshot.revision !== this.draftRevision,
+      stale: (this.draft !== undefined || this.guidanceDraft !== undefined) && snapshot.revision !== this.draftRevision,
       saveGeneration: this.saveGeneration,
       publish: () => { this.publish() },
       markConflict: () => { this.conflicted = true },
@@ -488,9 +684,18 @@ export class SubagentPurposeRoutesCardController {
     })
     if (generation === undefined) return
     /* jscpd:ignore-end */
-    await this.scope.mutate([{ op: 'set', path: ['purposeRoutes'], value: desired }], this.draftRevision)
+    const ops = []
+    if (!samePurposeRouteTable(this.currentTable(), desired)) {
+      ops.push({ op: 'set' as const, path: ['purposeRoutes'], value: desired })
+    }
+    const guidance = this.desiredGuidance()
+    if (!samePurposeGuidance(this.currentGuidance(), guidance)) {
+      ops.push({ op: 'set' as const, path: ['purposeGuidance'], value: guidance })
+    }
+    await this.scope.mutate(ops, this.draftRevision)
     if (generation !== this.saveGeneration) return
     const landed = samePurposeRouteTable(this.currentTable(), desired)
+      && samePurposeGuidance(this.currentGuidance(), guidance)
     this.saving = false
     this.failed = !landed
     if (landed) this.clearDraft()
@@ -546,10 +751,22 @@ export class SubagentPurposeRoutesCardController {
     }
   }
 
+  private guidanceField(slot: GuidanceSlot, identifiers: readonly string[]): GuidanceFieldState {
+    const text = this.displayedGuidance()[slot]
+    const issue = guidanceIssue(slot, text, identifiers)
+    return {
+      slot,
+      text,
+      ...issue === undefined ? {} : { issue: issue.issue },
+      ...issue?.identifier === undefined ? {} : { identifier: issue.identifier },
+    }
+  }
+
   private rows(): PurposeRouteRowState[] {
     const table = this.draft ?? this.viewTable()
     if (table === null) return []
     const models = this.catalogModels()
+    const identifiers = routeIdentifiers(this.desiredTable())
     return PURPOSE_ROUTE_SLOTS.map((slot) => {
       const fanOut = FAN_OUT.has(slot)
       const stored = table[slot]
@@ -563,6 +780,7 @@ export class SubagentPurposeRoutesCardController {
         duplicate: hasDuplicate(stored),
         extra: !fanOut && stored.length > 1,
         empty: stored.length === 0,
+        guidance: this.guidanceField(slot === 'default' ? 'omit' : slot, identifiers),
       }
     })
   }
@@ -586,8 +804,10 @@ export class SubagentPurposeRoutesCardController {
     return { id, provider: '', model: '', reasoningEffort: '' }
   }
 
-  private structurallyInvalid(rows: readonly PurposeRouteRowState[]): boolean {
-    return rows.some(row => row.empty || row.extra || row.duplicate || row.routes.some(route => route.missing || route.effortUnsupported))
+  private structurallyInvalid(rows: readonly PurposeRouteRowState[], splitting: GuidanceFieldState): boolean {
+    return splitting.issue !== undefined || rows.some(row => row.empty || row.extra || row.duplicate
+      || row.guidance.issue !== undefined
+      || row.routes.some(route => route.missing || route.effortUnsupported))
   }
 
   private projection(): SubagentPurposeRoutesCardState {
@@ -595,11 +815,12 @@ export class SubagentPurposeRoutesCardController {
     const rows = snapshot.status === 'ready' ? this.rows() : []
     const configured = this.desiredTable() !== null
     const dirty = this.dirty()
+    const splitting = this.guidanceField('splitting', routeIdentifiers(this.desiredTable()))
     return {
       available: snapshot.status === 'ready',
       writable: snapshot.writable,
       dirty,
-      invalid: configured && (this.structurallyInvalid(rows) || (dirty && this.catalogStatus === 'loading')),
+      invalid: configured && (this.structurallyInvalid(rows, splitting) || (dirty && this.catalogStatus === 'loading')),
       saving: this.saving,
       failed: this.failed,
       configured,
@@ -607,6 +828,8 @@ export class SubagentPurposeRoutesCardController {
       catalogStatus: this.catalogStatus,
       catalogPartial: this.catalogPartial,
       conflicted: this.conflicted,
+      splitting,
+      guidanceBuiltin: this.desiredGuidance() === null,
     }
   }
 

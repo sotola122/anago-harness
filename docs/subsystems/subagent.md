@@ -419,6 +419,13 @@ current(): SubagentModelSelectionSettings
  * @throws when a configured table is empty, has an extra non-review route, or repeats a triple.
  */
 purposeRoutes(): PurposeRouteTable | null
+
+/**
+ * Read the current purpose sentences.
+ * @returns a detached copy, or null when the deployment uses the built-in text.
+ * @throws when a stored sentence is missing or longer than its cap.
+ */
+purposeGuidance(): PurposeGuidance | null
 ```
 
 Source: [`packages/subagent/tool-subagent/src/model-selection-settings.ts`](../../packages/subagent/tool-subagent/src/model-selection-settings.ts)

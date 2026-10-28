@@ -83,6 +83,10 @@ kind: "package-reference"
 
 设置行保存 `purposeRoutes`，这是一张默认为 `null` 的易变表。`light`、`medium`、`deep`、`writing` 和 `default` 各保存一条路由，且必须带 `reasoningEffort`。`review` 保存一条或多条。缺少某一行时 schema 校验失败。空列表、非 review 行上的第二条路由，或重复的提供方／模型／推理强度三元组，会在读取表时失败。运行时在每次委派时读取该表，因此编辑只影响下一次调用，不影响进行中的调用。显式的 `provider` / `model` / `reasoning_effort` 选择，包括只指定推理强度、并使用 `default` 行的提供方和模型的选择，仍检查 Session 的 `allowedModels` 列表。类别路由跳过该列表，但仍执行适配器预检。类别路由失败时，面向模型的错误不包含提供方和模型名称；`subagent/purpose-route` 事件保留原因。类别枚举是静态的，因此编辑表不会改变提示词前缀。工具文本要求父级在任务失败后用同一个 `category` 再委派一次；运行时不强制该次数。
 
+同一设置行还保存 `purposeGuidance`，这是一个默认为 `null` 的易变值。`null` 使 `category` 说明与固定文本逐字节一致。非 null 值必须包含 `light`、`medium`、`deep`、`review`、`writing` 和 `omit`，每句非空且不超过 200 个字符，以及可以留空、不超过 400 个字符的 `splitting`。缺少句子或超长时，加载或读取即失败。组装时若某句包含当前表中的提供方或模型标识符，组装失败并指出槽位，不会退回内置文本。失败的句子不会写入 schema。`list_subagent_categories` 返回相同的用途句；读取失败时改返回缺少表的错误，使标识符不进入模型结果。
+
+`purposeRouting: true` 还会在该工具作用域注册 `list_subagent_categories`。它没有参数。它返回封闭标签、与 `category` 参数共用的用途文本、该标签是否按已配置路由各启动一个子级，以及省略 `category` 时当前 `default` 行能否解析。它不返回提供方、模型、推理强度或路由条数。设置服务缺失或表为 `null` 时，仍返回五个标签，并报告 `default` 行未解析。表读取失败时返回缺少表的错误，且不包含被拒绝的路由。`purposeRouting` 为 false 时不注册该工具，包括 `providerOwnedRoute` 实例；两个标志同时设置仍会在加载时失败。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -95,7 +99,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-一个实例就是一个提供方加一个工具名称。插件镜像提供方生命周期：具名提供方出现时注册工具，提供方离开时释放工具，因此同级加载顺序与 HMR 替换不会让工具悬空。直接 Agent setup 显式传入尚未发布的 Session，并在发布前等待安装完成。启用模型选择或 preset 选择的常驻 preset 通过 `agent/created` 接收每个匹配 Agent，校验 preset 引用，从其 Session 选择适用的模型策略，并等待通过其 Context 发起的安装；安装失败会拒绝创建。提供方无法执行的数值型 `maxDepth` 或已配置 LLM 选择会在挂载时失败，而不是在首次委派时失败。每个工具作用域内最多一个实例可以拥有模型选择，因为 `list_subagent_models` 使用全局名称。
+一个实例就是一个提供方加一个工具名称。插件镜像提供方生命周期：具名提供方出现时注册工具，提供方离开时释放工具，因此同级加载顺序与 HMR 替换不会让工具悬空。直接 Agent setup 显式传入尚未发布的 Session，并在发布前等待安装完成。启用模型选择或 preset 选择的常驻 preset 通过 `agent/created` 接收每个匹配 Agent，校验 preset 引用，从其 Session 选择适用的模型策略，并等待通过其 Context 发起的安装；安装失败会拒绝创建。提供方无法执行的数值型 `maxDepth` 或已配置 LLM 选择会在挂载时失败，而不是在首次委派时失败。每个工具作用域内最多一个实例可以拥有模型选择，因为 `list_subagent_models` 使用全局名称。每个工具作用域内最多一个 `purposeRouting` 实例可以加载，因为 `list_subagent_categories` 只有一个名称。
 
 ### Activation 所有权
 
@@ -120,6 +124,7 @@ kind: "package-reference"
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | 为新 Session 读取的宿主所有 opt-in 设置 |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | 记录并继承已读取决定的 Session 事件 |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` 运行时发现工具 |
+| [`src/list-categories.ts`](src/list-categories.ts) | `list_subagent_categories` 的标签与 `default` 行发现 |
 
 </details>
 
@@ -145,11 +150,11 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-提供方存在时，以配置的工具名称公开生成的默认 [`subagent` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent)。启用的 Session 策略会添加 `provider`、`model`、`reasoning_effort` 和路由指引；后端必须支持 `agentOptions`。`purposeRouting: true` 的实例还会增加可选的 `category` 和一句重试说明；这段文字不写出提供方或模型。`allowedAgentPresets` 增加 `agent_preset` 枚举和来自 preset 显示描述的引导。上下文继承和继续执行能力决定任务与后续消息的描述。工具限制会同时移除 schema 及其 `tool:<toolName>` 指引 section。
+提供方存在时，以配置的工具名称公开生成的默认 [`subagent` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent)。启用的 Session 策略会添加 `provider`、`model`、`reasoning_effort` 和路由指引；后端必须支持 `agentOptions`。`purposeRouting: true` 的实例还会增加可选的 `category` 和一句重试说明；这段文字不写出提供方或模型。`purposeGuidance` 为 null 时，`category` 说明保持不变。保存的句子在下一次请求中替换它。句子包含路由标识符时，该请求失败，并且该句不会写入 schema。同一实例注册 `list_subagent_categories`。`allowedAgentPresets` 增加 `agent_preset` 枚举和来自 preset 显示描述的引导。上下文继承和继续执行能力决定任务与后续消息的描述。工具限制会同时移除 schema 及其 `tool:<toolName>` 指引 section。
 
 #### Token 影响
 
-每个父级请求支付固定的 schema 成本；LLM 选择增加三个参数，preset 选择增加一个枚举参数和 preset 描述。用途路由增加一个枚举参数和一句描述；编辑表不会改变该前缀。每个工具实例增加一个 schema 和一个简短的系统提示词 section。
+每个父级请求支付固定的 schema 成本；LLM 选择增加三个参数，preset 选择增加一个枚举参数和 preset 描述。用途路由增加一个枚举参数、一句描述，以及固定的 `list_subagent_categories` schema；编辑表不会改变该前缀。编辑 `purposeGuidance` 会替换 `category` 说明。可见的用途路由工具还会增加一段固定的分割段落；`splitting` 非空时再附上该句。每个工具实例增加一个 schema 和一个简短的系统提示词 section。
 
 #### KV Cache 影响
 
@@ -169,11 +174,31 @@ Session 携带策略的 settings 控制实例会公开子级 LLM 选择字段与
 
 适配器注册与目录变化不会改变 schema 前缀。每个发现结果都追加在可复用前缀之后。
 
+### 类别发现
+
+#### 模型看到什么
+
+`purposeRouting` 为 true 时，注册参数为空的 `list_subagent_categories`。一次调用的可见文本是每个标签一行，`` `<id> — <purpose> — one child` ``，`review` 使用 `one child per configured route`，然后是 `Omitting category selects the configured default for general work: yes` 或 `: no`。规范值包含 `categories` 与 `omission`，没有提供方、模型或推理强度字段。表读取失败时返回 `Error: no child model is configured for this tool; report that to the user`。说明文本是固定的：
+
+##### 类别发现说明
+
+```markdown
+List subagent category labels, the job each label is for, and whether omitting category currently selects a configured default. This tool does not list providers, models, or reasoning efforts. It does not choose a child. Pass a listed label as subagent category, or omit category for general work.
+```
+
+#### Token 影响
+
+每个 `purposeRouting` Session 增加一个固定 schema。表的内容不进入该 schema。只有模型调用该工具时，结果才被追加。
+
+#### KV Cache 影响
+
+只要 `purposeRouting` 不变且 `purposeGuidance` 为 null，schema 前缀就保持稳定。编辑表不会使它失效。编辑用途句子会改变 `category` 说明，因此也会改变前缀。每次调用都把结果追加在可复用前缀之后。
+
 ### 系统提示词
 
 #### 模型看到什么
 
-可见的委派工具共享一段指导，列出按名称排序的工具，指示模型一起启动相互独立的委派，并在它们运行时继续工作；当只剩等待它们的结果时，结束本轮，而不是休眠或轮询。隐藏或不可用的工具不列入其中；没有可见工具时，不输出指导。`subagent` 和 `subagent_fork` 都可见时，文本为：
+可见的委派工具共享一段指导，列出按名称排序的工具，指示模型一起启动相互独立的委派，并在它们运行时继续工作；当只剩等待它们的结果时，结束本轮，而不是休眠或轮询。任一可见委派工具启用用途路由时，该段之后还有一段固定的分割段落；`splitting` 非空时再附上该句。只编辑路由不会改变这段文字。隐藏或不可用的工具不列入其中；没有可见工具时，不输出指导。`subagent` 和 `subagent_fork` 都可见时，文本为：
 
 ##### 工具指导 section
 
@@ -248,6 +273,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 - **随附 fork 工具不能选择子级 LLM 路由**——它们继承父级提供方与模型，使复制的对话前缀仍有资格复用 KV Cache。仅当路由变更能保留复用或公开有界重算成本时，才重新启用选择。
 - **深度上限按实例固定**——不同名称的工具可设置不同上限。LLM 选择要求启用逐 Session 偏好，且提供方必须声明 `agentOptions`；两个进程内提供方和 DSH SDK 会声明该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
 - **同类别重试不受强制**——工具文本要求父级在任务失败后用同一个 `category` 再委派一次；失败调用省略了 `category` 时，再次省略它。运行时无法判断后来的调用是否是同一任务。
+- **空的用途表不隐藏标签**——`list_subagent_categories` 仍返回五个标签，并报告 `default` 行未解析。随后带 `category` 的委派会以缺少表的错误失败。发现调用不会阻止该委派。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -2599,6 +2599,27 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-office-to-pdf -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-orchestrator-policy -->
+<a id="deepseek-aidsh-orchestrator-policy"></a>
+
+## `@deepseek-ai/dsh-orchestrator-policy`
+
+- `inject`: `systemPrompt` · `tools`
+- `source`: [`packages/preset/orchestrator-policy/src/index.ts:60`](../packages/preset/orchestrator-policy/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: basename denylist for direct shell starts. */
+export interface Config {
+  /**
+   * Command basenames denied at depth 0. Path prefixes are ignored. Empty
+   * denies nothing. A name containing `/` or `\` fails at load because it
+   * can never match a basename. Omitted config receives the initial four names.
+   */
+  binaries: string[]
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-orchestrator-policy -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-permission-presets -->
 <a id="deepseek-aidsh-permission-presets"></a>
 
@@ -3810,7 +3831,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-system-prompt`
 
-- `source`: [`packages/core/system-prompt/src/index.ts:258`](../packages/core/system-prompt/src/index.ts)
+- `source`: [`packages/core/system-prompt/src/index.ts:259`](../packages/core/system-prompt/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the deployment-authored fragment of the system prompt (see {@link Config.personaPrefix} for its contract). */
@@ -4318,7 +4339,7 @@ export interface Config {
 
 - `inject`: `tools` · `subagents` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.zh.md)
-- `source`: [`packages/subagent/tool-subagent/src/index.ts:62`](../packages/subagent/tool-subagent/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent/src/index.ts:104`](../packages/subagent/tool-subagent/src/index.ts)
 
 ```ts config-catalog
 /** Config: which registered provider this tool delegates to, plus child defaults. */

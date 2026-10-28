@@ -345,6 +345,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@deepseek-ai/dsh-agent-preset` | yes | Declare an Agent capability composition in Cordis YAML |
 | `@deepseek-ai/dsh-agent-preset-registry` | yes | Declarative Agent preset registry and profile-backed editing |
+| `@deepseek-ai/dsh-orchestrator-policy` | yes | Preset-scoped orchestrator contract and a guard that denies direct external-agent CLI starts |
 | `@deepseek-ai/dsh-persona` | yes | Composition-authored deployment persona section for the DeepSeek Harness |
 
 ## ptc-runtime

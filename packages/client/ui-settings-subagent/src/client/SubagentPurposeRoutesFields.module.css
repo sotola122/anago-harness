@@ -108,7 +108,8 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -120,6 +121,10 @@
   color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 13px;
+}
+
+.field textarea {
+  resize: vertical;
 }
 
 .actions {
