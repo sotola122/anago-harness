@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import {
   PURPOSE_CATEGORIES,
@@ -34,13 +35,19 @@ function table(): PurposeRouteTable {
 
 let counter = 0
 
-function call(ctx: Context) {
-  return ctx.tools.execute({
+async function call(ctx: Context) {
+  const batch = await ctx.tools.execute({
     signal: testToolSignal,
-    callId: ToolCallId(`list-categories-${++counter}`),
-    name: 'list_subagent_categories',
-    arguments: {},
+    calls: [{
+      type: 'tool-call',
+      id: ToolCallId(`list-categories-${++counter}`),
+      name: 'list_subagent_categories',
+      arguments: '{}',
+    }],
   })
+  const result = batch.results[0]?.result
+  if (result === undefined) throw new Error('list_subagent_categories returned no result')
+  return result
 }
 
 function assertNoRouteIdentifiers(encoded: string): void {
@@ -147,6 +154,7 @@ describe('list_subagent_categories', () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(NativeToolExecutor)
     registerListSubagentCategories(ctx)
     const result = await call(ctx)
     expect(result.isError).toBe(false)

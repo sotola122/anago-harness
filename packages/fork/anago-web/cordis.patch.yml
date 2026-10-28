@@ -34,7 +34,7 @@
   config:
     provider: spawn
     toolName: subagent
-    modelSelectionSettings: true
+    modelSelection: true
 
 # An idle Agent hands its Session write ownership back so any other DSH
 # process can open the same stored Session for writing: headless --session-id,

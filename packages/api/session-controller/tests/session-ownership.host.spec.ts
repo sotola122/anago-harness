@@ -40,7 +40,7 @@ async function fixture(ownership: (id: SessionId) => Promise<SessionOwnership>) 
     list: () => Promise.resolve([header]),
     ownership,
   }) as never)
-  return { ctx, controller: createSessionTestController(ctx, DEFAULTS) }
+  return { ctx, controller: await createSessionTestController(ctx, DEFAULTS) }
 }
 
 describe('sessions.ownership', () => {

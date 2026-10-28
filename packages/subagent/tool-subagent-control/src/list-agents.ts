@@ -1,10 +1,8 @@
 /**
  * The globally named `list_agents` tool: a thin model-facing adapter over
  * the continuable projection of `ctx.subagents.listChildren()` and, for the
- * `descendants` scope, `ctx.subagents.listDescendants()`. It stays separately
- * loadable from the root `send_message` plugin so a deployment can register
- * continuation delivery without exposing discovery.
- * @module @deepseek-ai/dsh-tool-subagent-control/list-agents
+ * `descendants` scope, `ctx.subagents.listDescendants()`. The control plugin owns
+ * registration and disposal alongside messaging and interruption.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -17,9 +15,6 @@ import type {
 } from '@deepseek-ai/dsh-subagent'
 import type {} from '@deepseek-ai/dsh-session-query'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
-
-export const name = 'tool-subagent-list-agents'
-export const inject = ['tools', 'subagents', 'agents']
 
 type ListAgentsScope = 'children' | 'descendants'
 
@@ -68,8 +63,15 @@ function statusOf(agents: { get(id: SessionId): Agent | undefined }, id: Session
   return agents.get(id)?.status === 'running' ? 'running' : 'inactive'
 }
 
+/** Route fields as they arrive from agent options or a catalog entry. */
+type RouteSource = {
+  provider?: string | undefined
+  model?: string | undefined
+  reasoningEffort?: string | undefined
+}
+
 /** Copy only the route fields that were actually set. */
-function routeFrom(source: { provider?: string; model?: string; reasoningEffort?: string } | undefined): RecordedRoute {
+function routeFrom(source: RouteSource | undefined): RecordedRoute {
   if (source === undefined) return {}
   return {
     ...source.provider !== undefined ? { provider: source.provider } : {},
@@ -160,7 +162,7 @@ function project(
  * Register the `list_agents` tool.
  * @param ctx - context carrying the tool registry, subagent service, and live Agent registry.
  */
-export function apply(ctx: Context): void {
+export function registerListAgents(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'list_agents',
     description:

@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-29-anago-message-sources-after-sync.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-29-anago-message-sources-after-sync.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-29-anago-message-sources-after-sync:
+  en: 367b326c93a0297d
+  zh: f859c2ce7a9a59a3
+/2026-10-29-anago-message-sources-after-sync/summary:
+  en: fdf3caab195b3023
+  zh: c80f931f34eabb43
+/2026-10-29-anago-message-sources-after-sync/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-29-anago-message-sources-after-sync/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-29-anago-message-sources-after-sync/compatibility:
+  en: b6a07fdd92f5ab6b
+  zh: 0774e3b7bbc52d4d
+/2026-10-29-anago-message-sources-after-sync/verification:
+  en: e0eb28465ce2e068
+  zh: 453df937b2ba9c90
+/2026-10-29-anago-message-sources-after-sync/dev-note:
+  en: 4d73c159052e5960
+  zh: cc71d9be9f0d54fb

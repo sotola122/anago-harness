@@ -13,6 +13,7 @@ import {
 } from '../src/purpose-routing.ts'
 import type { PurposeGuidance, PurposeRoute, PurposeRouteTable } from '../src/purpose-routing.ts'
 import SubagentModelSelectionConfig from '../src/model-selection-settings.ts'
+import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { ownContext, setup, testToolSignal, text } from './harness.ts'
 
 const EFFORT = ReasoningEffortId('low')
@@ -44,6 +45,21 @@ function guidance(overrides: Partial<PurposeGuidance> = {}): PurposeGuidance {
     splitting: '',
     ...overrides,
   }
+}
+
+async function listCategories(ctx: Context, callId: string) {
+  const batch = await ctx.tools.execute({
+    signal: testToolSignal,
+    calls: [{
+      type: 'tool-call',
+      id: ToolCallId(callId),
+      name: 'list_subagent_categories',
+      arguments: '{}',
+    }],
+  })
+  const result = batch.results[0]?.result
+  if (result === undefined) throw new Error('list_subagent_categories returned no result')
+  return result
 }
 
 function categoryDescription(ctx: Context): string | undefined {
@@ -89,10 +105,12 @@ describe('purpose guidance composition', () => {
 describe('purpose guidance settings', () => {
   it('rejects an over-long sentence and a missing sentence at load', async () => {
     const over = ownContext(new Context())
+    await mountAgentLoopTestDependencies(over)
     await expect(over.plugin(SubagentModelSelectionConfig, {
       purposeGuidance: guidance({ light: 'x'.repeat(PURPOSE_SENTENCE_MAX + 1) }),
     })).rejects.toThrow(/light|200/)
     const missing = ownContext(new Context())
+    await mountAgentLoopTestDependencies(missing)
     await expect(missing.plugin(SubagentModelSelectionConfig, {
       purposeGuidance: { medium: 'known', deep: 'bug', review: 'review', writing: 'prose', omit: 'none', splitting: '' },
     })).rejects.toThrow(/light/)
@@ -106,12 +124,7 @@ describe('purpose guidance settings', () => {
     const section = assembly.sections.find(item => item.text.startsWith('Start independent delegations'))
     expect(section?.text).toContain(PURPOSE_SPLITTING_PARAGRAPH)
     expect(section?.text.startsWith('Start independent delegations with `subagent`')).toBe(true)
-    const listed = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: ToolCallId('guidance-null'),
-      name: 'list_subagent_categories',
-      arguments: {},
-    })
+    const listed = await listCategories(ctx, 'guidance-null')
     expect(listed.isError).toBe(false)
     if (listed.isError) return
     expect(listed.value).toMatchObject({
@@ -130,12 +143,7 @@ describe('purpose guidance settings', () => {
     const description = categoryDescription(ctx)
     expect(description).toBe(categoryDescriptionFor(value))
     expect(description).not.toBe(PURPOSE_CATEGORY_DESCRIPTION)
-    const listed = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: ToolCallId('guidance-set'),
-      name: 'list_subagent_categories',
-      arguments: {},
-    })
+    const listed = await listCategories(ctx, 'guidance-set')
     expect(listed.isError).toBe(false)
     if (listed.isError) return
     const rows = listed.value as { categories: { id: string; purpose: string }[] }
@@ -157,12 +165,7 @@ describe('purpose guidance settings', () => {
     await expect(ctx.systemPrompt.assemble()).rejects.toThrow('purpose guidance slot "review" contains route identifier "route-review"')
     expect(categoryDescription(ctx)).toBe(PURPOSE_CATEGORY_DESCRIPTION)
     expect(categoryDescription(ctx)).not.toContain('route-review')
-    const listed = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: ToolCallId('guidance-leak'),
-      name: 'list_subagent_categories',
-      arguments: {},
-    })
+    const listed = await listCategories(ctx, 'guidance-leak')
     expect(listed.isError).toBe(true)
     expect(text(listed)).not.toContain('route-review')
     expect(text(listed)).toContain('no child model is configured for this tool')
@@ -172,7 +175,7 @@ describe('purpose guidance settings', () => {
     const ctx = await setup({ provider: 'mock' })
     const assembly = await ctx.systemPrompt.assemble()
     const section = assembly.sections.find(item => item.text.startsWith('Start independent delegations'))
-    expect(section?.text).toBe('Start independent delegations with `subagent` together in one assistant message and continue useful work while they run.')
+    expect(section?.text).toBe('Start independent delegations with `subagent` together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.')
     expect(section?.text).not.toContain(PURPOSE_SPLITTING_PARAGRAPH)
   })
 

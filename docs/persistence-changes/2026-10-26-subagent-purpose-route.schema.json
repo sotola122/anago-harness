@@ -1,194 +1,28 @@
 {
   "formatVersion": 2,
   "roots": [
-    {
-      "key": "event:subagent/purpose-route",
-      "kind": "event",
-      "event": "subagent/purpose-route",
-      "surface": false,
-      "digest": "26495f85055b1d5c86cf81ea3002a2989d02469bea830f8537c2364e124e0386",
-      "schema": {
-        "root": 0,
-        "nodes": [
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "data",
-                "type": 1,
-                "optional": false
-              },
-              {
-                "name": "ignorable",
-                "type": 16,
-                "optional": true
-              },
-              {
-                "name": "seq",
-                "type": 17,
-                "optional": false
-              },
-              {
-                "name": "time",
-                "type": 17,
-                "optional": false
-              },
-              {
-                "name": "type",
-                "type": 18,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "outcome",
-                "type": 2,
-                "optional": false
-              },
-              {
-                "name": "route",
-                "type": 8,
-                "optional": false
-              },
-              {
-                "name": "slot",
-                "type": 9,
-                "optional": false
-              },
-              {
-                "name": "toolCallId",
-                "type": 4,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "union",
-            "types": [
-              3,
-              6
-            ]
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "childId",
-                "type": 4,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 5,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "primitive",
-            "type": "string"
-          },
-          {
-            "kind": "literal",
-            "value": "started"
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "kind",
-                "type": 7,
-                "optional": false
-              },
-              {
-                "name": "reason",
-                "type": 4,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "literal",
-            "value": "not-started"
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "model",
-                "type": 4,
-                "optional": false
-              },
-              {
-                "name": "provider",
-                "type": 4,
-                "optional": false
-              },
-              {
-                "name": "reasoningEffort",
-                "type": 4,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "union",
-            "types": [
-              10,
-              11,
-              12,
-              13,
-              14,
-              15
-            ]
-          },
-          {
-            "kind": "literal",
-            "value": "deep"
-          },
-          {
-            "kind": "literal",
-            "value": "default"
-          },
-          {
-            "kind": "literal",
-            "value": "light"
-          },
-          {
-            "kind": "literal",
-            "value": "medium"
-          },
-          {
-            "kind": "literal",
-            "value": "review"
-          },
-          {
-            "kind": "literal",
-            "value": "writing"
-          },
-          {
-            "kind": "literal",
-            "value": true
-          },
-          {
-            "kind": "primitive",
-            "type": "number"
-          },
-          {
-            "kind": "literal",
-            "value": "subagent/purpose-route"
-          }
-        ]
-      }
-    }
+    {"key":"event:subagent/purpose-route","kind":"event","event":"subagent/purpose-route","surface":false,"digest":"26495f85055b1d5c86cf81ea3002a2989d02469bea830f8537c2364e124e0386"}
   ],
-  "types": []
+  "types": [],
+  "nodes": {
+    "0657d3ca5ac4e7bf": {"kind":"primitive","type":"number"},
+    "0e0c2e4d3cc973c3": {"kind":"literal","value":"review"},
+    "1f217c084ff67009": {"kind":"object","properties":[{"name":"outcome","type":"c3d3edea03ed751b","optional":false},{"name":"route","type":"f5d61e83f890477d","optional":false},{"name":"slot","type":"5d481ceb77120bbf","optional":false},{"name":"toolCallId","type":"4cd48f3e5108bd6e","optional":false}],"indices":[]},
+    "26495f85055b1d5c": {"kind":"object","properties":[{"name":"data","type":"1f217c084ff67009","optional":false},{"name":"ignorable","type":"dacf3d5f3e4ff619","optional":true},{"name":"seq","type":"0657d3ca5ac4e7bf","optional":false},{"name":"time","type":"0657d3ca5ac4e7bf","optional":false},{"name":"type","type":"4eb4fb4727f07bba","optional":false}],"indices":[]},
+    "4cd48f3e5108bd6e": {"kind":"primitive","type":"string"},
+    "4eb4fb4727f07bba": {"kind":"literal","value":"subagent/purpose-route"},
+    "5d481ceb77120bbf": {"kind":"union","types":["0e0c2e4d3cc973c3","6bb7920e95ffc9e7","847de97d9ff31dff","8bb188be8ccbc2bd","b72a9be4ead1ca6a","d66ba5eb62ddba9f"]},
+    "6bb7920e95ffc9e7": {"kind":"literal","value":"deep"},
+    "847de97d9ff31dff": {"kind":"literal","value":"writing"},
+    "8bb188be8ccbc2bd": {"kind":"literal","value":"medium"},
+    "b72a9be4ead1ca6a": {"kind":"literal","value":"light"},
+    "b76c2f5dbe6dd1cf": {"kind":"literal","value":"not-started"},
+    "c1e1622166f57c10": {"kind":"literal","value":"started"},
+    "c3d3edea03ed751b": {"kind":"union","types":["e18ab37d8ada0d71","efe5fd427c6d0be5"]},
+    "d66ba5eb62ddba9f": {"kind":"literal","value":"default"},
+    "dacf3d5f3e4ff619": {"kind":"literal","value":true},
+    "e18ab37d8ada0d71": {"kind":"object","properties":[{"name":"childId","type":"4cd48f3e5108bd6e","optional":false},{"name":"kind","type":"c1e1622166f57c10","optional":false}],"indices":[]},
+    "efe5fd427c6d0be5": {"kind":"object","properties":[{"name":"kind","type":"b76c2f5dbe6dd1cf","optional":false},{"name":"reason","type":"4cd48f3e5108bd6e","optional":false}],"indices":[]},
+    "f5d61e83f890477d": {"kind":"object","properties":[{"name":"model","type":"4cd48f3e5108bd6e","optional":false},{"name":"provider","type":"4cd48f3e5108bd6e","optional":false},{"name":"reasoningEffort","type":"4cd48f3e5108bd6e","optional":false}],"indices":[]}
+  }
 }

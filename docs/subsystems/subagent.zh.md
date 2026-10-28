@@ -406,15 +406,9 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.subagentModelSelection` — `SubagentModelSelectionConfig`
 
-Singleton settings owner read when delegation tools are composed for a Session.
+Host settings owner that records Session authorization before the first model request.
 
 ```ts cordis-catalog
-/**
- * Read a detached selection preference for the next eligible Session composition.
- * @returns the enabled state and exact allowed routes.
- */
-current(): SubagentModelSelectionSettings
-
 /**
  * Read a detached copy of the current purpose routing table.
  * @returns the validated table, or null when none is configured.

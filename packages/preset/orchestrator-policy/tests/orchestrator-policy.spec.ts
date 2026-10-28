@@ -7,6 +7,7 @@ import { bindScopeParent, createScope, type Scope, type ScopeKey } from '@deepse
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolDefinition } from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { commandInvokesBinary } from '../src/command.ts'
 import * as Policy from '@deepseek-ai/dsh-orchestrator-policy'
 import {
@@ -42,6 +43,7 @@ async function mounted(config?: Policy.Config): Promise<{
   const ctx = new Context()
   await ctx.plugin(SystemPrompt, { personaPrefix: 'deployment' })
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   ctx.systemPrompt.variable('model', () => 'test-model')
   const key: ScopeKey = { id: 'orchestrator-preset' }
   let scope!: Scope
@@ -59,13 +61,17 @@ async function mounted(config?: Policy.Config): Promise<{
 async function run(ctx: Context, name: string, command: string, agent?: Agent): Promise<string> {
   const result = await ctx.tools.execute({
     signal,
-    callId: ToolCallId('c1'),
-    name,
-    arguments: { command, run_in_background: true },
+    calls: [{
+      type: 'tool-call',
+      id: ToolCallId('c1'),
+      name,
+      arguments: JSON.stringify({ command, run_in_background: true }),
+    }],
     ...agent === undefined ? {} : { agent },
   })
-  const first = result.content[0]
-  return first?.type === 'text' ? first.text : JSON.stringify(result.content)
+  const content = result.results[0]?.result.content ?? []
+  const first = content[0]
+  return first?.type === 'text' ? first.text : JSON.stringify(content)
 }
 
 async function sectionText(ctx: Context, agent: Agent | undefined, scope: ScopeKey): Promise<string | undefined> {
@@ -150,13 +156,17 @@ describe('orchestrator policy', () => {
     expect(await run(ctx, 'bash', 'claude', parent)).toBe('ran')
     expect(await run(ctx, 'bash', 'mycli --help', parent)).toBe(`Error: ${DENIAL_MESSAGE}`)
     const missing = await ctx.tools.execute({
-      signal, callId: ToolCallId('c2'), name: 'bash', arguments: { command: 1 }, agent: parent,
+      signal,
+      calls: [{ type: 'tool-call', id: ToolCallId('c2'), name: 'bash', arguments: JSON.stringify({ command: 1 }) }],
+      agent: parent,
     })
     const absent = await ctx.tools.execute({
-      signal, callId: ToolCallId('c3'), name: 'bash', arguments: null, agent: parent,
+      signal,
+      calls: [{ type: 'tool-call', id: ToolCallId('c3'), name: 'bash', arguments: 'null' }],
+      agent: parent,
     })
-    expect(missing.isError).toBe(false)
-    expect(absent.isError).toBe(false)
+    expect(missing.results[0]?.result.isError).toBe(false)
+    expect(absent.results[0]?.result.isError).toBe(false)
     expect(calls.n).toBe(3)
   })
 
