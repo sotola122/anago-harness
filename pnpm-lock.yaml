@@ -16036,6 +16036,9 @@ importers:
       '@deepseek-ai/dsh-native-command':
         specifier: workspace:*
         version: link:../../packages/util/native-command
+      '@deepseek-ai/dsh-orchestrator-policy':
+        specifier: workspace:*
+        version: link:../../packages/preset/orchestrator-policy
       '@deepseek-ai/dsh-otel':
         specifier: workspace:*
         version: link:../../packages/telemetry/otel
