@@ -3043,6 +3043,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the validated table, or null when none is configured.',
         throws: ['when a configured table is empty, has an extra non-review route, or repeats a triple.'],
       },
+      {
+        signature: 'purposeGuidance(): PurposeGuidance | null',
+        description: 'Read the current purpose sentences.',
+        parameters: [],
+        returns: 'a detached copy, or null when the deployment uses the built-in text.',
+        throws: ['when a stored sentence is missing or longer than its cap.'],
+      },
     ],
   },
   {
@@ -6665,6 +6672,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PtcRunSpec',
     declaration: 'export interface PtcRunSpec extends PtcRunRequest {\n    cwd: string;\n    timeoutMs: number | null;\n}',
+  },
+  {
+    name: 'PurposeGuidance',
+    declaration: 'export interface PurposeGuidance {\n    readonly light: string;\n    readonly medium: string;\n    readonly deep: string;\n    readonly review: string;\n    readonly writing: string;\n    readonly omit: string;\n    readonly splitting: string;\n}',
   },
   {
     name: 'PurposeRoute',

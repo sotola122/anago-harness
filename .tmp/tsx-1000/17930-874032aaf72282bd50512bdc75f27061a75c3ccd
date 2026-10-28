@@ -1,0 +1,1 @@
+{"code":"const DEFAULT_MAX_PARALLEL_TOOL_CALLS=10;export{DEFAULT_MAX_PARALLEL_TOOL_CALLS};\n","warnings":[],"map":{"version":3,"mappings":"AAKO,MAAM,gCAAkC","names":[],"ignoreList":[],"sources":["/data_1/git_workspace/anago-harness/packages/core/agent-loop/src/constants.ts"],"sourcesContent":[null]}}

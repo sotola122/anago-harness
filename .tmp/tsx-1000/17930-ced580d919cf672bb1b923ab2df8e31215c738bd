@@ -1,0 +1,1 @@
+{"code":"const ON_DEMAND_BUNDLES=[\"@deepseek-ai/dsh-subagent-claude-code\",\"@deepseek-ai/dsh-subagent-codex\"];export{ON_DEMAND_BUNDLES};\n","warnings":[],"map":{"version":3,"mappings":"AAGO,MAAM,kBAAuC,CAClD,wCACA,iCACF","names":[],"ignoreList":[],"sources":["/data_1/git_workspace/anago-harness/packages/boot/app-boot/src/official-bundle-packages.ts"],"sourcesContent":[null]}}

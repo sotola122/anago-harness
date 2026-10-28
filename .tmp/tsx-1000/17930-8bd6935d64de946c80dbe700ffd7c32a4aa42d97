@@ -1,0 +1,1 @@
+{"code":"const REMOTE_ACCESS_SNAPSHOT_KEY=\"__DSH_REMOTE_ACCESS__\";export{REMOTE_ACCESS_SNAPSHOT_KEY};\n","warnings":[],"map":{"version":3,"mappings":"AAOO,MAAM,2BAA6B","names":[],"ignoreList":[],"sources":["/data_1/git_workspace/anago-harness/packages/api/remote-access/src/snapshot.ts"],"sourcesContent":[null]}}

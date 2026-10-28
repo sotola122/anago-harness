@@ -35,13 +35,16 @@ import {
 import type { ChildRouteResolution, DelegationModelRequest, ModelSelectionPolicy, ResolvedChildRoute } from './model-selection.ts'
 import {
   CATEGORY_EXCLUSIVITY_SUFFIX,
+  composeCategoryDescription,
   isFanOutSlot,
   PURPOSE_CATEGORIES,
-  PURPOSE_CATEGORY_DESCRIPTION,
   PURPOSE_TOOL_SENTENCE,
   purposeUnavailableError,
+  splittingAddition,
 } from './purpose-routing.ts'
+import type { PurposeGuidance, PurposeRouteTable } from './purpose-routing.ts'
 import type { PurposeRouteSlot } from './purpose-routing.ts'
+import { registerListSubagentCategories } from './list-categories.ts'
 import { registerListSubagentModels } from './list-models.ts'
 import { SubagentPresetSelection, type PresetSelectionConfig, type PresetSelectionRequest } from './preset-selection.ts'
 import type {} from './model-selection-settings.ts'
@@ -57,6 +60,42 @@ export const inject = ['tools', 'subagents', 'systemPrompt', 'sessionProjections
 // Definition identity keeps shared guidance scoped to the actual visible tools,
 // including scoped overrides and independently loaded tool registries.
 const delegationTools = new Set<ToolDefinition>()
+
+/** Whether a registered delegation tool resolves `category` from the purpose table. */
+const purposeRoutingTools = new WeakMap<ToolDefinition, true>()
+
+/**
+ * Write a composed `category` description into a tool schema.
+ * A schema without `category` is left unchanged.
+ * @param parameters - a tool parameter schema, possibly a prompt-assembly clone.
+ * @param description - the description to publish.
+ * @returns whether `category` was present and updated.
+ */
+function writeCategoryDescription(parameters: unknown, description: string): boolean {
+  if (typeof parameters !== 'object' || parameters === null || Array.isArray(parameters)) return false
+  const properties = Reflect.get(parameters, 'properties')
+  if (typeof properties !== 'object' || properties === null || Array.isArray(properties)) return false
+  const category = Reflect.get(properties, 'category')
+  if (typeof category !== 'object' || category === null || Array.isArray(category)) return false
+  if (typeof Reflect.get(category, 'description') !== 'string') return false
+  Reflect.set(category, 'description', description)
+  return true
+}
+
+/**
+ * Compose the current category description from the settings service.
+ * A missing service or a null guidance value keeps the pinned description.
+ * An invalid or leaking guidance value throws and must not be published.
+ * @param runtimeCtx - context that may hold the settings service.
+ * @returns the description and the guidance used to build the splitting paragraph.
+ */
+function readPurposeCopy(runtimeCtx: Context): { description: string; guidance: PurposeGuidance | null; table: PurposeRouteTable | null } {
+  const settings = runtimeCtx.get('subagentModelSelection')
+  const guidance = settings === undefined ? null : settings.purposeGuidance()
+  // A null guidance value does not read the table: route edits must not change the description.
+  const table = guidance === null || settings === undefined ? null : settings.purposeRoutes()
+  return { description: composeCategoryDescription(guidance, table), guidance, table }
+}
 
 /** Config: which registered provider this tool delegates to, plus child defaults. */
 export interface Config extends PresetSelectionConfig {
@@ -522,11 +561,34 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
   const install = (runtimeCtx: Context, modelSelectionPolicy: ModelSelectionPolicy | undefined): void => {
     const modelSelectionEnabled = modelSelectionPolicy !== undefined
     if (modelSelectionPolicy !== undefined) registerListSubagentModels(runtimeCtx, modelSelectionPolicy)
+    if (purposeRouting) registerListSubagentCategories(runtimeCtx)
     // Load order and HMR replacement can change provider availability while
     // this fiber remains active.
     let mounted: { subagentProvider: SubagentProvider; definition: ToolDefinition; disposeTool: () => void } | undefined
+    const publishCategoryDescription = (): string => {
+      const copy = readPurposeCopy(runtimeCtx)
+      if (mounted !== undefined) writeCategoryDescription(mounted.definition.parameters, copy.description)
+      return copy.description
+    }
+    if (purposeRouting) {
+      // Runs before section text, so a PTC SDK section reads the updated definition.
+      // It adds no schema: the tool registry already contributes the copied schema.
+      runtimeCtx.systemPrompt.tools(() => {
+        publishCategoryDescription()
+        return { schemas: [] }
+      })
+      runtimeCtx.on('system-prompt/assemble', (_assembly, _context, next) => {
+        return next().then((result) => {
+          const description = publishCategoryDescription()
+          const tool = result.tools.find(item => item.name === toolName)
+          if (tool !== undefined) writeCategoryDescription(tool.parameters, description)
+          return result
+        })
+      })
+    }
     const mount = (subagentProvider: SubagentProvider): void => {
       assertSubagentProviderConfiguration(subagentProvider)
+      const categoryDescription = purposeRouting ? publishCategoryDescription() : ''
       const wording = providerWording(subagentProvider.inheritsParentContext)
       const providerRouteDefaults = subagentProvider.agentRouteDefaults
       const selectionDescription = providerRouteDefaults !== undefined
@@ -566,7 +628,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             category: {
               type: 'string' as const,
               enum: [...PURPOSE_CATEGORIES],
-              description: PURPOSE_CATEGORY_DESCRIPTION,
+              description: categoryDescription,
             },
           } : {},
           ...presets.choices === undefined ? {} : {
@@ -748,7 +810,9 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
       const disposeTool = runtimeCtx.effect(() => {
         const unregister = runtimeCtx.tools.register(definition)
         delegationTools.add(definition)
+        if (purposeRouting) purposeRoutingTools.set(definition, true)
         return () => {
+          purposeRoutingTools.delete(definition)
           delegationTools.delete(definition)
           unregister()
         }
@@ -778,13 +842,15 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
       order: runtimeCtx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
       text: (context) => {
         if (mounted === undefined) return ''
-        const visible = [...delegationTools]
+        const visibleDefinitions = [...delegationTools]
           .filter(tool => runtimeCtx.tools.get(tool.name, context.scope) === tool)
-          .map(tool => tool.name)
-          .sort()
+        const visible = visibleDefinitions.map(tool => tool.name).sort()
         if (visible[0] !== toolName) return ''
         const names = visible.map(name => `\`${name}\``).join(' or ')
-        return `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`
+        const lead = `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`
+        if (!visibleDefinitions.some(tool => purposeRoutingTools.has(tool))) return lead
+        const copy = readPurposeCopy(runtimeCtx)
+        return `${lead}\n\n${splittingAddition(copy.guidance, copy.table)}`
       },
     })
     runtimeCtx.systemPrompt.context({

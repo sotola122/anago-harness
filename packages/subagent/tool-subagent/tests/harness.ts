@@ -10,7 +10,7 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import * as mock from './scripted-provider.ts'
 import * as tool from '../src/index.ts'
 import SubagentModelSelectionConfig from '../src/model-selection-settings.ts'
-import type { PurposeRouteTable } from '../src/purpose-routing.ts'
+import type { PurposeGuidance, PurposeRouteTable } from '../src/purpose-routing.ts'
 
 const contexts = new Set<Context>()
 afterEach(async () => {
@@ -37,6 +37,7 @@ type SetupConfig = tool.Config & {
   withModelSelection?: boolean
   parentAgentOptions?: AgentOptions
   purposeRoutes?: PurposeRouteTable | null
+  purposeGuidance?: PurposeGuidance | null
 }
 
 const TEST_ALLOWED_MODELS = [
@@ -50,8 +51,8 @@ const TEST_ALLOWED_MODELS = [
 
 export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Config> = {}): Promise<Context> {
   const ctx = ownContext(new Context())
-  const { withModelSelection, parentAgentOptions, purposeRoutes, ...config } = toolConfig
-  if (withModelSelection === true || purposeRoutes !== undefined) {
+  const { withModelSelection, parentAgentOptions, purposeRoutes, purposeGuidance, ...config } = toolConfig
+  if (withModelSelection === true || purposeRoutes !== undefined || purposeGuidance !== undefined) {
     await ctx.plugin(SubagentModelSelectionConfig, {
       enabled: withModelSelection === true,
       allowedModels: withModelSelection === true ? TEST_ALLOWED_MODELS : [],
@@ -63,6 +64,7 @@ export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Co
         writing: purposeRoutes.writing.map(route => ({ ...route })),
         default: purposeRoutes.default.map(route => ({ ...route })),
       } } : {},
+      ...purposeGuidance !== undefined ? { purposeGuidance } : {},
     })
   }
   if (withModelSelection === true) {

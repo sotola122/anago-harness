@@ -75,6 +75,7 @@ import * as PluginMarketTools from '@deepseek-ai/dsh-plugin-market/tools'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
+import { registerListSubagentCategories } from '../packages/subagent/tool-subagent/src/list-categories.ts'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import WorkflowEngine from '@deepseek-ai/dsh-workflow'
@@ -525,6 +526,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-subagent',
     dir: 'tool-subagent',
     source: {
+      list_subagent_categories: 'packages/subagent/tool-subagent/src/list-categories.ts',
       list_subagent_models: 'packages/subagent/tool-subagent/src/list-models.ts',
       subagent: 'packages/subagent/tool-subagent/src/index.ts',
     },
@@ -536,10 +538,11 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(LlmRuntime)
       registerCatalogSubagentProvider(ctx, 'mock')
       await ctx.plugin(ToolSubagent, { provider: 'mock' })
+      registerListSubagentCategories(ctx)
       registerListSubagentModels(ctx, { routes: [{ provider: 'mock', model: 'mock' }] })
     },
     note:
-      'The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance selects its backend through `provider` and reads model-selection settings through `modelSelectionSettings`. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically.',
+      'The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection and purpose routing off, while `list_subagent_models` and `list_subagent_categories` are the fixed companions available in an enabled Session and a `purposeRouting` instance. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance selects its backend through `provider` and reads model-selection settings through `modelSelectionSettings`. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-subagent-control',

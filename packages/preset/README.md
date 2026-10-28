@@ -25,6 +25,7 @@ This group declares Agent capabilities through ordinary Cordis configuration and
 | [agent-preset-registry](agent-preset-registry/README.md) | Selection, revision retention and profile editing | `ctx.agentPresets` |
 | [agent-preset](agent-preset/README.md) | Declarative child plugins and metadata | — |
 | [persona](persona/README.md) | Composable Agent persona | — |
+| [orchestrator-policy](orchestrator-policy/README.md) | Depth-0 delegation contract and direct CLI denial | — |
 
 <a id="related-documentation"></a>
 ## Related documentation

@@ -56,7 +56,8 @@ export function SubagentCard(props: SubagentCardProps) {
             <SubagentPurposeRoutesFields t={t} state={{ ...purpose, saving: state.saving }}
               editRoute={props.editPurposeRoute} addReviewer={props.addReviewer}
               removeReviewer={props.removeReviewer} moveReviewer={props.moveReviewer}
-              retryCatalog={props.retryPurposeCatalog} />
+              retryCatalog={props.retryPurposeCatalog}
+              editGuidance={props.editGuidance} resetGuidance={props.resetGuidance} />
           </section>
         )
         : null}

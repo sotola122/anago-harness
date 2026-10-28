@@ -1,0 +1,85 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/preset/orchestrator-policy/README.md
+/:
+  en: 429dfd0c15b16beb
+  zh: 2c63b274c7b74083
+/deepseek-ai-dsh-orchestrator-policy:
+  en: 36d3c17a615367aa
+  zh: a918d0c324a3a269
+/deepseek-ai-dsh-orchestrator-policy/summary:
+  en: 92664b8bcd62f1d0
+  zh: 713ed9e00c9beaa7
+/deepseek-ai-dsh-orchestrator-policy/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-orchestrator-policy/use-this-package:
+  en: 53c5a58f59bae5d6
+  zh: 350e10043742890c
+/deepseek-ai-dsh-orchestrator-policy/use-this-package/when-to-choose-it:
+  en: 48e5e6b9842a2087
+  zh: 6e20fef04f60bc5f
+/deepseek-ai-dsh-orchestrator-policy/use-this-package/minimal-configuration:
+  en: 28077640969305f5
+  zh: b56137106b5dc60a
+/deepseek-ai-dsh-orchestrator-policy/understand-the-implementation:
+  en: e8c013945017ef13
+  zh: ea3b0d54b1c747be
+/deepseek-ai-dsh-orchestrator-policy/further-exploration:
+  en: b567ca782da7c5be
+  zh: 80eacd8c207f1893
+/deepseek-ai-dsh-orchestrator-policy/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-orchestrator-policy/model-experience/depth-0-persona-system-prompt:
+  en: bbd25196e68348fe
+  zh: 115371913d16926e
+/deepseek-ai-dsh-orchestrator-policy/model-experience/depth-0-persona-system-prompt/what-the-model-sees:
+  en: 4a1610d23d262092
+  zh: 4322165289181b0c
+/deepseek-ai-dsh-orchestrator-policy/model-experience/depth-0-persona-system-prompt/what-the-model-sees/orchestrator-persona:
+  en: ff48fd7fc287c2ff
+  zh: 4a68c9494df0ec68
+/deepseek-ai-dsh-orchestrator-policy/model-experience/depth-0-persona-system-prompt/token-effect:
+  en: 74a26dd7b0b2bc5c
+  zh: f754efd82f5698e5
+/deepseek-ai-dsh-orchestrator-policy/model-experience/depth-0-persona-system-prompt/kv-cache-effect:
+  en: 9cc9052641076c9c
+  zh: 52578c374d752699
+/deepseek-ai-dsh-orchestrator-policy/model-experience/delegation-contract-system-prompt:
+  en: f71b6c6ae5006a64
+  zh: cd32b7ddb73c1037
+/deepseek-ai-dsh-orchestrator-policy/model-experience/delegation-contract-system-prompt/what-the-model-sees:
+  en: dc3c5cd9b97a345e
+  zh: 2b9c44dcc99de3a4
+/deepseek-ai-dsh-orchestrator-policy/model-experience/delegation-contract-system-prompt/what-the-model-sees/delegation-contract:
+  en: b74b35e8621c0bdb
+  zh: 341c380c1b00d6fb
+/deepseek-ai-dsh-orchestrator-policy/model-experience/delegation-contract-system-prompt/token-effect:
+  en: 2887a713342d448e
+  zh: d66fdc38bd53c95e
+/deepseek-ai-dsh-orchestrator-policy/model-experience/delegation-contract-system-prompt/kv-cache-effect:
+  en: 3b6ba051a1750c9b
+  zh: c61161f882403823
+/deepseek-ai-dsh-orchestrator-policy/model-experience/denied-shell-result:
+  en: 113127bacaa45cf0
+  zh: 8eb19b394edf709d
+/deepseek-ai-dsh-orchestrator-policy/model-experience/denied-shell-result/what-the-model-sees:
+  en: 0439c619cfe7bee0
+  zh: e84e445f269bfb49
+/deepseek-ai-dsh-orchestrator-policy/model-experience/denied-shell-result/what-the-model-sees/denial-sentence:
+  en: 74f121cd357e0e20
+  zh: ad844f2187193316
+/deepseek-ai-dsh-orchestrator-policy/model-experience/denied-shell-result/token-effect:
+  en: b0c260e45b8e3493
+  zh: 614bf5171dc3c00b
+/deepseek-ai-dsh-orchestrator-policy/model-experience/denied-shell-result/kv-cache-effect:
+  en: 2e80fc5affe8ef5d
+  zh: 497bef3a55f13eb2
+/deepseek-ai-dsh-orchestrator-policy/known-limitations-and-deferred-work:
+  en: 231744d275eb145b
+  zh: c6d0c5e8cf01fd9a
+/deepseek-ai-dsh-orchestrator-policy/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

@@ -9,10 +9,12 @@ import {
   type AllowedModelRoute,
 } from './model-selection.ts'
 import {
+  assertPurposeGuidance,
+  PurposeGuidanceSchema,
   PurposeRouteTableSchema,
   purposeTableFromStored,
 } from './purpose-routing.ts'
-import type { PurposeRouteTable, StoredPurposeRouteTable } from './purpose-routing.ts'
+import type { PurposeGuidance, PurposeRouteTable, StoredPurposeRouteTable } from './purpose-routing.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -40,6 +42,11 @@ export interface Config {
    * Efforts are stored as strings because a branded id does not survive a volatile snapshot.
    */
   purposeRoutes: Volatile<StoredPurposeRouteTable | null>
+  /**
+   * Purpose sentences read when a model-facing description is composed.
+   * Null means the built-in text. A non-null value requires every sentence.
+   */
+  purposeGuidance: Volatile<PurposeGuidance | null>
 }
 
 /** Singleton settings owner read when delegation tools are composed for a Session. */
@@ -48,12 +55,15 @@ export class SubagentModelSelectionConfig extends Service {
     enabled: z.boolean().default(false).volatile(),
     allowedModels: z.array(AllowedModelRouteSchema).default([]).volatile(),
     purposeRoutes: z.union([PurposeRouteTableSchema, z.const(null)]).default(null).volatile(),
+    purposeGuidance: z.union([PurposeGuidanceSchema, z.const(null)]).default(null).volatile(),
   })
 
   constructor(ctx: Context, private config: Config) {
     super(ctx, 'subagentModelSelection')
     const table = readPurposeRoutes(this.config)
     if (table !== null) purposeTableFromStored(table)
+    const guidance = readPurposeGuidance(this.config)
+    if (guidance !== null) assertPurposeGuidance(guidance)
   }
 
   /**
@@ -81,6 +91,26 @@ export class SubagentModelSelectionConfig extends Service {
     return purposeTableFromStored(table)
   }
 
+  /**
+   * Read the current purpose sentences.
+   * @returns a detached copy, or null when the deployment uses the built-in text.
+   * @throws when a stored sentence is missing or longer than its cap.
+   */
+  purposeGuidance(): PurposeGuidance | null {
+    const guidance = readPurposeGuidance(this.config)
+    if (guidance === null) return null
+    assertPurposeGuidance(guidance)
+    return {
+      light: guidance.light,
+      medium: guidance.medium,
+      deep: guidance.deep,
+      review: guidance.review,
+      writing: guidance.writing,
+      omit: guidance.omit,
+      splitting: guidance.splitting,
+    }
+  }
+
 }
 
 /**
@@ -92,7 +122,16 @@ function readPurposeRoutes(config: Config): StoredPurposeRouteTable | null {
   return config.purposeRoutes.get() ?? null
 }
 
-export type { PurposeCategory, PurposeRoute, PurposeRouteSlot, PurposeRouteTable } from './purpose-routing.ts'
+/**
+ * Read the live guidance. An omitted value is the null default.
+ * @param config - settings plugin config.
+ * @returns the current sentences, or null when the deployment uses built-in text.
+ */
+function readPurposeGuidance(config: Config): PurposeGuidance | null {
+  return config.purposeGuidance.get() ?? null
+}
+
+export type { PurposeCategory, PurposeGuidance, PurposeRoute, PurposeRouteSlot, PurposeRouteTable } from './purpose-routing.ts'
 export { PURPOSE_CATEGORIES, PURPOSE_ROUTE_SLOTS, assertPurposeRouteTable } from './purpose-routing.ts'
 
 export const name = 'subagent-model-selection-settings'

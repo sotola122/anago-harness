@@ -1,0 +1,1 @@
+{"code":"const UNIT_NAME_RE=/^[a-z][a-z0-9_]*$/;export{UNIT_NAME_RE};\n","warnings":[],"map":{"version":3,"mappings":"AASO,MAAM,aAAe","names":[],"ignoreList":[],"sources":["/data_1/git_workspace/anago-harness/packages/storage/storage/src/backend.ts"],"sourcesContent":[null]}}
