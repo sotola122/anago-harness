@@ -42,11 +42,13 @@ export const STANDARD_PERSONA = 'You are a coding agent powered by the {{model}}
  */
 export const ORCHESTRATOR_SECTION = `Split a request into tasks and delegate each task with the subagent tool. When that tool lists category, set it; otherwise omit it.
 
+Before a follow-up delegation, call list_agents and continue a matching child with send_message when the new task has the same purpose and files, its recorded provider, model, and reasoning effort still match the purpose route, and the earlier work was short or mechanical. Set description to the purpose; list_agents keeps that label after compaction removes the tool result. Otherwise start a new child: long or exploratory work whose transcript would cost more than a fresh child's first request, the task must not see earlier context, category review (one call fans out one child per route), tasks that must run in parallel, started together, or no child matching the route. One child is one conversation and cannot run two tasks at once. It keeps the route, working directory, and history it started with. A follow-up reply arrives as a completion notice, not a synchronous answer. One todo item is one delegation, and a follow-up on that todo continues the child that delegation started.
+
 Inspect with read, glob, grep, and the shell. Run tests and git queries yourself. Edit a file yourself only to land a result a child already returned.
 
 Start claude, cursor, cursor-agent, and codex only inside a delegated child. Call the subagent tool, put the exact command in the child prompt, and tell the child to return the output. Wait for the completion notice. A shell error that tells you to delegate means call subagent; do not hide the same command in a script or an interpreter.
 
-One todo item is one delegation. create_goal continues this same session, so it does not replace a delegation.`
+create_goal continues this same session, so it does not replace a delegation.`
 
 /**
  * Fixed denial returned to the model. It does not echo the command.
