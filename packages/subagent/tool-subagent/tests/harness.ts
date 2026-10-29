@@ -1,3 +1,4 @@
+import { executeToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { mountWorkingDirectoryFixture } from '../../subagent/tests/working-directory-fixture.ts'
 import { afterEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -8,6 +9,7 @@ import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-test
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import * as mock from './scripted-provider.ts'
+import type { Config as toolConfig } from '../src/index.ts'
 import * as tool from '../src/index.ts'
 import SubagentModelSelectionConfig from '../src/model-selection-settings.ts'
 import type { PurposeGuidance, PurposeRouteTable } from '../src/purpose-routing.ts'
@@ -33,8 +35,10 @@ const setupProviders = new WeakMap<Context, Awaited<ReturnType<typeof mock.mount
 let setupAgentCounter = 0
 
 /** Test-only opt-in translated to the real Host setting and Session path. */
-type SetupConfig = tool.Config & {
+type SetupConfig = toolConfig & {
   withModelSelection?: boolean
+  /** Host setting sampled by a `withModelSelection` setup; defaults to enabled. */
+  hostSelectionEnabled?: boolean
   parentAgentOptions?: AgentOptions
   purposeRoutes?: PurposeRouteTable | null
   purposeGuidance?: PurposeGuidance | null
@@ -51,10 +55,11 @@ const TEST_ALLOWED_MODELS = [
 
 export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Config> = {}): Promise<Context> {
   const ctx = ownContext(new Context())
-  const { withModelSelection, parentAgentOptions, purposeRoutes, purposeGuidance, ...config } = toolConfig
+  const { withModelSelection, hostSelectionEnabled = true, parentAgentOptions, purposeRoutes, purposeGuidance, ...config } = toolConfig
+  await mountAgentLoopTestDependencies(ctx)
   if (withModelSelection === true || purposeRoutes !== undefined || purposeGuidance !== undefined) {
     await ctx.plugin(SubagentModelSelectionConfig, {
-      enabled: withModelSelection === true,
+      enabled: withModelSelection === true && hostSelectionEnabled,
       allowedModels: withModelSelection === true ? TEST_ALLOWED_MODELS : [],
       ...purposeRoutes !== undefined ? { purposeRoutes: purposeRoutes === null ? null : {
         light: purposeRoutes.light.map(route => ({ ...route })),
@@ -68,7 +73,6 @@ export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Co
     })
   }
   if (withModelSelection === true) {
-    await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(AgentLoop, { agents: [] })
     await mountWorkingDirectoryFixture(ctx)
     await ctx.plugin(SubagentRuntime)
@@ -77,9 +81,9 @@ export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Co
     const handle = await ctx.agents.create({
       sessionId: SessionId(`model-selection-setup-${++setupAgentCounter}`),
       ...parentAgentOptions !== undefined ? { agentOptions: parentAgentOptions } : {},
-      setup: async (agentCtx, agent) => {
+      setup: async (agentCtx) => {
         const fiber = agentCtx.inject(tool.inject, (runtimeCtx) => {
-          return tool.apply(runtimeCtx, { ...config, modelSelectionSettings: true }, agent.session)
+          return tool.apply(runtimeCtx, { ...config, modelSelection: true, modelDiscovery: true })
         })
         await fiber.await()
       },
@@ -87,14 +91,13 @@ export async function setup(toolConfig: SetupConfig, mockConfig: Partial<mock.Co
     setupAgents.set(ctx, handle.agent)
     return ctx
   }
-  await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(AgentLoop, { agents: [] })
   await mountWorkingDirectoryFixture(ctx)
   await ctx.plugin(SubagentRuntime)
   const provider = await mock.mountScriptedProvider(ctx, { name: 'mock', ...mockConfig })
   setupProviders.set(ctx, provider)
   await ctx.plugin(tool, config)
-  const handle = await ctx.agents.create({ sessionId: SessionId(`tool-setup-${++setupAgentCounter}`) })
+  const handle = await ctx.agents.create({ sessionId: SessionId(`tool-setup-${++setupAgentCounter}`), ...parentAgentOptions === undefined ? {} : { agentOptions: parentAgentOptions } })
   setupAgents.set(ctx, handle.agent)
   return ctx
 }
@@ -127,7 +130,7 @@ export async function callSubagent(
   // exactOptionalPropertyTypes the key is omitted rather than set to undefined.
   const agent = 'agent' in over ? over.agent : setupAgents.get(ctx)
     ?? (await ctx.agents.create({ sessionId: SessionId(`tool-call-parent-${++setupAgentCounter}`) })).agent
-  return ctx.tools.execute({
+  return executeToolFixture(ctx, {
     signal: testToolSignal,
     callId: ToolCallId(`call-${++callCounter}`),
     name: 'subagent',

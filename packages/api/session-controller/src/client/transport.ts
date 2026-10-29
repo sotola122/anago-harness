@@ -198,6 +198,7 @@ export class SessionEventStream extends RemoteJournalStream<
     let assistantRevision: number | undefined
     for await (const frame of this.remote.session.follow({
       address: this.address,
+      activate: true,
       assistantStream: true,
       // Opening a conversation is viewing, not writing: the follow never
       // activates an Agent, so it cannot take the Session's writer lease.

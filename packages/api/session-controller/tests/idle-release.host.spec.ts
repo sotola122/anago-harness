@@ -48,6 +48,7 @@ function stubAgent(ctx: Context, session: Session): StubAgent {
     ctx,
     send: () => {},
     followup: () => {},
+    model: { current: () => undefined, select: () => {} },
     steer: () => ({ outcome: Promise.resolve({ status: 'rejected' as const }) }),
     inject: () => {},
     cancel() {},
@@ -59,7 +60,7 @@ function stubAgent(ctx: Context, session: Session): StubAgent {
 
 interface Fixture {
   readonly ctx: Context
-  readonly remote: ReturnType<typeof createSessionTestRemote>
+  readonly remote: Awaited<ReturnType<typeof createSessionTestRemote>>
   readonly dispose: ReturnType<typeof vi.fn>
   readonly agent: StubAgent
   readonly sessionId: SessionId
@@ -104,7 +105,7 @@ async function composed(overrides: Partial<TestSessionRemoteDefaults> & { failFi
     resume: () => Promise.reject(new Error('resume must not run in this fixture')),
   })
 
-  const remote = createSessionTestRemote(ctx, {
+  const remote = await createSessionTestRemote(ctx, {
     defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
     cwd: '/tmp',
     releaseOnIdle: true,
