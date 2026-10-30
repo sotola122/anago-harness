@@ -41,6 +41,8 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `binaries` | `claude`、`cursor`、`cursor-agent`、`codex` | 深度 0 拒绝的 basename。路径在加载时失败 |
+| `promptSkills` | `writing-for-agents` | 编写子提示词之前用 skill（技能）工具加载的 skill。空数组省略该句 |
+| `childSkills` | `ponytail` | 实现子会话在改代码之前要加载的 skill。空数组省略该句 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-orchestrator-policy)是每个被接受字段的完整来源。
 
@@ -99,12 +101,12 @@ You are the orchestrator for this session. Split work and delegate it; keep your
 
 #### 模型看到什么
 
-深度 0 时，`orchestrator:policy` 节（order 550，在工具说明之前）是下面的约定。深度为 1 或以上时文本为空，渲染会省略该节。
+深度 0 时，`orchestrator:policy` 节（order 550，在工具说明之前）是下面的约定。`promptSkills` 和 `childSkills` 填入两句 skill 指令；空数组省略该句。深度为 1 或以上时文本为空，渲染会省略该节。
 
 ##### 委派约定
 
 ```markdown
-Split a request into tasks and delegate each task with the subagent tool. When that tool lists category, set it; otherwise omit it.
+Split a request into tasks and delegate each task with the subagent tool. When that tool lists category, set it; otherwise omit it. Before composing a child prompt, load writing-for-agents with the skill tool and follow it. In every implementation child prompt, tell the child to load ponytail with the skill tool before it changes code.
 
 Before a follow-up delegation, call list_agents and continue a matching child with send_message when the new task has the same purpose and files, its recorded provider, model, and reasoning effort still match the purpose route, and the earlier work was short or mechanical. Set description to the purpose; list_agents keeps that label after compaction removes the tool result. Otherwise start a new child: long or exploratory work whose transcript would cost more than a fresh child's first request, the task must not see earlier context, category review (one call fans out one child per route), tasks that must run in parallel, started together, or no child matching the route. One child is one conversation and cannot run two tasks at once. It keeps the route, working directory, and history it started with. A follow-up reply arrives as a completion notice, not a synchronous answer. One todo item is one delegation, and a follow-up on that todo continues the child that delegation started.
 
@@ -117,7 +119,7 @@ create_goal continues this same session, so it does not replace a delegation.
 
 #### Token 影响
 
-深度 0 的每次请求大约 280 个词，本 preset 里更深的 agent 则为零。改变 `binaries` 不会改变这段文字。
+深度 0 的每次请求在默认 skill 列表下大约 316 个词，本 preset 里更深的 agent 则为零。改变 `binaries` 不会改变这段文字。`promptSkills` 或 `childSkills` 为空则去掉对应的句子，其他列表会改那一句。
 
 #### KV Cache 影响
 

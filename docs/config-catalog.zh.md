@@ -2790,10 +2790,10 @@ export interface Config {
 ## `@deepseek-ai/dsh-orchestrator-policy`
 
 - `inject`: `systemPrompt` · `tools`
-- `source`: [`packages/preset/orchestrator-policy/src/index.ts:60`](../packages/preset/orchestrator-policy/src/index.ts)
+- `source`: [`packages/preset/orchestrator-policy/src/index.ts:64`](../packages/preset/orchestrator-policy/src/index.ts)
 
 ```ts config-catalog
-/** Plugin config: basename denylist for direct shell starts. */
+/** Plugin config: basename denylist and skill names in the depth-0 section. */
 export interface Config {
   /**
    * Command basenames denied at depth 0. Path prefixes are ignored. Empty
@@ -2801,6 +2801,20 @@ export interface Config {
    * can never match a basename. Omitted config receives the initial four names.
    */
   binaries: string[]
+  /**
+   * Skills the depth-0 orchestrator loads with the `skill` tool before it
+   * composes a child prompt. Omitted config receives `writing-for-agents`.
+   * An empty array omits that sentence. An empty or whitespace-only name
+   * fails at load.
+   */
+  promptSkills: string[]
+  /**
+   * Skills named in every implementation child prompt. The orchestrator tells
+   * the child to load each with the `skill` tool before the child changes
+   * code. Omitted config receives `ponytail`. An empty array omits that
+   * sentence. An empty or whitespace-only name fails at load.
+   */
+  childSkills: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-orchestrator-policy -->
