@@ -4604,7 +4604,7 @@ export interface Config {
 
 - `inject`: `tools` · `subagents` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.zh.md)
-- `source`: [`packages/subagent/tool-subagent/src/index.ts:106`](../packages/subagent/tool-subagent/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent/src/index.ts:108`](../packages/subagent/tool-subagent/src/index.ts)
 
 ```ts config-catalog
 /** Config: which registered provider this tool delegates to, plus child defaults. */
@@ -4642,6 +4642,14 @@ export interface Config extends PresetSelectionConfig {
    * (`maxTokens` may combine). Requires the settings service and a non-null table.
    */
   purposeRouting?: boolean
+  /**
+   * Skills prepended to the child prompt when purpose routing resolves that
+   * category. Each key must be `light`, `medium`, `deep`, `review`, or
+   * `writing`. `default` is not a key. Each name must contain a non-whitespace
+   * character. An unknown key or a blank name fails at load. Omission is an
+   * empty mapping and leaves the prompt unchanged.
+   */
+  categorySkills?: { [category: string]: string[] }
   /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */

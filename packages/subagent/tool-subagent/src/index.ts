@@ -36,12 +36,14 @@ import {
   CATEGORY_EXCLUSIVITY_SUFFIX,
   composeCategoryDescription,
   isFanOutSlot,
+  isPurposeCategory,
   PURPOSE_CATEGORIES,
   PURPOSE_TOOL_SENTENCE,
   purposeUnavailableError,
   splittingAddition,
 } from './purpose-routing.ts'
 import type { PurposeGuidance, PurposeRouteSlot, PurposeRouteTable } from './purpose-routing.ts'
+import { assertCategorySkills, promptWithCategorySkills } from './category-skills.ts'
 import { registerListSubagentCategories } from './list-categories.ts'
 import { registerListSubagentModels } from './list-models.ts'
 import { SubagentPresetSelection, type PresetSelectionConfig, type PresetSelectionRequest } from './preset-selection.ts'
@@ -138,6 +140,14 @@ export interface Config extends PresetSelectionConfig {
    */
   purposeRouting?: boolean
   /**
+   * Skills prepended to the child prompt when purpose routing resolves that
+   * category. Each key must be `light`, `medium`, `deep`, `review`, or
+   * `writing`. `default` is not a key. Each name must contain a non-whitespace
+   * character. An unknown key or a blank name fails at load. Omission is an
+   * empty mapping and leaves the prompt unchanged.
+   */
+  categorySkills?: { [category: string]: string[] }
+  /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */
   agentOptions?: AgentOptions
@@ -161,6 +171,7 @@ export const Config: z<Config> = z.object({
   modelDiscovery: z.boolean().default(false),
   providerOwnedRoute: z.boolean().default(false),
   purposeRouting: z.boolean().default(false),
+  categorySkills: z.dict(z.array(z.string())).default({}),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
   agentOptions: z.object({
     provider: z.string(),
@@ -500,6 +511,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     }
   }
   const purposeRouting = config.purposeRouting === true
+  const categorySkills = assertCategorySkills(config.categorySkills)
   if (purposeRouting) {
     if (config.providerOwnedRoute === true) {
       throw new Error('tool-subagent: purposeRouting cannot be combined with providerOwnedRoute')
@@ -728,6 +740,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             providerRouteDefaults,
             modelSelectionEnabled,
           })
+          const slot = resolution.source.kind === 'purpose' ? resolution.source.slot : undefined
           const maxDepth = ctx.subagents.resolveMaxDepth(config.maxDepth)
           return startResolvedChildren({
             runtimeCtx: ctx,
@@ -742,7 +755,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             policy: modelSelectionPolicy,
             modelRequest,
             label: args.description,
-            prompt: [{ type: 'text', text: args.prompt }],
+            prompt: [{
+              type: 'text',
+              text: promptWithCategorySkills(
+                args.prompt,
+                slot !== undefined && isPurposeCategory(slot) ? slot : undefined,
+                categorySkills,
+              ),
+            }],
             ...args.cwd === undefined ? {} : { cwd: args.cwd },
             ...agentPreset === undefined ? {} : { agentPreset },
             ...maxDepth !== undefined ? { maxDepth } : {},
