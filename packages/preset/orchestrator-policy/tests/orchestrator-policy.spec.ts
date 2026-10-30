@@ -12,6 +12,7 @@ import { commandInvokesBinary } from '../src/command.ts'
 import * as Policy from '@deepseek-ai/dsh-orchestrator-policy'
 import {
   DENIAL_MESSAGE, ORCHESTRATOR_PERSONA, ORCHESTRATOR_POLICY_SECTION, ORCHESTRATOR_SECTION, STANDARD_PERSONA,
+  orchestratorSection,
 } from '@deepseek-ai/dsh-orchestrator-policy'
 
 const signal = new AbortController().signal
@@ -31,6 +32,15 @@ function shell(name: string, calls: { n: number }): ToolDefinition {
       calls.n += 1
       return Promise.resolve('ran')
     },
+  }
+}
+
+function policyConfig(overrides: Partial<Policy.Config> = {}): Policy.Config {
+  return {
+    binaries: ['claude', 'cursor', 'cursor-agent', 'codex'],
+    promptSkills: ['writing-for-agents'],
+    childSkills: ['ponytail'],
+    ...overrides,
   }
 }
 
@@ -80,7 +90,7 @@ async function sectionText(ctx: Context, agent: Agent | undefined, scope: ScopeK
 }
 
 describe('orchestrator policy', () => {
-  it('rejects an unscoped mount and a path in binaries', async () => {
+  it('rejects an unscoped mount, a path in binaries, and a blank skill name', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt, {})
     await ctx.plugin(ToolRuntime)
@@ -90,10 +100,55 @@ describe('orchestrator policy', () => {
     await ctx.plugin(Object.assign((inner: Context) => {
       scope = createScope(inner, key)
     }, { inject: ['systemPrompt', 'tools'] }))
-    await expect(scope.ctx.plugin(Policy, { binaries: ['/usr/bin/claude'] })).rejects.toThrow(/basenames/)
-    await expect(scope.ctx.plugin(Policy, { binaries: ['a\\b'] })).rejects.toThrow(/basenames/)
-    await expect(scope.ctx.plugin(Policy, { binaries: [''] })).rejects.toThrow(/basenames/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ binaries: ['/usr/bin/claude'] }))).rejects.toThrow(/basenames/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ binaries: ['a\\b'] }))).rejects.toThrow(/basenames/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ binaries: [''] }))).rejects.toThrow(/basenames/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ promptSkills: [''] }))).rejects.toThrow(/promptSkills/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ promptSkills: ['  \t'] }))).rejects.toThrow(/promptSkills/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ childSkills: [''] }))).rejects.toThrow(/childSkills/)
+    await expect(scope.ctx.plugin(Policy, policyConfig({ childSkills: [' \n'] }))).rejects.toThrow(/childSkills/)
     expect(Policy.resolveConfig({}).binaries).toEqual(['claude', 'cursor', 'cursor-agent', 'codex'])
+    expect(Policy.resolveConfig({}).promptSkills).toEqual(['writing-for-agents'])
+    expect(Policy.resolveConfig({}).childSkills).toEqual(['ponytail'])
+  })
+
+  it('names configured skills in the delegation paragraph and omits an empty list', async () => {
+    const defaults = await mounted()
+    const defaultParent = agentAt(0)
+    bindScopeParent(defaultParent, defaults.key)
+    const defaultText = await sectionText(defaults.ctx, defaultParent, defaults.key)
+    expect(defaultText).toBe(ORCHESTRATOR_SECTION)
+    expect(defaultText).toContain('Before composing a child prompt, load writing-for-agents with the skill tool and follow it.')
+    expect(defaultText).toContain('In every implementation child prompt, tell the child to load ponytail with the skill tool before it changes code.')
+
+    const overridden = await mounted(policyConfig({ promptSkills: ['alpha', 'beta'], childSkills: ['gamma'] }))
+    const overrideParent = agentAt(0)
+    bindScopeParent(overrideParent, overridden.key)
+    const overrideText = await sectionText(overridden.ctx, overrideParent, overridden.key)
+    expect(overrideText).toBe(orchestratorSection({ promptSkills: ['alpha', 'beta'], childSkills: ['gamma'] }))
+    expect(overrideText).toContain('Before composing a child prompt, load alpha and beta with the skill tool and follow each.')
+    expect(overrideText).toContain('In every implementation child prompt, tell the child to load gamma with the skill tool before it changes code.')
+    expect(overrideText).not.toContain('writing-for-agents')
+    expect(overrideText).not.toContain('ponytail')
+
+    const emptied = await mounted(policyConfig({ promptSkills: [], childSkills: [] }))
+    const emptyParent = agentAt(0)
+    bindScopeParent(emptyParent, emptied.key)
+    const emptyText = await sectionText(emptied.ctx, emptyParent, emptied.key)
+    expect(emptyText).toBe(orchestratorSection({ promptSkills: [], childSkills: [] }))
+    expect(emptyText).not.toContain('Before composing a child prompt')
+    expect(emptyText).not.toContain('implementation child prompt')
+    expect(emptyText).not.toContain('skill tool')
+    expect(emptyText).toContain('Split a request into tasks and delegate each task with the subagent tool.')
+    expect(emptyText).toContain('create_goal continues this same session, so it does not replace a delegation.')
+
+    const promptOnly = await mounted(policyConfig({ childSkills: [] }))
+    const promptParent = agentAt(0)
+    bindScopeParent(promptParent, promptOnly.key)
+    const promptOnlyText = await sectionText(promptOnly.ctx, promptParent, promptOnly.key)
+    expect(promptOnlyText).toContain('load writing-for-agents with the skill tool and follow it.')
+    expect(promptOnlyText).not.toContain('implementation child prompt')
+    expect(promptOnlyText).not.toMatch(/load\s+with the skill tool/)
   })
 
   it('shows the contract and persona only at depth 0, and drops both on disposal', async () => {
@@ -150,7 +205,7 @@ describe('orchestrator policy', () => {
   })
 
   it('uses a configured denylist and ignores a non-string command', async () => {
-    const { ctx, key, calls } = await mounted({ binaries: ['mycli'] })
+    const { ctx, key, calls } = await mounted(policyConfig({ binaries: ['mycli'] }))
     const parent = agentAt(0)
     bindScopeParent(parent, key)
     expect(await run(ctx, 'bash', 'claude', parent)).toBe('ran')

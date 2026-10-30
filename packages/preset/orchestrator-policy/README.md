@@ -41,6 +41,8 @@ Choose it for the Web `orchestrator` preset, whose parent should delegate implem
 | Field | Default | Meaning |
 |---|---|---|
 | `binaries` | `claude`, `cursor`, `cursor-agent`, `codex` | Basenames denied at depth 0. A path fails at load |
+| `promptSkills` | `writing-for-agents` | Skills loaded with the skill tool before a child prompt is composed. Empty omits that sentence |
+| `childSkills` | `ponytail` | Skills an implementation child loads before it changes code. Empty omits that sentence |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-orchestrator-policy) is the exhaustive source for every accepted field.
 
@@ -99,12 +101,12 @@ Prefix-stable while the depth and the sentence stay the same. A depth change rep
 
 #### What the model sees
 
-At depth 0, section `orchestrator:policy` (order 550, before tool guidance) is the contract below. At depth 1 or above the text is empty and render omits the section.
+At depth 0, section `orchestrator:policy` (order 550, before tool guidance) is the contract below. `promptSkills` and `childSkills` fill the two skill sentences; an empty list omits that sentence. At depth 1 or above the text is empty and render omits the section.
 
 ##### Delegation contract
 
 ```markdown
-Split a request into tasks and delegate each task with the subagent tool. When that tool lists category, set it; otherwise omit it.
+Split a request into tasks and delegate each task with the subagent tool. When that tool lists category, set it; otherwise omit it. Before composing a child prompt, load writing-for-agents with the skill tool and follow it. In every implementation child prompt, tell the child to load ponytail with the skill tool before it changes code.
 
 Before a follow-up delegation, call list_agents and continue a matching child with send_message when the new task has the same purpose and files, its recorded provider, model, and reasoning effort still match the purpose route, and the earlier work was short or mechanical. Set description to the purpose; list_agents keeps that label after compaction removes the tool result. Otherwise start a new child: long or exploratory work whose transcript would cost more than a fresh child's first request, the task must not see earlier context, category review (one call fans out one child per route), tasks that must run in parallel, started together, or no child matching the route. One child is one conversation and cannot run two tasks at once. It keeps the route, working directory, and history it started with. A follow-up reply arrives as a completion notice, not a synchronous answer. One todo item is one delegation, and a follow-up on that todo continues the child that delegation started.
 
@@ -117,7 +119,7 @@ create_goal continues this same session, so it does not replace a delegation.
 
 #### Token effect
 
-About 280 words on every depth-0 request, and none for a deeper agent in this preset. Changing `binaries` does not change this text.
+About 316 words on every depth-0 request with the default skill lists, and none for a deeper agent in this preset. Changing `binaries` does not change this text. An empty `promptSkills` or `childSkills` drops that sentence, and any other list changes it.
 
 #### KV Cache effect
 
