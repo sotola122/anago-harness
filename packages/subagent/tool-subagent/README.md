@@ -50,6 +50,7 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 | `modelDiscovery` | `false` | Register `list_subagent_models`; enable on one instance per tool scope |
 | `providerOwnedRoute` | `false` | Fork extension: the provider interprets `provider` / `model` / `reasoning_effort` in its own namespace; the tool exposes the three optional, independent fields, skips the Host model-selection policy and the DSH LLM-catalog preflight, and forwards them as `agentOptions` |
 | `purposeRouting` | `false` | When true, a call may pass `category` and the runtime resolves the child route from the live purpose table on that call. Requires the settings service, a non-null table, and provider `agentOptions` support. Cannot combine with `providerOwnedRoute` or with `agentOptions` `provider`, `model`, or `reasoningEffort`; `maxTokens` may combine |
+| `categorySkills` | `{}` | Purpose-category skill names prepended as one sentence when purpose routing resolves that category. Keys must be `light`, `medium`, `deep`, `review`, or `writing`; `default` is not a key. A blank name fails at load. Omission is `{}` and leaves the prompt unchanged |
 | `agentOptions` | — | Configured child `provider`, `model`, adapter-owned `reasoningEffort`, and positive `maxTokens` defaults; requires provider `agentOptions` support and overlays any provider-owned route defaults |
 | `agentPreset` | — | Default independent child preset id; requires in-process spawn |
 | `allowedAgentPresets` | — | Non-empty preset-id allowlist exposed as the model's optional `agent_preset` enum; must include `agentPreset` when both are set |
@@ -83,6 +84,8 @@ A call supplies `provider` and `model` together, or supplies only an effort when
 Set `purposeRouting: true` to let a call pass `category` instead of naming a provider and model. `light` is for quick lookups, small mechanical edits, and short summaries. `medium` is for ordinary implementation or investigation. `deep` is for hard debugging, design, or long multi-step reasoning. `review` starts one child per route on that row, in table order, and returns `subagentIds` plus `notStarted`. `writing` is for documentation, PR or issue text, translation, and user-facing prose. Omit `category` to use the table's `default` slot. Other categories start exactly one child.
 
 The settings row stores `purposeRoutes`, a volatile table that defaults to `null`. `light`, `medium`, `deep`, `writing`, and `default` each hold one route with a required `reasoningEffort`. `review` holds one or more. A missing slot fails schema validation. An empty list, a second route on a non-review slot, or a duplicate provider/model/effort triple fails when the table is read. The runtime reads the table on each delegation, so an edit applies to the next call and not to an in-flight call. An explicit `provider` / `model` / `reasoning_effort` selection, including an effort-only selection that uses the `default` row's provider and model, still checks the Session `allowedModels` list. A category route skips that list and still runs adapter preflight. The model-facing error for a failed category route omits provider and model names; the `subagent/purpose-route` event keeps the cause. The category enum is static, so a table edit does not change the prompt prefix. The tool text asks the parent to re-delegate a failed task once with the same `category`; the runtime does not enforce that count.
+
+`categorySkills` maps a purpose category to skill names. Resolving a category that has names prepends one sentence to the child prompt; the parent prompt then follows unchanged. Omitting `category`, a category with no names, and a tool without purpose routing leave that prompt unchanged. An unknown key, including `default`, or a blank name fails at load.
 
 The same settings row stores `purposeGuidance`, a volatile value that defaults to `null`. Null keeps the pinned `category` description byte for byte. A non-null value requires `light`, `medium`, `deep`, `review`, `writing`, and `omit`, each a non-empty sentence of at most 200 characters, and `splitting`, which may be empty and is at most 400 characters. A missing or over-long sentence fails when the value is loaded or read. Composition fails, and names the slot, when a sentence contains a provider or model identifier from the current table; it does not fall back to the built-in text. The failed text is not written into the schema. `list_subagent_categories` returns the same purpose clauses and replaces a failed read with the missing-table error so the identifier stays out of the model result.
 
@@ -122,6 +125,7 @@ The tool's description derives from `provider.inheritsParentContext`: a fresh ch
 | [`src/preset-selection.ts`](src/preset-selection.ts) | Preset defaults, model allowlist, and selection guidance |
 | [`src/model-selection.ts`](src/model-selection.ts) | Request/config merge, purpose-route resolution, and live LLM route preflight |
 | [`src/purpose-routing.ts`](src/purpose-routing.ts) | Purpose labels, route-table checks, and the `subagent/purpose-route` event |
+| [`src/category-skills.ts`](src/category-skills.ts) | Category skill-name checks and the child-prompt sentence |
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | Host-owned opt-in setting sampled for new Sessions |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | Session event that records and inherits the sampled decision |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` runtime discovery tool |
@@ -194,6 +198,28 @@ One fixed schema is added for each `purposeRouting` session. The table is not pa
 #### KV Cache effect
 
 The schema prefix stays stable while `purposeRouting` is unchanged and `purposeGuidance` is null. Editing the table does not invalidate it. Editing guidance changes the `category` description and therefore the prefix. Each call appends its result after the reusable prefix.
+
+### Category skill directive
+
+#### What the model sees
+
+A purpose-routed call whose category has `categorySkills` names starts the child task with one sentence, then the parent prompt unchanged. One name reads:
+
+##### Category skill directive
+
+```markdown
+Before you write, load the <names> skill with the skill tool and follow it.
+```
+
+More than one name uses `skills` and `them`. Names join with commas and a final `and`, as in `alpha, beta, and gamma`. The parent schema does not include this sentence. Omitting `category`, disabling purpose routing, or resolving a category with no names leaves the prompt unchanged. The child session records the task. The parent `subagent/purpose-route` event is unchanged.
+
+#### Token effect
+
+No parent-prefix cost. The sentence is added only to that child's task.
+
+#### KV Cache effect
+
+The parent prefix is unchanged. The sentence is part of the child request, not the reusable parent prefix.
 
 ### System prompt
 
@@ -276,6 +302,7 @@ These limits define what this tool does not return or enforce; they are current 
 - **Shipped fork tools omit model selection** — their configuration leaves `modelSelection` disabled to preserve inherited-prefix reuse. Custom fork tools may enable it under the same Session authorization and adapter validation as other delegation tools.
 - **Depth caps are fixed per instance** — another cap requires another distinctly named tool. Child personas and tools belong to the selected Agent Preset. Explicit LLM selection requires `modelSelection` and is restricted to the Session’s authorized routes, or the current parent route without an enabled policy.
 - **The same-category retry is not enforced** — the tool text tells the parent to re-delegate a failed task once with the same `category`, or to omit it again when the failed call omitted it. The runtime cannot tell that a later call is the same task.
+- **Skill names are not resolved at load** — `categorySkills` checks the key and that the name is non-blank. A missing skill fails when the child calls the skill tool, not when this tool loads.
 - **A null purpose table does not hide labels** — `list_subagent_categories` still returns the five labels and reports the default row as unresolved. A later `category` delegation fails with the missing-table error. The discovery call does not stop that delegation.
 
 <a id="dev-note"></a>

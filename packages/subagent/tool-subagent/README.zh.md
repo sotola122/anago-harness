@@ -50,6 +50,7 @@ kind: "package-reference"
 | `modelDiscovery` | `false` | 注册 `list_subagent_models`；每个工具作用域仅在一个实例上启用 |
 | `providerOwnedRoute` | `false` | 本 fork 扩展：由提供方按自己的命名空间解释 `provider` / `model` / `reasoning_effort`；工具公开三个相互独立的可选字段，跳过宿主模型选择策略与 DSH LLM 目录预检，并以 `agentOptions` 转发 |
 | `purposeRouting` | `false` | 为 true 时，调用可传入 `category`，运行时在该次调用从实时用途表解析子级路由。要求设置服务、非 null 的表，以及提供方支持 `agentOptions`。不能与 `providerOwnedRoute` 或 `agentOptions` 的 `provider`、`model`、`reasoningEffort` 同时配置；`maxTokens` 可以同时配置 |
+| `categorySkills` | `{}` | 用途类别到技能名的映射。用途路由解析到有名称的类别时，在子提示词前加一句，随后是未改动的父级提示词。键必须是 `light`、`medium`、`deep`、`review` 或 `writing`；`default` 不是键。空白名称在加载时失败。省略时为 `{}`，提示词不变 |
 | `agentOptions` | — | 配置的子级 `provider`、`model`、适配器所有的 `reasoningEffort` 与正整数 `maxTokens` 默认值；要求提供方支持 `agentOptions`，并会覆盖提供方持有的路由默认值 |
 | `agentPreset` | — | 独立子级 preset 的默认 id；要求进程内 spawn |
 | `allowedAgentPresets` | — | 非空 preset-id 白名单，作为模型可选的 `agent_preset` 枚举；与 `agentPreset` 同时配置时必须包含后者 |
@@ -83,6 +84,8 @@ kind: "package-reference"
 设置 `purposeRouting: true` 后，调用可传入 `category`，而不必写出提供方和模型。`light` 用于快速查找、小的机械性修改和短摘要。`medium` 用于普通实现或调查。`deep` 用于困难调试、设计或长的多步推理。`review` 按表中顺序为该行的每条路由启动一个子级，并返回 `subagentIds` 与 `notStarted`。`writing` 用于文档、PR 或 issue 文本、翻译和面向用户的文字。省略 `category` 时使用表中的 `default` 行。其他类别恰好启动一个子级。
 
 设置行保存 `purposeRoutes`，这是一张默认为 `null` 的易变表。`light`、`medium`、`deep`、`writing` 和 `default` 各保存一条路由，且必须带 `reasoningEffort`。`review` 保存一条或多条。缺少某一行时 schema 校验失败。空列表、非 review 行上的第二条路由，或重复的提供方／模型／推理强度三元组，会在读取表时失败。运行时在每次委派时读取该表，因此编辑只影响下一次调用，不影响进行中的调用。显式的 `provider` / `model` / `reasoning_effort` 选择，包括只指定推理强度、并使用 `default` 行的提供方和模型的选择，仍检查 Session 的 `allowedModels` 列表。类别路由跳过该列表，但仍执行适配器预检。类别路由失败时，面向模型的错误不包含提供方和模型名称；`subagent/purpose-route` 事件保留原因。类别枚举是静态的，因此编辑表不会改变提示词前缀。工具文本要求父级在任务失败后用同一个 `category` 再委派一次；运行时不强制该次数。
+
+`categorySkills` 把用途类别映射到技能名。解析到有名称的类别时，在子提示词前加一句，随后是未改动的父级提示词。省略 `category`、该类别没有名称，以及未启用用途路由的工具，都保持该提示词不变。未知键（包括 `default`）或空白名称在加载时失败。
 
 同一设置行还保存 `purposeGuidance`，这是一个默认为 `null` 的易变值。`null` 使 `category` 说明与固定文本逐字节一致。非 null 值必须包含 `light`、`medium`、`deep`、`review`、`writing` 和 `omit`，每句非空且不超过 200 个字符，以及可以留空、不超过 400 个字符的 `splitting`。缺少句子或超长时，加载或读取即失败。组装时若某句包含当前表中的提供方或模型标识符，组装失败并指出槽位，不会退回内置文本。失败的句子不会写入 schema。`list_subagent_categories` 返回相同的用途句；读取失败时改返回缺少表的错误，使标识符不进入模型结果。
 
@@ -122,6 +125,7 @@ kind: "package-reference"
 | [`src/preset-selection.ts`](src/preset-selection.ts) | preset 默认值、模型白名单与选择引导 |
 | [`src/model-selection.ts`](src/model-selection.ts) | 请求／配置合并、用途路由解析与实时 LLM 路由预检 |
 | [`src/purpose-routing.ts`](src/purpose-routing.ts) | 用途标签、路由表检查，以及 `subagent/purpose-route` 事件 |
+| [`src/category-skills.ts`](src/category-skills.ts) | 类别技能名检查与子提示词句子 |
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | 为新 Session 读取的宿主所有 opt-in 设置 |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | 记录并继承已读取决定的 Session 事件 |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` 运行时发现工具 |
@@ -194,6 +198,28 @@ List subagent category labels, the job each label is for, and whether omitting c
 #### KV Cache 影响
 
 只要 `purposeRouting` 不变且 `purposeGuidance` 为 null，schema 前缀就保持稳定。编辑表不会使它失效。编辑用途句子会改变 `category` 说明，因此也会改变前缀。每次调用都把结果追加在可复用前缀之后。
+
+### 类别技能指令
+
+#### 模型看到什么
+
+用途路由解析到带有 `categorySkills` 名称的类别时，子任务以一句开头，随后是未改动的父级提示词。一个名称时为：
+
+##### 类别技能指令
+
+```markdown
+Before you write, load the <names> skill with the skill tool and follow it.
+```
+
+多于一个名称时使用 `skills` 与 `them`。名称用逗号连接，末项前加 `and`，例如 `alpha, beta, and gamma`。父级 schema 不包含这句。省略 `category`、关闭用途路由，或解析到没有名称的类别时，提示词保持不变。子 Session 记录该任务。父级的 `subagent/purpose-route` 事件不变。
+
+#### Token 影响
+
+不增加父级前缀成本。该句只加到这个子任务上。
+
+#### KV Cache 影响
+
+父级前缀不变。该句属于子请求，不属于可复用的父级前缀。
 
 ### 系统提示词
 
@@ -276,6 +302,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 - **随附 fork 工具省略模型选择**：其配置保持 `modelSelection` 关闭，以保留对继承前缀的复用。自定义 fork 工具可以启用它，并接受与其他委派工具相同的 Session 授权和适配器校验。
 - **深度上限按实例固定** — 更换上限需要另一个不同名称的工具。子级角色和工具由所选 Agent Preset 配置。显式 LLM 选择需要 `modelSelection`，并受 Session 授权路由限制，没有启用策略时只允许当前父级路由。
 - **同类别重试不受强制**——工具文本要求父级在任务失败后用同一个 `category` 再委派一次；失败调用省略了 `category` 时，再次省略它。运行时无法判断后来的调用是否是同一任务。
+- **加载时不解析技能名**——`categorySkills` 只检查键，以及名称非空白。技能不存在时，失败发生在子级调用 skill 工具时，而不是本工具加载时。
 - **空的用途表不隐藏标签**——`list_subagent_categories` 仍返回五个标签，并报告 `default` 行未解析。随后带 `category` 的委派会以缺少表的错误失败。发现调用不会阻止该委派。
 
 <a id="dev-note"></a>

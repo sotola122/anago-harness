@@ -1,5 +1,6 @@
 # Agent preset orchestrator: one `@deepseek-ai/dsh-agent-preset` declaration
-# inserted after the web patch. Same tool rows as `standard`. The policy row
+# inserted after the web patch. Tool rows match `standard`, except `tool-subagent`
+# sets `purposeRouting` and `categorySkills`. The policy row
 # owns the depth-dependent persona; a static persona row cannot branch on
 # delegation depth. Spawn children use `agentPreset: standard`. Edits saved
 # from the Web editor override this row's `config.plugins` by id from the
@@ -97,6 +98,10 @@
                   agentPreset: standard
                   modelSelection: true
                   modelDiscovery: true
+                  purposeRouting: true
+                  categorySkills:
+                    writing:
+                      - yomiyasu
               - id: tool-subagent-fork
                 name: '@deepseek-ai/dsh-tool-subagent'
                 config:
