@@ -38,8 +38,8 @@ dsh plugin --profile <profile> add link:/absolute/path/to/packages/fork/openai-c
 在 Session 中登录：
 
 1. 运行 `/codex-login`。
-2. 在浏览器中打开打印的授权 URL。
-3. 在浏览器中完成登录。端口 1455 上的本地回调会自动完成登录。若端口 1455 已被占用或当前会话处于远程或无头环境，请从浏览器复制授权码或重定向 URL 并运行 `/codex-code <value>`。
+2. 在浏览器中打开打印的授权 URL。如果该浏览器在另一台机器上，先在该机器上运行打印出的 SSH 转发（`ssh -N -L 1455:127.0.0.1:1455 <user>@<host>`）。回调监听的是 harness 主机的 `127.0.0.1:1455`。尝试处于登录中时，`/codex-status` 会再次打印转发提示和该命令。
+3. 在浏览器中完成登录。端口 1455 上的本地回调会自动完成登录。若端口 1455 已被 Codex CLI 占用，请从浏览器复制授权码或重定向 URL 并运行 `/codex-code <value>`。
 
 然后在 Models 设置页添加模型路由：创建 id 恰好为 `openai-codex` 的提供方，API key 留空，并在撰写器的模型选择器中选择 OpenAI Codex 模型。该路由读取已提交的 `llm-pi-ai/openai-codex` 记录，pi-ai 会在令牌临近过期时刷新 OAuth 令牌。
 
@@ -52,7 +52,7 @@ dsh plugin --profile <profile> add link:/absolute/path/to/packages/fork/openai-c
 
 插件注入 `authorization`、`commands` 和 `credentials`。唯一的授权调用是对 `credentialKey('llm-pi-ai', 'openai-codex')` 键执行 `ctx.authorization.begin({ key, method: 'oauth', interaction, signal })`；它从不注册流程，因此同时加载 pi-ai 适配器的配置对该键恰好只有一个流程。
 
-pi-ai `openai-codex` 流程首先提出登录方式选择问题，提供 `browser` 和 `device_code`。本插件始终回答 `browser`；设备码登录特意不予使用。浏览器流程在 `http://127.0.0.1:1455/auth/callback` 上启动本地 OAuth 回调服务器，通知授权 URL，并让本地回调与粘贴提示竞速。由于命令无法流式传输且无法在稍后回答提示，`/codex-login` 在收到授权 URL 通知时立即结束。流程在插件中以 `AbortController` 继续，`/codex-cancel`、`/codex-logout` 和插件释放会连同 `ctx.authorization.cancel(key)` 一起中止它。
+pi-ai `openai-codex` 流程首先提出登录方式选择问题，提供 `browser` 和 `device_code`。本插件始终回答 `browser`；设备码登录特意不予使用。浏览器流程在 `http://127.0.0.1:1455/auth/callback` 上启动本地 OAuth 回调服务器，通知授权 URL，并让本地回调与粘贴提示竞速。由于命令无法流式传输且无法在稍后回答提示，`/codex-login` 在收到授权 URL 通知时立即结束。其成功文本把该 URL 放在第一行，然后说明在本机浏览器完成登录或先转发回调端口，把 `ssh -N -L 1455:127.0.0.1:1455 <user>@<host>` 单独成行，并以端口 1455 已被 Codex CLI 占用时的 `/codex-code` 行结束。`<user>` 取自 `userInfo().username`；该调用抛出时依次用 `USER`、`LOGNAME`、`user`。尝试处于登录中时，`/codex-status` 只再次打印转发提示和该命令。流程在插件中以 `AbortController` 继续，`/codex-cancel`、`/codex-logout` 和插件释放会连同 `ctx.authorization.cancel(key)` 一起中止它。
 
 `/codex-code` 以去空格的输入回答单个挂起的粘贴提示，且不回显该值。如果浏览器回调赢得竞速，粘贴提示会以普通错误拒绝而非 `AuthorizationDeclinedError`，避免未处理的拒绝或记录人类拒绝。`/codex-status` 读取 `ctx.credentials.describeRecord(key)`、尝试阶段（`signing-in`、`authorized`、`cancelled` 或 `failed`）、等待中的 URL 以及 `/codex-code` 是否期望输入。`/codex-logout` 中止任何尝试并通过 `ctx.credentials.deleteRecord(key)` 删除记录。
 

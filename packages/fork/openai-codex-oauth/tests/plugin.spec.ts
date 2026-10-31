@@ -1,3 +1,4 @@
+import { hostname, userInfo } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -7,6 +8,21 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRecordInfo } from '@deepseek-ai/dsh-credentials'
 import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { apply, inject, name } from '../src/index.ts'
+import { CODEX_CALLBACK_PORT, currentSshLocalForwardCommand, sshLocalForwardCommand } from '../src/port-forward.ts'
+
+const osMock = vi.hoisted(() => ({ failUserInfo: false }))
+
+vi.mock('node:os', async (importOriginal) => {
+  const os = await importOriginal<typeof import('node:os')>()
+  return {
+    ...os,
+    hostname: () => 'codex-host',
+    userInfo: () => {
+      if (osMock.failUserInfo) throw new Error('uv_os_get_passwd returned ENOENT')
+      return { username: 'codex-user', uid: -1, gid: -1, homedir: '/home/codex-user', shell: null }
+    },
+  }
+})
 
 const KEY = credentialKey('llm-pi-ai', 'openai-codex')
 
@@ -84,7 +100,44 @@ const AUTH = {
   url: 'https://auth.openai.com/oauth/authorize?state=abc',
 }
 
-const PASTE_HINT = 'paste what the browser shows with /codex-code <value>'
+const FORWARD_LEAD = 'From another machine, forward the callback port first:'
+const LOGIN_PASTE = 'If the browser cannot reach the callback (port 1455 is already taken by the Codex CLI), paste what the browser shows with /codex-code <value>.'
+
+describe('SSH port forward', () => {
+  it('renders the local forward from the given user, host, and port', () => {
+    expect(CODEX_CALLBACK_PORT).toBe(1455)
+    expect(sshLocalForwardCommand('ada', 'lab.example', 2222)).toBe('ssh -N -L 2222:127.0.0.1:2222 ada@lab.example')
+  })
+
+  it('uses the current user and hostname from node:os on the Codex callback port', () => {
+    expect(currentSshLocalForwardCommand()).toBe(
+      sshLocalForwardCommand(userInfo().username, hostname(), CODEX_CALLBACK_PORT),
+    )
+    expect(currentSshLocalForwardCommand()).toBe('ssh -N -L 1455:127.0.0.1:1455 codex-user@codex-host')
+  })
+
+  it('uses USER, then LOGNAME, then user when userInfo throws', () => {
+    osMock.failUserInfo = true
+    const previousUser = process.env.USER
+    const previousLogname = process.env.LOGNAME
+    try {
+      process.env.USER = 'env-user'
+      delete process.env.LOGNAME
+      expect(currentSshLocalForwardCommand()).toBe('ssh -N -L 1455:127.0.0.1:1455 env-user@codex-host')
+      delete process.env.USER
+      process.env.LOGNAME = 'log-user'
+      expect(currentSshLocalForwardCommand()).toBe('ssh -N -L 1455:127.0.0.1:1455 log-user@codex-host')
+      delete process.env.LOGNAME
+      expect(currentSshLocalForwardCommand()).toBe('ssh -N -L 1455:127.0.0.1:1455 user@codex-host')
+    } finally {
+      osMock.failUserInfo = false
+      if (previousUser === undefined) delete process.env.USER
+      else process.env.USER = previousUser
+      if (previousLogname === undefined) delete process.env.LOGNAME
+      else process.env.LOGNAME = previousLogname
+    }
+  })
+})
 
 describe('registration', () => {
   it('declares its name and the services it drives', () => {
@@ -117,13 +170,16 @@ describe('/codex-login', () => {
     const result = await handler(entry, 'codex-login')(invocation())
     expect(method).toBe('browser')
     expect(result.kind).toBe('success')
-    const [firstLine] = (result.text ?? '').split('\n')
-    expect(firstLine).toBe(`Sign in to OpenAI Codex at ${AUTH.url}.`)
-    expect(result.text).toContain(AUTH.message)
-    expect(result.text).toContain(`Open: ${AUTH.url}`)
-    expect(result.text).toContain('completes automatically')
-    expect(result.text).toContain('port 1455')
-    expect(result.text).toContain(PASTE_HINT)
+    const lines = (result.text ?? '').split('\n')
+    expect(lines[0]).toBe(`Sign in to OpenAI Codex at ${AUTH.url}.`)
+    expect(result.text).toBe([
+      `Sign in to OpenAI Codex at ${AUTH.url}.`,
+      AUTH.message,
+      `Open: ${AUTH.url}`,
+      `Finish in this browser to sign in automatically. ${FORWARD_LEAD}`,
+      currentSshLocalForwardCommand(),
+      LOGIN_PASTE,
+    ].join('\n'))
     expect(entry.begin).toHaveBeenCalledOnce()
     const [firstCall] = entry.begin.mock.calls
     if (firstCall === undefined) throw new Error('begin was not called')
@@ -460,6 +516,42 @@ describe('/codex-code', () => {
 })
 
 describe('/codex-status', () => {
+  it('reprints the SSH forward while signing in and omits it when idle or signed out', async () => {
+    const idle = run()
+    expect((await handler(idle, 'codex-status')(invocation())).text).not.toContain(FORWARD_LEAD)
+    expect((await handler(idle, 'codex-status')(invocation())).text).not.toContain('ssh -N -L')
+
+    const signedOut = run()
+    signedOut.info.configured = true
+    await handler(signedOut, 'codex-logout')(invocation())
+    const afterLogout = await handler(signedOut, 'codex-status')(invocation())
+    expect(afterLogout.text).toContain('Not signed in to OpenAI Codex.')
+    expect(afterLogout.text).not.toContain(FORWARD_LEAD)
+    expect(afterLogout.text).not.toContain('ssh -N -L')
+
+    const gate = Promise.withResolvers<undefined>()
+    const entry = run(async (request) => {
+      await request.interaction.prompt(SELECT)
+      request.interaction.notify(AUTH)
+      await gate.promise
+      return { status: 'authorized' }
+    })
+    await handler(entry, 'codex-login')(invocation())
+    const waiting = await handler(entry, 'codex-status')(invocation())
+    expect(waiting.text).toContain('Sign-in: signing-in.')
+    const waitingLines = (waiting.text ?? '').split('\n')
+    expect(waitingLines.at(-2)).toBe(FORWARD_LEAD)
+    expect(waitingLines.at(-1)).toBe(currentSshLocalForwardCommand())
+    expect(waiting.text).not.toContain('Finish in this browser')
+    expect(waiting.text).not.toContain('If the browser cannot reach the callback')
+    gate.resolve(undefined)
+    await vi.waitFor(async () => {
+      const done = await handler(entry, 'codex-status')(invocation())
+      expect(done.text).toContain('Sign-in: authorized.')
+      expect(done.text).not.toContain('ssh -N -L')
+    })
+  })
+
   it('reports a missing credential and rejects arguments', async () => {
     const entry = run()
     expect((await handler(entry, 'codex-status')(invocation())).text).toContain('Not signed in to OpenAI Codex.')

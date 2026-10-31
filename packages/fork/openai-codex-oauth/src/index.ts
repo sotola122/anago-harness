@@ -12,7 +12,10 @@
  * paste prompt. This plugin always answers `browser` (never device code). A
  * command result cannot be streamed and cannot answer a question later, so
  * `/codex-login` returns once the authorization URL is known, and `/codex-code`
- * answers the parked paste.
+ * answers the parked paste. The login result also prints an SSH local forward:
+ * the callback listens on this host's loopback, so a browser on another machine
+ * reaches it only through that forward. `/codex-status` reprints the forward
+ * while signing in.
  * @module @anago-harness/openai-codex-oauth
  */
 
@@ -24,6 +27,7 @@ import type {
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
+import { currentSshLocalForwardCommand } from './port-forward.ts'
 
 /** Plugin name used by the profile patch row. */
 export const name = 'openai-codex-oauth'
@@ -45,10 +49,6 @@ const USAGE_CODE = 'Usage: /codex-code <authorization code or redirect URL>'
 const USAGE_STATUS = 'Usage: /codex-status (no arguments)'
 const USAGE_LOGOUT = 'Usage: /codex-logout (no arguments)'
 const USAGE_CANCEL = 'Usage: /codex-cancel (no arguments)'
-
-const PASTE_HINT = 'Finish in the browser and the sign-in completes automatically. '
-  + 'If the browser cannot reach the local callback (port 1455 is taken by the Codex CLI, '
-  + 'or this session is remote or headless), paste what the browser shows with /codex-code <value>.'
 
 const NOT_RUNNING = 'No OpenAI Codex sign-in is running.'
 const CANCELLED = 'OpenAI Codex sign-in cancelled.'
@@ -103,9 +103,27 @@ function pageLines(page: Page): string[] {
   return [page.message, `Open: ${page.url}`]
 }
 
+/**
+ * The remote-browser forward, lead then command.
+ *
+ * A signing-in `/codex-status` prints these two lines alone. `/codex-login`
+ * prefixes the lead with the in-browser instruction.
+ * @returns the lead and the copy-pasteable `ssh -N -L` command.
+ */
+function forwardLines(): readonly [string, string] {
+  return ['From another machine, forward the callback port first:', currentSshLocalForwardCommand()]
+}
+
 /** What `/codex-login` prints once the flow has a page for the human. */
 function loginText(page: Page): string {
-  return [headline(page.url), ...pageLines(page), PASTE_HINT].join('\n')
+  const [lead, command] = forwardLines()
+  return [
+    headline(page.url),
+    ...pageLines(page),
+    `Finish in this browser to sign in automatically. ${lead}`,
+    command,
+    'If the browser cannot reach the callback (port 1455 is already taken by the Codex CLI), paste what the browser shows with /codex-code <value>.',
+  ].join('\n')
 }
 
 /** Human text for a failed attempt, without the credential value. */
@@ -330,6 +348,7 @@ export function apply(ctx: Context): void {
       info.configured ? 'Signed in to OpenAI Codex.' : 'Not signed in to OpenAI Codex.',
       ...describeAttempt(),
       pasteLine(),
+      ...attempt?.phase.status === 'signing-in' ? forwardLines() : [],
     ]
     return { kind: 'success', text: lines.join('\n') }
   }
