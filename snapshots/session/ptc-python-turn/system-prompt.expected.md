@@ -242,7 +242,7 @@ class JobOutputArgs(TypedDict):
     job_id: str
     # Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false.
     wait: NotRequired[bool]
-    # Max wait in milliseconds with wait: true. Defaults to and is capped by configuration.
+    # Max wait in milliseconds with wait: true. Defaults to ten minutes and is capped by configuration. A single long wait is preferred over re-checking in short slices.
     timeout_ms: NotRequired[float]
     # Additional keys beyond those declared are allowed.
 

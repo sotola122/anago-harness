@@ -2360,7 +2360,7 @@ Read a background job: output since the previous read for stream jobs, or the re
     },
     "timeout_ms": {
       "type": "number",
-      "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
+      "description": "Max wait in milliseconds with wait: true. Defaults to ten minutes and is capped by configuration. A single long wait is preferred over re-checking in short slices."
     }
   },
   "required": [
