@@ -254,7 +254,7 @@ git pull --ff-only && ./scripts/fork/install-ash.sh
 
 ## 7. Upstream sync workflow
 
-維持している手順は [UPSTREAM_MIGRATION.md](UPSTREAM_MIGRATION.md)。
+The procedure for merging `upstream` into this fork is [UPSTREAM_MIGRATION.md](UPSTREAM_MIGRATION.md); reach it when performing that sync.
 
 1. Add an `upstream` remote. Weekly, `fork-sync.yml` merges `upstream/main` into a `sync/<date>` branch.
 2. On conflicts, list them in the PR. Only the lines in §5 can conflict. Binary assets resolve automatically through `merge=ours`.
