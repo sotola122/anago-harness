@@ -4393,7 +4393,7 @@ export interface Config {
 ```ts config-catalog
 /** Configures bounded `job_output` waits and completion-notice delivery. */
 export interface Config {
-  /** Wait duration applied when `job_output` sets `wait` without `timeout_ms` (default 30s). */
+  /** Wait duration applied when `job_output` sets `wait` without `timeout_ms` (default 10min). */
   waitTimeoutMs?: number
   /** Hard cap on any single wait; a larger model-supplied `timeout_ms` is clamped down to it (default 10min). */
   maxWaitTimeoutMs?: number
@@ -5142,6 +5142,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@anago-harness/copilot-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/copilot-oauth/src/index.ts`](../packages/fork/copilot-oauth/src/index.ts) |
+| `@anago-harness/openai-codex-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/openai-codex-oauth/src/index.ts`](../packages/fork/openai-codex-oauth/src/index.ts) |
 | `@anago-harness/xai-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/xai-oauth/src/index.ts`](../packages/fork/xai-oauth/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | `sessionProjections` | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |

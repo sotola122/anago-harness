@@ -281,3 +281,13 @@
 - 上流の挙動変更にテストを追随: 別モデルが生成した思考はテキスト化されず**破棄**される。Codex のツール追加は tool search ではなく `additional_tools` 入力で送られる。
 - アップグレードガイド `docs/upgrade-guide/v0.2.1-rc.2/pi-ai-catalog-refresh/` を追加。`llm-pi-ai` README のパッチリンクを更新。
 - 検証: `llm-pi-ai` テスト **417 件**、`provider.ts`/`adapter.ts`/`catalog.ts` カバレッジ 100%、`typecheck` 5/5、`verify-upgrade-guides`・`verify-provider-data`・`verify-md-links`・翻訳ペアリング緑。
+
+## OpenAI Codex OAuth プラグイン（2026-10-31）
+
+- 新規 `packages/fork/openai-codex-oauth`（バンドル兼プラグイン）。`llm-pi-ai` が登録済みの `openai-codex` カタログプロバイダ向け OAuth フローを `ctx.authorization.begin()` で駆動するのみで、独自のフロー登録や資格情報の直接書き込みは行わない。資格情報は `llm-pi-ai/openai-codex` として pi-ai が唯一の書き手となり、失効前のリフレッシュも pi-ai が担う。
+- コマンド: `/codex-login` / `/codex-code <authorization code or redirect URL>` / `/codex-status` / `/codex-logout` / `/codex-cancel`（すべて `ctx.effect()` 経由で登録）。
+- ブラウザフローの選定と `/codex-code` 経路: pi-ai の `openai-codex` フローは最初に `browser`（既定）と `device_code` の `select` プロンプトを提示するが、本プラグインは常に `browser` を選択し、デバイスコードログインは使用しない。ブラウザフローは `http://127.0.0.1:1455/auth/callback` でローカルコールバックを待受し、URL 通知後にローカルコールバックとペーストプロンプトを競合させる。スラッシュコマンドは出力をストリーミングできないため、`/codex-login` は認可 URL が確定した時点で直ちに復帰して URL と案内を表示する。ポート 1455 が Codex CLI などに占有されている場合やリモート／ヘッドレス環境では、ブラウザに表示されたコードまたはリダイレクト URL を `/codex-code <value>` で手動入力して完了させる。ブラウザコールバックが競合に勝利した場合は、退避中のペーストプロンプトを人間による拒否（`AuthorizationDeclinedError`）ではなく通常の Error で破棄し、不要な辞退記録を残さない。
+- インストール: 出荷プロファイルには自動登録されないため、OpenAI Codex へのサインインが必要なプロファイルで個別に導入する。
+  `dsh plugin --profile <profile> add link:/absolute/path/to/packages/fork/openai-codex-oauth` を実行し、`dsh.profile.bundles` に `@anago-harness/openai-codex-oauth` を追加する。
+- 検証済み: 単体テスト 33 件、`src/index.ts` のカバレッジ 100%、lint、パッケージの `tsc -b`、設定カタログ（`docs/config-catalog*.md`）およびプラグインパッケージ一覧の再生成。
+- 実機検証の残り（人間の実 OpenAI アカウント操作が必要）: 実 OpenAI アカウント（ChatGPT Plus/Pro）でのサインイン、`~/.dsh/.credentials.yaml` への `llm-pi-ai/openai-codex` レコード作成、`openai-codex` モデルでの実チャット、プロセス再起動後の維持、トークン自動リフレッシュ、`/codex-logout` によるサインアウト。稼働中の本番プロファイル `web-anago` へのバンドル追加とサービス再起動も未実施。
