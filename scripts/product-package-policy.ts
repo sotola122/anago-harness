@@ -52,6 +52,10 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
     category: 'optional',
     reason: 'Separately selected profile bundle that signs in to GitHub Copilot; shipped templates do not mount it.',
   },
+  'packages/fork/openai-codex-oauth': {
+    category: 'optional',
+    reason: 'Separately selected profile bundle that signs in to OpenAI Codex; shipped templates do not mount it.',
+  },
   'packages/fork/xai-oauth': {
     category: 'optional',
     reason: 'Separately selected profile bundle that signs in to xAI; shipped templates do not mount it.',

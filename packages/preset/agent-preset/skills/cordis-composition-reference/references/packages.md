@@ -261,6 +261,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@anago-harness/copilot-oauth` | no | Sign in to GitHub Copilot through the pi-ai OAuth flow and drive it from /copilot-* commands. |
 | `@anago-harness/llm-wiki` | yes | LLM wiki: project and global wiki stores with write, search, and lint tools plus a skill. |
 | `@anago-harness/memory` | yes | Persistent agent memory: global and workspace stores, the memory tool, and injected snapshots. |
+| `@anago-harness/openai-codex-oauth` | no | Sign in to OpenAI Codex (ChatGPT Plus/Pro) through the pi-ai OAuth flow and drive it from /codex-* commands. |
 | `@anago-harness/response-language` | yes | Fixed Japanese-response instruction injected as a global system-prompt section. |
 | `@anago-harness/web-search-brave` | yes | Brave Search provider for the ctx.web capability seam. |
 | `@anago-harness/web-search-exa` | yes | Exa search provider that resolves its key through the credentials service. |
