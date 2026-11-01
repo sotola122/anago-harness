@@ -96,6 +96,7 @@ A hook is a fork edit in an upstream file. Keep the Keep cell; take upstream aro
 | `packages/llm/llm-pi-ai/src/adapter.ts`, `packages/llm/llm-pi-ai/src/provider.ts` | a stored grant narrows Copilot models; an unsigned route still advertises its catalog |
 | `packages/client/tsdown.client.ts` | the `__DSH_FONT_*` condition (the font plugin replaces it with a data URL; it is not a package asset) |
 | `packages/fs/tool-fs-search/src/glob.ts` | `stabilizeGlobMtimeTies` |
+| `packages/jobs/tool-jobs/src/index.ts` | the `waitTimeoutMs` default `600_000` and the `timeout_ms` description naming a ten-minute default. Recorded expectations that quote that description carry the same text |
 | `.github/workflows/` except `fork-egress.yml`, and `.github/AGENTS.md` | GitHub-hosted `runs-on` and the timeout this tree set for that runner. Take upstream steps. Do not restore `dsh-*`, Blacksmith, self-hosted, or a failover expression. Delete a job that only calls a workflow in [Workflows kept deleted](#workflows-kept-deleted) (`ssh-helper` in `ci-master.yml` calls `build-exe-for-ssh-helper.yml`). Keep the hosted-runner paragraph in `.github/AGENTS.md` |
 | `.gitignore` | the `.tmp/` and `.research/` lines |
 | `snapshots/AGENTS.md` | the paragraph on `anago` / `anago-*` compositions and `session/upstream-compat.cordis.yml` |
