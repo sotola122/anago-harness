@@ -117,6 +117,7 @@ describe('AgentRegistry', () => {
 
   it('counts holds and releases them idempotently with the agent', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(AgentRegistry)
     const agent = stubAgent('held')
     const dispose = await ctx.agents.register(agent)
