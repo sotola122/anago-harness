@@ -174,7 +174,7 @@ interface ToolArgsMap {
     job_id: string;
     /** Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false. */
     wait?: boolean;
-    /** Max wait in milliseconds with wait: true. Defaults to and is capped by configuration. */
+    /** Max wait in milliseconds with wait: true. Defaults to ten minutes and is capped by configuration. A single long wait is preferred over re-checking in short slices. */
     timeout_ms?: number;
   } & Record<string, JsonValue>;
   /** List subagents you started, with their ids, labels, status, and recorded provider, model, and reasoning effort. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation. */
