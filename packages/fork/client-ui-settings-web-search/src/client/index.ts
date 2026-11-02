@@ -27,7 +27,7 @@ import { WebSearchProviderCard } from './WebSearchProviderCard.tsx'
 import {
   BRAVE_NS, EXA_NS, WEB_NS, WebSearchProviderCardController,
 } from './web-search-provider-card-controller.ts'
-import { en, zh, type WebSearchProvidersLocaleKey } from './locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh, type WebSearchProvidersLocaleKey } from './locales.ts'
 
 export type { WebSearchProviderCardProps } from './WebSearchProviderCard.tsx'
 export type {
@@ -56,7 +56,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'confi
  */
 export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-web-search-providers: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-web-search-providers: dictionaries')
   const cards = new WebSearchProviderCardController({
     web: ctx.configForms.get(WEB_NS),
     exa: ctx.configForms.get(EXA_NS),

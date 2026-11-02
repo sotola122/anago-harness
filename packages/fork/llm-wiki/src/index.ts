@@ -51,11 +51,11 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
-import { createWikiApprovalGate } from './approval.ts'
+import { createWikiApprovalGate, type ApprovalServiceLike } from './approval.ts'
 import { WIKI_COMMAND_DESCRIPTION, WIKI_COMMAND_HINT, runWikiCommand } from './command.ts'
 import { Config, type WikiConfig } from './config.ts'
 import { createGlobalWikiState } from './global.ts'
-import { guardDecision } from './guard.ts'
+import { guardDecision, type WorkingDirectoryLike } from './guard.ts'
 import { createNoticeListener, type WikiLogger } from './inject.ts'
 import { createWikiRootCache } from './inspect.ts'
 import { createWikiSearchIndex } from './search.ts'
@@ -111,7 +111,8 @@ export function apply(ctx: Context, config: WikiConfig): void {
   const gate = createWikiApprovalGate({
     config,
     logger,
-    approval: () => ctx.get('approval'),
+    // `ctx.get` is `any` for a service this package does not declare on Context.
+    approval: () => ctx.get('approval') as ApprovalServiceLike | undefined,
   })
   ctx.tools.register(createWikiLintTool({ logger, global, search, checks: config.lint.checks }))
   ctx.tools.register(createWikiSearchTool({ config, logger, global, index: search }))
@@ -124,7 +125,8 @@ export function apply(ctx: Context, config: WikiConfig): void {
       // A relative `write`/`edit` path is resolved against the same working
       // directory the filesystem tools use; without the service the process
       // directory is the provider's fallback.
-      workingDirectory: () => ctx.get('workingDirectory'),
+      // `ctx.get` is `any` for a service this package does not declare on Context.
+      workingDirectory: () => ctx.get('workingDirectory') as WorkingDirectoryLike | undefined,
     }),
   )
   ctx.on('tools/pre-execute', (exec, next) => gate.decide(exec, next))
@@ -150,7 +152,8 @@ export function apply(ctx: Context, config: WikiConfig): void {
         logger,
         global,
         search,
-        approval: () => ctx.get('approval'),
+        // `ctx.get` is `any` for a service this package does not declare on Context.
+        approval: () => ctx.get('approval') as ApprovalServiceLike | undefined,
       }),
   })
 }

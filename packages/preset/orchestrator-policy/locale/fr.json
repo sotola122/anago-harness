@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Politique d'orchestrateur",
+    "description": "Contrat de délégation de profondeur 0 et un refus des démarrages directs de CLI d'agents externes."
+  }
+}

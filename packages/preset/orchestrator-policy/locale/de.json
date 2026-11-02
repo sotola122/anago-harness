@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Orchestrator-Richtlinie",
+    "description": "Delegationsvertrag der Tiefe 0 und eine Ablehnung direkter Starts externer Agenten-CLIs."
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/openai-codex-oauth",
   "description": "Sign in to OpenAI Codex (ChatGPT Plus/Pro) through the pi-ai OAuth flow and drive it from /codex-* commands.",
-  "version": "0.2.1-rc.2",
+  "version": "0.2.2-alpha.2",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -13,12 +13,14 @@
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
-    "./cordis.patch.yml": "./cordis.patch.yml"
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib/index.js",
     "cordis.patch.yml",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "locale/*.json"
   ],
   "license": "MIT",
   "dsh": {

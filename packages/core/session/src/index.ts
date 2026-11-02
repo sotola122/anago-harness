@@ -812,7 +812,7 @@ export class Session {
     this.publicationEntry()
     const first = opts[0]
     const ignorable = first !== undefined && 'ignorable' in first && first.ignorable
-    const surfaceOpts: SurfaceIntent | undefined = first !== undefined && 'surfaceOp' in first ? first : undefined
+    const surfaceOpts: SurfaceIntent | undefined = first as SurfaceIntent | undefined
     const surfaceMetadata = {
       ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
       ...surfaceOpts?.surfaceOp === undefined ? {} : { surfaceOp: surfaceOpts.surfaceOp },

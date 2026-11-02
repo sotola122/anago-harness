@@ -25,7 +25,7 @@ function manifest(root: string, path: string, fields: Record<string, unknown>): 
 function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh.default-isolation-'))
   roots.push(root)
-  write(root, 'apps/cli/package.json', { name: '@deepseek-ai/dsh', dependencies: { [core]: 'workspace:^' } })
+  write(root, 'apps/cli/package.json', { name: '@deepseek-ai/dsh', dependencies: { [core]: 'workspace:^', [base]: 'workspace:^' } })
   write(root, 'apps/cli/src/bin.ts', 'export {}\n')
   write(root, 'apps/web/package.json', { name: '@deepseek-ai/dsh-web-frontend' })
   write(root, 'apps/web/index.html', '<script type="module" src="/src/main.ts"></script>')
@@ -122,7 +122,7 @@ describe('default product isolation', () => {
       dependencies: { [experimental]: 'workspace:^' }, dsh: { bundle: { patch: './cordis.patch.yml' } },
     })
     write(root, 'packages/experimental/layer/cordis.patch.yml', [{ insert: [{ name: experimental }] }])
-    manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:^', [layer]: 'workspace:^' } })
+    manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:^', [base]: 'workspace:^', [layer]: 'workspace:^' } })
     write(root, profile, `export const PROFILE_TEMPLATES = { web: { bundles: ['${base}'] } }\n`
       + `export const DEFAULT_PROFILE_BUNDLES = ['${base}']\n`
       + `export const OPTIONAL_BUNDLES = ['${layer}']\n`)
@@ -148,7 +148,7 @@ describe('default product isolation', () => {
       })
       write(root, 'packages/bundle/optional-layer/src/index.ts', 'export {}')
       write(root, 'packages/bundle/optional-layer/cordis.patch.yml', [])
-      manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:*', [layer]: 'workspace:*' } })
+      manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:*', [base]: 'workspace:*', [layer]: 'workspace:*' } })
       write(root, profile, `export const PROFILE_TEMPLATES = { web: { bundles: ['${base}'] } }\n`
         + `export const DEFAULT_PROFILE_BUNDLES = ['${base}']\nexport const OPTIONAL_BUNDLES = ['${layer}']\n`)
       expect(verifyDefaultProductIsolation(root).failures).toEqual([])

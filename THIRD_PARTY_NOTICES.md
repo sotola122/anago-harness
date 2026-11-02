@@ -91,6 +91,8 @@ External packages installed for runtime use or embedded in distributed Host or b
 | [`diff`](https://github.com/kpdecker/jsdiff) | BSD-3-Clause |
 | [`dompurify`](https://github.com/cure53/DOMPurify) | (MPL-2.0 OR Apache-2.0) |
 | [`electron-updater`](https://github.com/electron-userland/electron-builder) | MIT |
+| [`eslint-scope`](https://github.com/eslint/js) | BSD-2-Clause |
+| [`eslint-visitor-keys`](https://github.com/eslint/js) | Apache-2.0 |
 | [`eventsource-parser`](https://github.com/rexxars/eventsource-parser) | MIT |
 | [`exceljs`](https://github.com/exceljs/exceljs) | MIT |
 | [`execa`](https://github.com/sindresorhus/execa) | MIT |
@@ -131,6 +133,7 @@ External packages installed for runtime use or embedded in distributed Host or b
 | [`react-dom`](https://github.com/facebook/react) | MIT |
 | [`readable-stream`](https://github.com/nodejs/readable-stream) | MIT |
 | [`resolve.exports`](https://github.com/lukeed/resolve.exports) | MIT |
+| [`rrule`](https://github.com/jakubroztocil/rrule) | BSD-3-Clause |
 | [`semver`](https://github.com/npm/node-semver) | ISC |
 | [`serve-static`](https://github.com/expressjs/serve-static) | MIT |
 | [`sharp`](https://github.com/lovell/sharp) | Apache-2.0 |
@@ -156,7 +159,7 @@ External packages installed for runtime use or embedded in distributed Host or b
 pnpm applies local patches to the following packages at install time, so shipped artifacts carry modified copies; each patch file is the complete record of the modification:
 
 - `@botiverse/oar@0.67.0` — [`patches/@botiverse__oar@0.67.0.patch`](patches/@botiverse__oar@0.67.0.patch)
-- `@earendil-works/pi-ai@1.3.0` — [`patches/@earendil-works__pi-ai@1.3.0.patch`](patches/@earendil-works__pi-ai@1.3.0.patch)
+- `@earendil-works/pi-ai@1.4.0` — [`patches/@earendil-works__pi-ai@1.4.0.patch`](patches/@earendil-works__pi-ai@1.4.0.patch)
 - `@electron/osx-sign@1.3.3` — [`patches/@electron__osx-sign@1.3.3.patch`](patches/@electron__osx-sign@1.3.3.patch)
 - `@fortune-sheet/core@1.0.4` — [`patches/@fortune-sheet__core@1.0.4.patch`](patches/@fortune-sheet__core@1.0.4.patch)
 - `@fortune-sheet/react@1.0.4` — [`patches/@fortune-sheet__react@1.0.4.patch`](patches/@fortune-sheet__react@1.0.4.patch)
@@ -219,6 +222,7 @@ External packages **directly declared** for development, tests, types, or toolin
 | [`@types/babel__code-frame`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/big.js`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/compression`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
+| [`@types/estree`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/hosted-git-info`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/js-yaml`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/jsdom`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
