@@ -57,6 +57,8 @@ async function fixture(test: TestContext) {
     const patch = join(cwd, 'observer.patch.yml')
     await writeFile(patch, JSON.stringify([
       { id: 'session-title-llm', disabled: true },
+      // anago-core disables llm-deepseek on web; this fixture re-enables it only to observe the admitted tools.
+      ...side === 'desktop' ? [{ id: 'llm-deepseek', disabled: false }] : [],
       { insert: [{ id: 'tool-parity-observer', name: observer,
         config: { output, cwd, ...(side === 'desktop' ? { preset: mode } : {}) } }] },
       ...mutations,

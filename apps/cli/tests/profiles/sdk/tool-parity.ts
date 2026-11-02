@@ -9,11 +9,29 @@ interface Exception {
 
 /** Intentional product differences; obsolete entries fail alongside undeclared differences. */
 export const toolParityExceptions: Record<ToolMode, readonly Exception[]> = {
-  standard: [{ tool: 'list_subagent_models', side: 'desktop',
-    reason: 'Desktop enables subagent model discovery; SDK delegation inherits the caller model by default.' }],
+  standard: [
+    { tool: 'list_subagent_models', side: 'desktop',
+      reason: 'Desktop enables subagent model discovery; SDK delegation inherits the caller model by default.' },
+    { tool: 'memory', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the memory tool; the SDK profile does not.' },
+    { tool: 'wiki_lint', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the LLM wiki tools; the SDK profile does not.' },
+    { tool: 'wiki_search', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the LLM wiki tools; the SDK profile does not.' },
+    { tool: 'wiki_write', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the LLM wiki tools; the SDK profile does not.' },
+  ],
   ptc: [
     { tool: 'list_subagent_models', side: 'desktop',
       reason: 'Desktop enables subagent model discovery; SDK delegation inherits the caller model by default.' },
+    { tool: 'memory', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the memory tool; the SDK profile does not.' },
+    { tool: 'wiki_lint', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the LLM wiki tools; the SDK profile does not.' },
+    { tool: 'wiki_search', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the LLM wiki tools; the SDK profile does not.' },
+    { tool: 'wiki_write', side: 'desktop',
+      reason: 'The web template mounts anago-core, which inserts the LLM wiki tools; the SDK profile does not.' },
     { tool: 'plugin_manager', side: 'sdk',
       reason: 'SDK PTC changes are persisted for restart without replacing active bindings because HMR is disabled; Desktop PTC excludes management in its HMR-enabled preset.' },
     { tool: 'workflow', side: 'sdk',
