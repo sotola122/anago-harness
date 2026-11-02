@@ -2366,7 +2366,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
     },
     "timeout_ms": {
       "type": "number",
-      "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
+      "description": "Max wait in milliseconds with wait: true. Defaults to ten minutes and is capped by configuration. A single long wait is preferred over re-checking in short slices."
     }
   },
   "required": [

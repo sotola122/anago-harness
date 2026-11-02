@@ -51,7 +51,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `waitTimeoutMs` | `30,000` | `wait: true` 省略 `timeout_ms` 时使用的等待时间 |
+| `waitTimeoutMs` | `600,000` | `wait: true` 省略 `timeout_ms` 时使用的等待时间 |
 | `maxWaitTimeoutMs` | `600,000` | 模型所给等待时间的上限；更大的值向下收敛到它 |
 | `completionDelivery` | `wakeup` | `wakeup` 为空闲所有者开启一轮；`quiet` 让通知继续待领 |
 | `maxConsecutiveWakes` | 未设置 | 一个所有者可由唤醒开启的轮数，超出后通知降级为注入；未设置即不封顶 |

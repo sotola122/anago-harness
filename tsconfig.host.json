@@ -526,6 +526,7 @@
     { "path": "./packages/fork/web-search-credentials" },
     { "path": "./packages/fork/anago-core" },
     { "path": "./packages/fork/anago-web" },
+    { "path": "./packages/fork/openai-codex-oauth" },
     { "path": "./packages/fork/xai-oauth" },
     { "path": "./packages/fork/copilot-oauth" },
     { "path": "./packages/boot/cmdline" },

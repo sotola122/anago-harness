@@ -12078,6 +12078,24 @@ importers:
         specifier: workspace:*
         version: link:../../interaction/user-approval
 
+  packages/fork/openai-codex-oauth:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-authorization':
+        specifier: workspace:*
+        version: link:../../credentials/authorization
+      '@deepseek-ai/dsh-commands':
+        specifier: workspace:*
+        version: link:../../interaction/commands
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+
   packages/fork/response-language:
     dependencies:
       '@deepseek-ai/schemastery':

@@ -41,7 +41,7 @@ export type CompletionDelivery = 'quiet' | 'wakeup'
 
 /** Configures bounded `job_output` waits and completion-notice delivery. */
 export interface Config {
-  /** Wait duration applied when `job_output` sets `wait` without `timeout_ms` (default 30s). */
+  /** Wait duration applied when `job_output` sets `wait` without `timeout_ms` (default 10min). */
   waitTimeoutMs?: number
   /** Hard cap on any single wait; a larger model-supplied `timeout_ms` is clamped down to it (default 10min). */
   maxWaitTimeoutMs?: number
@@ -66,7 +66,7 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  waitTimeoutMs: z.number().min(1).default(30_000),
+  waitTimeoutMs: z.number().min(1).default(600_000),
   maxWaitTimeoutMs: z.number().min(1).default(600_000),
   completionDelivery: z.union(['quiet', 'wakeup'] as const).default('wakeup'),
   maxConsecutiveWakes: z.number().min(1),
@@ -238,7 +238,7 @@ function readBody(read: JobRead): { text: string; job: PublicJobSnapshot } {
 }
 
 export function apply(ctx: Context, config: Config): void {
-  const waitDefault = config.waitTimeoutMs ?? 30_000
+  const waitDefault = config.waitTimeoutMs ?? 600_000
   const waitCap = config.maxWaitTimeoutMs ?? 600_000
   const delivery = config.completionDelivery ?? 'wakeup'
   const wakeBudget = config.maxConsecutiveWakes
@@ -437,7 +437,7 @@ export function apply(ctx: Context, config: Config): void {
     parameters: {
       job_id: { type: 'string', required: true, description: 'Job id returned by the tool that started the background work.' },
       wait: { type: 'boolean', description: 'Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false.' },
-      timeout_ms: { type: 'number', description: 'Max wait in milliseconds with wait: true. Defaults to and is capped by configuration.' },
+      timeout_ms: { type: 'number', description: 'Max wait in milliseconds with wait: true. Defaults to ten minutes and is capped by configuration. A single long wait is preferred over re-checking in short slices.' },
     },
     finalizeContent: finalizeJobContent,
     output: {
