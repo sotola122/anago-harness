@@ -38,7 +38,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { delegationDepthOf } from './agents.ts'
-import { createMemoryApprovalGate } from './approval.ts'
+import { createMemoryApprovalGate, type ApprovalServiceLike } from './approval.ts'
 import {
   MEMORY_COMMAND_DESCRIPTION,
   MEMORY_COMMAND_HINT,
@@ -89,7 +89,8 @@ export function apply(ctx: Context, config: MemoryConfig): void {
   const gate = createMemoryApprovalGate({
     config,
     logger,
-    approval: () => ctx.get('approval'),
+    // `ctx.get` is `any` for a service this package does not declare on Context.
+    approval: () => ctx.get('approval') as ApprovalServiceLike | undefined,
   })
   ctx.tools.register(createMemoryTool({ config, logger, api, isStaged: exec => gate.wasStaged(exec) }))
   ctx.on('tools/pre-execute', (exec, next) => gate.decide(exec, next))

@@ -25,7 +25,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { en, NS, zh, type SessionShareLocaleKey } from './locales.ts'
+import { de, en, es, fr, ja, NS, pt, ru, zh, type SessionShareLocaleKey } from './locales.ts'
 import { SessionOwnershipWatcher } from './session-ownership-watcher.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -57,7 +57,7 @@ export const Config: z<Partial<Config>, Config> = z.object({
  */
 export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const t = ctx.locale.bind(NS)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'session-share: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'session-share: dictionaries')
   // The generated namespace artifact gains `ownership` from the Host
   // descriptor; the exported SessionRemote type states it before a build.
   const session = ctx.remote.session as SessionRemote

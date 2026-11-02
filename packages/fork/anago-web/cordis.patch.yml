@@ -59,5 +59,3 @@
   disabled: true
 - id: ui-message-feedback
   disabled: true
-- id: ui-deepseek-model-label-1017
-  disabled: true

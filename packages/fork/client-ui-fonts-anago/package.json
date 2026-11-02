@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/client-ui-fonts-anago",
   "description": "Japanese-first Web UI fonts: UDEV Gothic for kana, kanji and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP as the broad fallback.",
-  "version": "0.2.1-rc.2",
+  "version": "0.2.2-alpha.2",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -17,9 +17,11 @@
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
-    "./fonts.json": "./lib/fonts/fonts.json"
+    "./fonts.json": "./lib/fonts/fonts.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
+    "locale/*.json",
     "lib/fonts",
     "lib/index.js",
     "lib/client.js",
