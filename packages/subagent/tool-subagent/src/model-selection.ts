@@ -163,6 +163,50 @@ export function requestedAgentOptions(
 }
 
 /**
+ * Merge model-supplied selection fields over the purpose-routed child defaults.
+ * Provider and model form one route and must be supplied together; an
+ * effort-only request keeps the configured route and overrides only the effort.
+ * Changing that route without an effort clears the configured route-owned
+ * effort. The Session allowlist is enforced later, at the operation that
+ * starts the child, so resolution stays pure.
+ * @param parentOptions - Current parent values that supply missing child values.
+ * @param configured - Tool-instance child defaults, including the purpose route.
+ * @param request - Model-facing route override.
+ * @param enabled - Whether this tool instance permits model-facing selection.
+ * @returns Child Agent options, preserving omission when no layer contributes one.
+ */
+function mergePurposeRequestedOptions(
+  parentOptions: AgentOptions,
+  configured: AgentOptions | undefined,
+  request: DelegationModelRequest,
+  enabled: boolean,
+): AgentOptions | undefined {
+  if (!hasDelegationModelRequest(request)) return configured
+  if (!enabled) {
+    throw new Error('child model selection is disabled for this tool instance')
+  }
+  assertNonEmpty(request.provider, 'provider')
+  assertNonEmpty(request.model, 'model')
+  assertNonEmpty(request.reasoning_effort, 'reasoning_effort')
+  if ((request.provider === undefined) !== (request.model === undefined)) {
+    throw new Error('child LLM `provider` and `model` must be supplied together')
+  }
+
+  const baselineProvider = configured?.provider ?? parentOptions.provider
+  const baselineModel = configured?.model ?? parentOptions.model
+  const routeChanged = request.provider !== undefined
+    && (request.provider !== baselineProvider || request.model !== baselineModel)
+  const { reasoningEffort: _configuredReasoningEffort, ...configuredWithoutReasoning } = configured ?? {}
+  return {
+    ...routeChanged && request.reasoning_effort === undefined ? configuredWithoutReasoning : configured,
+    ...request.provider === undefined ? {} : { provider: request.provider, model: request.model },
+    ...request.reasoning_effort === undefined
+      ? {}
+      : { reasoningEffort: ReasoningEffortId(request.reasoning_effort) },
+  }
+}
+
+/**
  * Enforce Session authorization for a complete, explicitly selected child route.
  * @param policy - Session allowlist; omission permits only the current parent route.
  * @param parentOptions - Current parent route used when no policy is recorded.
@@ -303,7 +347,7 @@ export function resolveChildRoutes(input: ResolveChildRoutesInput): ChildRouteRe
       source: { kind: 'explicit' },
       enforceAllowlist: true,
       children: [{
-        options: requestedAgentOptions(parentOptions, explicitBase, modelRequest, modelSelectionEnabled),
+        options: mergePurposeRequestedOptions(parentOptions, explicitBase, modelRequest, modelSelectionEnabled),
       }],
     }
   }

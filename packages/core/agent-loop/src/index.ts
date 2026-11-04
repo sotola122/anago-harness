@@ -632,7 +632,8 @@ export class AgentLoop extends Service implements AgentFactory {
           assertLive()
           // The mounted backend routes announced live events into the active
           // write handle by session id; the loop only owns the handle itself.
-          detachAgent = loopCtx.agents.enter(agent)
+          // The initiating agent at creation time is the child's runtime owner.
+          detachAgent = loopCtx.agents.enter(agent, loopCtx.agents.currentInitiator())
           await loopCtx.agents.announce(agent, source, abort.signal)
           assertLive()
           ready = true

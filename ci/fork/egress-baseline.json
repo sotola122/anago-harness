@@ -52,6 +52,7 @@
  "other\tpackages/fork/client-ui-settings-web-search/src/client/locales.ts\tdashboard.exa.ai",
  "other\tpackages/fork/web-search-brave/src/provider.ts\tapi.search.brave.com",
  "other\tpackages/llm/llm-deepseek/src/config.ts\tapi.deepseek.com",
+ "other\tpackages/llm/llm-pi-ai/src/config.ts\tlearn.microsoft.com",
  "other\tpackages/llm/llm-pi-ai/src/discovery.ts\tgateway.example",
  "other\tpackages/llm/llm-pi-ai/src/index.ts\tgateway.acme.example",
  "other\tpackages/llm/llm-pi-ai/src/provider-data.generated.ts\tai-gateway.vercel.sh",

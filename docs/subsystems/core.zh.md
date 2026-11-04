@@ -817,12 +817,16 @@ register(agent: Agent): ReturnType<Context['effect']>
  * returned detach closure into its pre-installed composite teardown before
  * calling {@link announce}. Ordinary callers use {@link register}.
  * @param agent - the prepared, unpublished agent.
+ * @param owner - live runtime creator agent, or `undefined` for a runtime
+ *   root. This is runtime ownership, not the resumed session's durable
+ *   parent lineage; the factory passes the initiating agent it created the
+ *   child under.
  * @returns an idempotent closure that removes this exact entry and emits
  *   `agent/disposed` with listener failures contained. When called from a
  *   `agent/created` listener, removal and disposal wait until the serial
  *   creation dispatch settles.
  */
-enter(agent: Agent): () => void
+enter(agent: Agent, owner?: Agent): () => void
 
 /**
  * Announce an agent previously inserted with {@link enter}.
@@ -844,8 +848,8 @@ async announce(agent: Agent, source: SessionStartSource, signal?: AbortSignal): 
 get(id: SessionId): Agent | undefined
 
 /**
- * Test whether a live agent was created through one exact parent agent's
- * scoped context. Runtime ownership is independent of durable session
+ * Test whether a live agent was created while one exact agent was the
+ * initiating agent. Runtime ownership is independent of durable session
  * lineage and remains unambiguous when unrelated providers reuse an id.
  * @param id - the candidate child agent's shared agent/session id.
  * @param owner - the expected runtime creator agent.

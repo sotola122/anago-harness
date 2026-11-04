@@ -489,6 +489,9 @@ interface ToolOutputMap {
     id: string;
     label: string;
     status: "running" | "inactive";
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
     parent?: string;
     depth?: number;
   } | {
@@ -545,10 +548,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     subagentId: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     subagentId: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   template_echo: string;
   todo_write: {

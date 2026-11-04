@@ -48,10 +48,10 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`deliverables/`](deliverables/README.zh.md) | 轮次交付物：显式文件交付与记录的工作区改动 |
 | [`fs/`](fs/README.zh.md) | 文件系统能力系列：seam、本地实现、面向模型的文件工具、发现工具 |
 | [`lsp/`](lsp/README.zh.md) | LSP 能力系列：seam、通用 stdio 提供方和 `lsp` 工具 |
-| [`skill/`](skill/README.zh.md) | skill（技能）能力系列：提供方注册表、本地提供方、面向模型的目录／loader |
-| [`compaction/`](compaction/README.zh.md) | 压缩（compaction）能力系列：Service Definition + 基础提供方 + 命令 Consumer |
+| [`skill/`](skill/README.zh.md) | skill（技能）能力系列：提供方注册表、本地提供方、面向模型的目录 |
+| [`compaction/`](compaction/README.zh.md) | 压缩（compaction）能力系列：Service Definition、基础提供方、命令 Consumer |
 | [`context/`](context/README.zh.md) | 模型可见请求上下文：workspace 指令、时间上下文、引用 |
-| [`subagent/`](subagent/README.zh.md) | subagent 能力系列：提供方注册表约定和面向模型的委托工具 |
+| [`subagent/`](subagent/README.zh.md) | subagent 能力系列：提供方注册表与面向模型的委托工具 |
 | [`team/`](team/README.zh.md) | Team 协调：共享任务板与面向模型的任务工具 |
 | [`jobs/`](jobs/README.zh.md) | 通用后台任务运行时和面向模型的作业控制工具 |
 | [`experimental/`](experimental/README.zh.md) | 仍在评估中的能力；[状态与支持策略](experimental/README.zh.md#status) |
@@ -65,23 +65,23 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`preset/`](preset/README.zh.md) | 由 preset `cordis.yml` 按会话组装 agent |
 | [`guard/`](guard/README.zh.md) | 循环卫生守卫：建议性重复调用提醒 + `tools/execute` 截止时间强制执行器 |
 | [`bundle/`](bundle/README.zh.md) | 可安装的 `dsh --profile` 补丁层 |
-| [`extensions/`](extensions/README.zh.md) | agent 运行时自修改：实时插件／服务检查与模型所写挂载／卸载 |
+| [`extensions/`](extensions/README.zh.md) | agent 运行时自修改：实时插件／服务检查、模型所写挂载／卸载 |
 | [`mcp/`](mcp/README.zh.md) | 将外部 Model Context Protocol 服务器的工具接入为原生工具 |
-| [`session/`](session/README.zh.md) | 持久会话数据平面：持久化 seam + 后端、投影 seam、基于日志的标题、会话上报 |
-| [`session-query/`](session-query/README.zh.md) | 会话检索系列：逻辑语料库、有界读取、血缘、语义过滤、SQLite 全文搜索 |
+| [`session/`](session/README.zh.md) | 持久会话数据平面：持久化与投影 seam、后端、基于日志的标题、会话上报 |
+| [`session-query/`](session-query/README.zh.md) | 会话检索系列：逻辑语料库、有界读取、血缘、语义过滤、SQLite 搜索 |
 | [`settings/`](settings/README.zh.md) | 用户设置 seam + 基于文件的提供方 |
 | [`credentials/`](credentials/README.zh.md) | 凭据引用与凭据记录 seam + 环境变量优先于 `.env` 的提供方 + 需要向人询问的授权流程 |
 | [`storage/`](storage/README.zh.md) | 非会话存储中枢 + 后端 + 领域形式 |
 | [`workspace/`](workspace/README.zh.md) | Workspace 实体 |
 | [`sdk/`](sdk/README.zh.md) | 进程外 SDK：JSON-RPC 协议与 TypeScript 客户端／服务器 |
 | [`acp/`](acp/README.zh.md) | 仅面向自动化的 ACP（Agent Client Protocol）服务器 |
-| [`interaction/`](interaction/README.zh.md) | 人机协作平面：批准／交互 seam、权限预设、命令、询问用户的工具 |
+| [`interaction/`](interaction/README.zh.md) | 人机协作平面：批准／交互 seam、权限预设、命令、询问用户 |
 | [`boot/`](boot/README.zh.md) | 共享的 app bin 启动粘合层 |
-| [`host/`](host/README.zh.md) | Web GUI 宿主服务、目录选择、应用启动、插件清单和产品遥测 |
+| [`host/`](host/README.zh.md) | Web GUI 宿主服务：目录选择、应用启动、插件清单和产品遥测 |
 | [`client/`](client/README.zh.md) | web GUI 浏览器半侧：shell、协议层、对象服务、slot、`ui-*` 插件 |
 | [`test-support/`](test-support/README.zh.md) | 测试基础设施（testkit、回放、Loader 冒烟测试） |
-| [`util/`](util/README.zh.md) | 组间共享的工具与纯数据包列表（`Branded<B>`、home／路径辅助函数、超时、留存、官方组合包列表） |
-| [`fork/`](fork/README.zh.md) | fork 私有包：Node 出站守卫、同捆的主机能力（`anago-core`）与浏览器卡片（`anago-web`） |
+| [`util/`](util/README.zh.md) | 组间共享的工具与纯数据包列表（`Branded<B>`、home／路径辅助函数、超时、留存、组合包列表） |
+| [`fork/`](fork/README.zh.md) | fork 私有包：出站守卫、`anago-core` 主机能力与 `anago-web` 浏览器卡片 |
 
 -----
 

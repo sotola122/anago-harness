@@ -214,6 +214,8 @@ const DISPOSED_INITIATOR_MESSAGE = 'agent initiator scope is disposed'
 interface AgentEntry {
   readonly id: SessionId
   readonly agent: Agent
+  /** Runtime creator-agent ownership; independent of durable session lineage. */
+  readonly owner: Agent | undefined
   readonly carrier: Scoped<Agent>
   announced: boolean
   announcing: boolean
@@ -468,12 +470,16 @@ export class AgentRegistry extends Service {
    * returned detach closure into its pre-installed composite teardown before
    * calling {@link announce}. Ordinary callers use {@link register}.
    * @param agent - the prepared, unpublished agent.
+   * @param owner - live runtime creator agent, or `undefined` for a runtime
+   *   root. This is runtime ownership, not the resumed session's durable
+   *   parent lineage; the factory passes the initiating agent it created the
+   *   child under.
    * @returns an idempotent closure that removes this exact entry and emits
    *   `agent/disposed` with listener failures contained. When called from a
    *   `agent/created` listener, removal and disposal wait until the serial
    *   creation dispatch settles.
    */
-  enter(agent: Agent): () => void {
+  enter(agent: Agent, owner?: Agent): () => void {
     const id = agent.id
     if (id !== agent.session.id) {
       throw new Error(`agent id "${id}" does not match session id "${agent.session.id}"`)
@@ -485,6 +491,7 @@ export class AgentRegistry extends Service {
     const entry: AgentEntry = {
       id,
       agent,
+      owner,
       carrier,
       announced: false,
       announcing: false,
@@ -585,8 +592,8 @@ export class AgentRegistry extends Service {
   }
 
   /**
-   * Test whether a live agent was created through one exact parent agent's
-   * scoped context. Runtime ownership is independent of durable session
+   * Test whether a live agent was created while one exact agent was the
+   * initiating agent. Runtime ownership is independent of durable session
    * lineage and remains unambiguous when unrelated providers reuse an id.
    * @param id - the candidate child agent's shared agent/session id.
    * @param owner - the expected runtime creator agent.

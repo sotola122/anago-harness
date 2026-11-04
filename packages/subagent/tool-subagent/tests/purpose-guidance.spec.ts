@@ -175,7 +175,7 @@ describe('purpose guidance settings', () => {
     const ctx = await setup({ provider: 'mock' })
     const assembly = await ctx.systemPrompt.assemble()
     const section = assembly.sections.find(item => item.text.startsWith('Start independent delegations'))
-    expect(section?.text).toBe('Start independent delegations with `subagent` together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.')
+    expect(section?.text).toBe('Start independent delegations with `subagent` together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn. Collect the subagent results required to complete the task before giving the user a final answer.\n\nAgents may use different working directories; changes to shared files affect other agents. Split parallel write work into disjoint file or directory scopes. Bash, formatters, code generators, and scripts can overwrite concurrent edits without conflict detection; coordinate their changes explicitly. The agent integrating the work must review the final diff and run relevant tests.')
     expect(section?.text).not.toContain(PURPOSE_SPLITTING_PARAGRAPH)
   })
 

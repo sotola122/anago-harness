@@ -403,10 +403,10 @@ describe('list_agents', () => {
 
     const expected = [
       `${parent.id} [inactive] — root agent`,
-      `${alpha} [running] parent=${parent.id} depth=1 — alpha task`,
-      `${beta} [inactive] parent=${parent.id} depth=1 — beta task`,
-      `${gamma} [inactive] parent=${parent.id} depth=1 — gamma task`,
-      `${delta} [running] parent=${parent.id} depth=1 — delta task`,
+      `${alpha} [running] provider=mock model=mock parent=${parent.id} depth=1 — alpha task`,
+      `${beta} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — beta task`,
+      `${gamma} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — gamma task`,
+      `${delta} [running] provider=mock model=mock parent=${parent.id} depth=1 — delta task`,
     ].join('\n')
     for (const caller of [parent, ctx.agents.get(alpha), ctx.agents.get(delta)]) {
       const result = await callTool(ctx, 'list_agents', {}, caller)

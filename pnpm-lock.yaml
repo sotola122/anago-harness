@@ -12281,9 +12281,6 @@ importers:
       '@deepseek-ai/dsh-web':
         specifier: workspace:*
         version: link:../../web/web
-      '@deepseek-ai/dsh-web-search-exa':
-        specifier: workspace:*
-        version: link:../../web/web-search-exa
 
   packages/fork/xai-oauth:
     devDependencies:

@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/client-ui-settings-web-search",
   "description": "Web-search provider settings cards for the anago Web UI: Exa and Brave keys, provider selection, and result bounds.",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

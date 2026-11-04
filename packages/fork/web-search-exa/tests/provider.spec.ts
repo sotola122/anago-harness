@@ -1,7 +1,7 @@
 /**
- * Wrapper suite: the credential-resolving provider's mapping of upstream
- * failures. The upstream adapter always throws `WebError` instances, so a
- * stubbed upstream covers the wrapper's documented tolerance for any thrown
+ * Wrapper suite: the credential-resolving provider's mapping of carried-provider
+ * failures. The carried adapter always throws `WebError` instances, so a
+ * stubbed adapter covers the wrapper's documented tolerance for any thrown
  * value: plain values, error-like objects, empty messages, and cancellation.
  * @module @anago-harness/web-search-exa/test/provider.spec
  */
@@ -12,7 +12,7 @@ import { ExaCredentialSearchProvider, type ExaCredentialProviderOptions } from '
 /** The stubbed upstream search, replaced per test. */
 const upstream = vi.hoisted(() => ({ search: vi.fn() }))
 
-vi.mock('@deepseek-ai/dsh-web-search-exa', () => ({
+vi.mock('../src/exa.ts', () => ({
   EXA_PROVIDER_ID: 'exa',
   EXA_DEFAULT_BASE_URL: 'https://api.exa.ai',
   EXA_DEFAULT_SEARCH_TYPE: 'auto',

@@ -343,7 +343,6 @@ async function startResolvedChildren(input: {
   categoryOmitted: boolean
   parentOptions: AgentOptions
   policy: ModelSelectionPolicy | undefined
-  modelRequest: DelegationModelRequest
   label: string
   prompt: ContentBlock[]
   cwd?: string
@@ -352,13 +351,19 @@ async function startResolvedChildren(input: {
 }): Promise<ActivationResult> {
   const {
     runtimeCtx, parent, signal, callId, providerName, subagentProvider, resolution,
-    categoryOmitted, parentOptions, policy, modelRequest, label, prompt, cwd, agentPreset, maxDepth,
+    categoryOmitted, parentOptions, policy, label, prompt, cwd, agentPreset, maxDepth,
   } = input
   const slot: PurposeRouteSlot | undefined = resolution.source.kind === 'purpose' ? resolution.source.slot : undefined
   const fanOut = slot !== undefined && isFanOutSlot(slot)
 
   if (resolution.enforceAllowlist) {
-    assertAllowedModelSelection(policy, parentOptions, resolution.children[0]?.options, modelRequest)
+    const requested = resolution.children[0]?.options
+    const provider = requested?.provider ?? parentOptions.provider
+    const model = requested?.model ?? parentOptions.model
+    if (provider === undefined || model === undefined) {
+      throw new Error('cannot select child LLM values without an effective provider and model')
+    }
+    assertAllowedModelSelection(policy, parentOptions, { provider, model })
   }
 
   const ordered: ActivationChild[] = []
@@ -412,14 +417,12 @@ async function startResolvedChildren(input: {
         const started = await runtimeCtx.subagents.startActivation({
           provider: providerName,
           label,
-          request: {
-            prompt,
-            parent,
-            ...cwd === undefined ? {} : { cwd },
-            ...agentPreset === undefined ? {} : { agentPreset },
-            ...child.options !== undefined ? { agentOptions: child.options } : {},
-            ...maxDepth !== undefined ? { maxDepth } : {},
-          },
+          prompt,
+          parent,
+          ...cwd === undefined ? {} : { cwd },
+          ...agentPreset === undefined ? {} : { agentPreset },
+          ...child.options !== undefined ? { agentOptions: child.options } : {},
+          ...maxDepth !== undefined ? { maxDepth } : {},
           signal,
           delivery: 'parent',
         })
@@ -754,7 +757,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             categoryOmitted: category === undefined,
             parentOptions,
             policy: modelSelectionPolicy,
-            modelRequest,
             label: args.description,
             prompt: [{
               type: 'text',

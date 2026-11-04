@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/memory",
   "description": "Persistent agent memory: global and workspace stores, the memory tool, and injected snapshots.",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

@@ -1,10 +1,11 @@
 /**
  * The Exa-backed search provider registered with `ctx.web`: it resolves the API key for
- * every search and delegates the HTTP request and response mapping to the upstream
- * `ExaSearchProvider`. A fresh upstream instance is built for each search, so concurrent
- * searches never share a key, an option snapshot, or a transcript of state. An upstream
- * failure is rewritten before it leaves the provider, so its message carries the provider,
- * the credential reference, and a redacted bounded detail instead of upstream text.
+ * every search and delegates the HTTP request and response mapping to the
+ * `ExaSearchProvider` this package carries. A fresh provider instance is built for each
+ * search, so concurrent searches never share a key, an option snapshot, or a transcript of
+ * state. A provider failure is rewritten before it leaves the provider, so its message
+ * carries the provider, the credential reference, and a redacted bounded detail instead of
+ * the raw text.
  *
  * @module @anago-harness/web-search-exa/provider
  */
@@ -12,12 +13,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import { WebError } from '@deepseek-ai/dsh-web'
 import type { WebSearchProvider, WebSearchRequest, WebSearchResult } from '@deepseek-ai/dsh-web'
 import {
-  EXA_DEFAULT_BASE_URL,
-  EXA_DEFAULT_HIGHLIGHTS_PER_RESULT,
-  EXA_DEFAULT_SEARCH_TYPE,
   EXA_PROVIDER_ID,
   ExaSearchProvider,
-} from '@deepseek-ai/dsh-web-search-exa'
+} from './exa.ts'
 import {
   boundedProviderDetail,
   createCredentialReaders,
@@ -237,13 +235,13 @@ export class ExaCredentialSearchProvider implements WebSearchProvider {
   }
 
   /**
-   * Run one search through a fresh upstream `ExaSearchProvider`.
+   * Run one search through a fresh `ExaSearchProvider`.
    * @param request - the query and the caller's result bound.
    * @param signal - the caller's cancellation signal, when one was passed.
    * @returns the mapped sources; `truncated` is always false because the seam owns the bound.
    * @throws {WebError} `WEB_ABORTED` on cancellation, `WEB_PROVIDER_CREDENTIAL_MISSING` without
-   *   a key, `WEB_PROVIDER_ERROR` on an unusable query or any upstream provider failure. An
-   *   upstream failure is rewritten with the provider, the reference, and a redacted bounded
+   *   a key, `WEB_PROVIDER_ERROR` on an unusable query or any carried provider failure. A
+   *   provider failure is rewritten with the provider, the reference, and a redacted bounded
    *   detail, so no key or raw body reaches the message.
    */
   async search(request: WebSearchRequest, signal?: AbortSignal): Promise<WebSearchResult> {
@@ -252,9 +250,9 @@ export class ExaCredentialSearchProvider implements WebSearchProvider {
     // The query is actionable on its own, so report it before touching credentials.
     assertSearchableQuery(request.query)
     const apiKey = await resolveApiKey(options, signal)
-    // Build the upstream adapter from this operation's snapshot only. Upstream validates the
-    // values it receives and maps its own failures; retaining it would leak state across
-    // concurrent searches.
+    // Build the adapter from this operation's snapshot only. It validates the values it
+    // receives and maps its own failures; retaining it would leak state across concurrent
+    // searches.
     const provider = new ExaSearchProvider({
       apiKey,
       baseURL: options.baseURL,
@@ -264,7 +262,7 @@ export class ExaCredentialSearchProvider implements WebSearchProvider {
     try {
       return await provider.search(request, signal)
     } catch (error) {
-      // Upstream messages are built from intermediary-authored text; rewrite every failure so
+      // Provider messages are built from intermediary-authored text; rewrite every failure so
       // the model sees the provider, the reference, and a redacted bounded detail only.
       throw upstreamFailure(error, apiKey, options.apiKeyEnv)
     }
@@ -303,4 +301,4 @@ export function exaProviderOptions(
 }
 
 /** Re-exported defaults so the plugin entry and its callers share one source. */
-export { EXA_DEFAULT_BASE_URL, EXA_DEFAULT_HIGHLIGHTS_PER_RESULT, EXA_DEFAULT_SEARCH_TYPE, EXA_PROVIDER_ID }
+export { EXA_DEFAULT_BASE_URL, EXA_DEFAULT_HIGHLIGHTS_PER_RESULT, EXA_DEFAULT_SEARCH_TYPE, EXA_PROVIDER_ID } from './exa.ts'

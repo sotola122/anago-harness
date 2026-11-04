@@ -1,8 +1,9 @@
 /**
- * Exa-backed search provider for `ctx.web`. Unlike the upstream
- * `@deepseek-ai/dsh-web-search-exa` plugin, which reads only the settings value and the
- * launch environment, this plugin resolves its key per search through the credentials
- * service as well, so a key saved from the settings surface is usable without a restart.
+ * Exa-backed search provider for `ctx.web`. The fork carries the provider implementation
+ * itself because upstream 0.2.2 no longer ships `@deepseek-ai/dsh-web-search-exa`. Unlike
+ * that removed upstream plugin, which read only the settings value and the launch
+ * environment, this plugin resolves its key per search through the credentials service as
+ * well, so a key saved from the settings surface is usable without a restart.
  *
  * @module @anago-harness/web-search-exa
  */
@@ -12,7 +13,7 @@ import {
   EXA_DEFAULT_BASE_URL,
   EXA_DEFAULT_HIGHLIGHTS_PER_RESULT,
   EXA_DEFAULT_SEARCH_TYPE,
-} from '@deepseek-ai/dsh-web-search-exa'
+} from './provider.ts'
 import {
   EXA_DEFAULT_API_KEY_ENV,
   ExaCredentialSearchProvider,

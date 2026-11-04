@@ -708,7 +708,6 @@ export class SessionManager {
   handleSessionDetached(sessionId: SessionId): void {
     this.recordMutation({ kind: 'status', sessionId, running: false, agentAvailable: false })
     this.sessions.get(sessionId)?.handleRunning(false)
-    this.updateParentAvailability()
   }
 
   /**

@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/web-search-exa",
   "description": "Exa search provider that resolves its key through the credentials service.",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -29,7 +29,6 @@
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-launch-environment": "workspace:*",
     "@deepseek-ai/dsh-web": "workspace:*",
-    "@deepseek-ai/dsh-web-search-exa": "workspace:*",
     "@anago-harness/web-search-credentials": "workspace:*"
   },
   "devDependencies": {
@@ -37,7 +36,6 @@
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-launch-environment": "workspace:*",
     "@deepseek-ai/dsh-web": "workspace:*",
-    "@deepseek-ai/dsh-web-search-exa": "workspace:*",
     "@anago-harness/web-search-credentials": "workspace:*"
   }
 }

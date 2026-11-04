@@ -332,7 +332,7 @@ describe('purpose routing execution', () => {
     let calls = 0
     vi.spyOn(ctx.subagents, 'startActivation').mockImplementation(async (spec) => {
       calls += 1
-      if (spec.request.agentOptions?.model === 'second') throw new Error('second reviewer refused')
+      if (spec.agentOptions?.model === 'second') throw new Error('second reviewer refused')
       return original(spec)
     })
     const result = await callSubagent(ctx, { description: 'review work', prompt: 'review it', category: 'review' }, { agent: parent })
@@ -394,7 +394,7 @@ describe('purpose routing execution', () => {
     const interrupt = vi.spyOn(ctx.subagents, 'interrupt')
     vi.spyOn(ctx.subagents, 'startActivation').mockImplementation(async (spec) => {
       const started = await original(spec)
-      if (spec.request.agentOptions?.model === 'first') controller.abort()
+      if (spec.agentOptions?.model === 'first') controller.abort()
       return started
     })
     const aborted = await callSubagent(
