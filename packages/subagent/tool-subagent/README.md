@@ -67,6 +67,7 @@ For every backend, the runtime automatically delivers the completion notice if t
 `maxDepth` caps recursion (`0` forbids delegation); omission reads the current Host `subagent.maxDepth` setting, initially `1`, at each delegation. A numeric depth requires a provider with the `depthLimit` capability; `'provider-managed'` leaves the budget to an out-of-process provider. The tool stays visible at the cap; each attempted start checks the calling agent's current depth and rejects with an errored result.
 
 <a id="selecting-a-child-preset"></a>
+
 ### Selecting a child preset
 
 Set `agentPreset` to give every child an independent preset by default. Set `allowedAgentPresets` to let the model choose an id through `agent_preset`; without this allowlist, the model cannot override the configured choice. Only in-process spawn supports these options; fork and external backends reject them.
@@ -306,6 +307,7 @@ These limits define what this tool does not return or enforce; they are current 
 - **Depth caps are fixed per instance** — another cap requires another distinctly named tool. Child personas and tools belong to the selected Agent Preset. Explicit LLM selection requires `modelSelection` and is restricted to the Session’s authorized routes, or the current parent route without an enabled policy.
 
 <a id="dev-note"></a>
+
 ### Dev Note
 
 <details>

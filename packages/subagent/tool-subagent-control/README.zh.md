@@ -51,6 +51,7 @@ kind: "package-reference"
 `agent` 指定后代的方式与 `send_message` 指定目标的方式相同。外部执行永久停止，不能接收后续消息。本地目标只停止当前轮次：排队消息保留到后续 `send_message`，后代继续运行，子级仍可接受后续任务。调用在停止请求被接受时返回，不等待目标静止；中断已结束代理是成功的空操作，自身、同级、过期或非祖先调用方会收到错误。
 
 <a id="wait_agent"></a>
+
 ### wait_agent
 
 等待当前调用者的下一步收件箱。已有待处理输入时立即返回，除非同一次模型工具调用中先前的等待已报告过该输入，因此同一个 `run_code` 程序中的重复等待会阻塞直到有新输入或超时；之后到达的输入，包括消息、完成通知和用户引导，会结束等待。排队的下一轮消息、其他收件箱和 Agent 状态变化不会结束等待。任务变化不会结束等待。工具既不消费输入，也不启动 Agent。`timedOut: false` 表示有新输入待处理。待处理输入会在代码执行结束后交付给模型。`timeout_ms` 默认为 30000，必须是 10000 至 3600000 的整数。结果仅含 `timedOut`；取消、调用者释放或插件卸载会拒绝等待。
@@ -79,6 +80,7 @@ kind: "package-reference"
 ### 列表投影
 
 `list_agents` 解析调用方的在线根，从根开始无游标遍历目录，通过在线 Agent 注册表细化活动状态，并读取每个可继续子级已记录的路由。名称取自每个 `listDescendants()` 行的 `path`。未知模式附带诊断并继续遍历；不可读目录停止对应分支。可达目录之外的 Session 无法被发现。
+
 ### 源码地图
 
 | 文件 | 职责 |
@@ -177,6 +179,7 @@ Use list_agents({}) to find your collaborator agents and their names.
 #### 模型看到什么
 
 每行显示为 `<name> [<status>] — <description>`；没有描述时显示为 `<name> [<status>]`；已记录的路由字段以 ` provider=<provider> model=<model> effort=<effort>` 形式出现在状态与描述之间。首行为 `lead [<status>] — root agent`；随后是可继续后代，例如 `reviewer/checker [inactive] provider=xai model=grok-4.7 effort=high — Check the diff`。不可读分支显示为 `<name> [corrupt]`、`<name> [unsupported]` 或 `<name> [unavailable]`。规范值是 `{ name, status, description?, provider?, model?, reasoningEffort? }` 数组。状态描述轮次活动，不表示任务完成、成功或失败。
+
 #### Token 影响
 
 随整棵 subagent 树列出的行数线性增长。没有游标或上限。行不携带父级 id 或深度；完整名称已包含这两项信息。
@@ -199,6 +202,7 @@ Use list_agents({}) to find your collaborator agents and their names.
 - **没有分页或删除**——系统返回完整且稳定排序的集合；只要子级会话仍在持久化存储中，它就会继续出现在列表中，服务级上限或删除操作留待后续产品决策。
 
 <a id="dev-note"></a>
+
 ### 开发备注
 
 <details>

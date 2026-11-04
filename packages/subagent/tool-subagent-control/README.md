@@ -51,6 +51,7 @@ Sends a message to another agent in the same subagent tree. `agent` takes a name
 `agent` names a descendant the same way `send_message` names its target. External executions stop permanently and cannot receive follow-ups. Local targets stop only their current turn: queued messages stay parked until a later `send_message`, descendants keep running, and the child stays available for follow-ups. The call returns when the stop request is accepted, not when the target is quiet; interrupting an already-finished agent is an accepted no-op, and self, sibling, stale, and non-ancestor callers get errored results.
 
 <a id="wait_agent"></a>
+
 ### wait_agent
 
 Waits for the exact caller’s next-step inbox. Pending input returns immediately unless an earlier wait in the same model tool call already reported it, so repeated waits from one `run_code` program block until new input or timeout; later input, including messages, completion notifications, and user steering, ends the wait. Queued next-turn messages, unrelated inboxes, and Agent status changes do not end it. Task changes do not end the wait. The tool neither consumes input nor starts an Agent. `timedOut: false` means new input is pending. Pending input is delivered to the model after code execution finishes. `timeout_ms` defaults to 30000 and must be an integer from 10000 through 3600000. Results contain only `timedOut`; cancellation, caller disposal, or plugin unload rejects the wait.
@@ -79,6 +80,7 @@ The execution signal owns work only until inbox acceptance. Accepted messages ca
 ### Listing projection
 
 `list_agents` resolves the caller’s live root and traverses its catalogs without a cursor, refining activity through the live Agent registry and reading each continuable child’s recorded route. Names come from the `path` of each `listDescendants()` row. Unknown modes remain traversable with diagnostics; unreadable catalogs stop that branch. Sessions absent from reachable catalogs cannot be discovered.
+
 ### Source map
 
 | File | Role |
@@ -177,6 +179,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 #### What the model sees
 
 Each row renders as `<name> [<status>] — <description>`, or `<name> [<status>]` without a description; recorded route fields appear as ` provider=<provider> model=<model> effort=<effort>` between the status and the description. The first row is `lead [<status>] — root agent`; continuable descendants follow, such as `reviewer/checker [inactive] provider=xai model=grok-4.7 effort=high — Check the diff`. Unreadable branches render as `<name> [corrupt]`, `<name> [unsupported]`, or `<name> [unavailable]`. The canonical value is an array of `{ name, status, description?, provider?, model?, reasoningEffort? }`. Status describes turn activity, not task completion, success, or failure.
+
 #### Token effect
 
 Grows linearly with the whole subagent tree’s listed rows. There is no cursor or cap. Rows carry no parent ids or depth; a full name encodes both.
@@ -199,6 +202,7 @@ These limits define what the control tools cannot observe or steer; they are cur
 - **No pagination or deletion** — the complete stably ordered set is returned, and persisted children remain listed for as long as their sessions remain in persistence; a service-level bound or delete operation is a later product decision.
 
 <a id="dev-note"></a>
+
 ### Dev Note
 
 <details>
