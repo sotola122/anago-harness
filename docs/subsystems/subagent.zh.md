@@ -8,7 +8,7 @@
 
 所有后端都使用 startActivation。能力标记校验请求选项；prepareContinuable 选择本地 Agent 创建，start 选择一次外部执行。面向模型的工具采用 parent 回传。Workflow 与 code mode 消费者可以等待 caller 结果，不额外向父代理注入消息。历史子会话的 descriptor 不可用时，以 `mode: 'unknown'` 保持可发现性，但不授予继续执行能力；[包 README](../../packages/subagent/subagent/README.zh.md) 定义目录持久化语义。
 
-可选的 `cwd` 指定子级的初始目录；相对路径以父级当前有效目录为基准解析。省略时，在准入阶段捕获该目录。本地子 Session 保留父级的原始项目，冷恢复保留其日志中的目录状态。
+可选的 `cwd` 指定子级的初始目录；相对路径以父级当前有效目录为基准解析。省略时，在准入阶段捕获该目录。本地子 Session 保留父级的原始项目，冷恢复保留其日志中的目录状态。可选的 `permissionMode` 仅对本次执行选取提供方声明过的模式之一；省略时应用提供方配置的默认值，提供方未声明该模式时以 `UNSUPPORTED_CAPABILITY` 拒绝请求。
 
 ```ts type-equiv
 /**
@@ -122,6 +122,12 @@ interface SubagentStartRequest {
    * start otherwise.
    */
   readonly maxDepth?: number
+  /**
+   * Product-native permission mode for this run only. Requires a provider whose
+   * {@link SubagentProvider.permissionModes} lists it; rejected at start
+   * otherwise. Omission lets the provider apply its configured default.
+   */
+  readonly permissionMode?: string
 }
 ```
 
@@ -278,10 +284,11 @@ interface SubagentResult {
    */
   readonly structured?: unknown
   /**
-   * Provider-authored, non-assistant failure detail for a non-`completed`
-   * result. Providers keep this text free of tool inputs, file contents,
-   * environment values, credentials, and raw protocol payloads, and limit it
-   * to 4096 UTF-8 bytes. Consumers present it separately from {@link output}.
+   * Provider-authored, non-assistant detail for a failed run, or for a
+   * `completed` run whose answer may describe unfinished work. Providers keep
+   * this text free of tool inputs, file contents, environment values,
+   * credentials, and raw protocol payloads, and limit it to 4096 UTF-8 bytes.
+   * Consumers present it separately from {@link output}.
    */
   readonly diagnostic?: string
   /** Why the run ended. A non-`completed` reason means `output` may be partial. */
@@ -368,6 +375,14 @@ interface SubagentProvider {
    * is detached immutable data and requires `agentOptions` support.
    */
   readonly agentRouteDefaults?: Readonly<{ provider: string; model: string }>
+  /**
+   * Permission modes a start request may select through
+   * {@link SubagentStartRequest.permissionMode}. Absent means the provider
+   * accepts no per-run mode. Includes the provider's configured default.
+   */
+  readonly permissionModes?: readonly string[]
+  /** Mode applied when a request omits one; a member of {@link permissionModes}. */
+  readonly defaultPermissionMode?: string
   /**
    * Establish one external execution and return its owned handle.
    * The service has already validated that every requested start-time

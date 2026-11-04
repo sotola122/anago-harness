@@ -87,6 +87,12 @@ export type ActivationResource =
     readonly kind: 'external'
     readonly run: SubagentRun
     readonly controller: AbortController
+    /**
+     * Idle-release hold on the parent while the backend runs. An external run
+     * has no local Agent, so without it the parent's idle release drops the
+     * result. Set at publication; released after the settlement notice.
+     */
+    parentHold: Disposable | undefined
   }
 
 /** One managed execution period with its provider-specific resources. */
@@ -94,6 +100,17 @@ export type Activation = ActivationBase & ActivationResource
 
 /** Local residency with input admission and Session-backed result capture. */
 export type LocalActivation = Extract<Activation, { kind: 'local' }>
+
+/**
+ * Release the parent hold an external execution owns; a local activation or an
+ * already released hold is a no-op.
+ * @param activation - the execution whose parent hold ends.
+ */
+export function releaseParentHold(activation: Activation): void {
+  if (activation.kind !== 'external') return
+  activation.parentHold?.[Symbol.dispose]()
+  activation.parentHold = undefined
+}
 
 /**
  * Read the live Agent retained by local execution.

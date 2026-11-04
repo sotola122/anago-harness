@@ -396,6 +396,7 @@ class SubagentOutput(TypedDict):
     provider: NotRequired[str]
     model: NotRequired[str]
     reasoningEffort: NotRequired[str]
+    permissionMode: NotRequired[str]
 
 class SubagentForkArgs(TypedDict):
     # Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent.
@@ -414,6 +415,7 @@ class SubagentForkOutput(TypedDict):
     provider: NotRequired[str]
     model: NotRequired[str]
     reasoningEffort: NotRequired[str]
+    permissionMode: NotRequired[str]
 
 class TodoWriteArgsTodos(TypedDict):
     # What the task is — a short imperative line.

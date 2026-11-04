@@ -4016,6 +4016,17 @@ export interface Config {
    * `bypassPermissions` explicitly skips permission checks.
    */
   permissionMode?: ClaudeCodePermissionMode
+  /**
+   * Modes a delegating call may select through `permission_mode`. Defaults to
+   * `[permissionMode]`, which leaves the tool without that argument. Must
+   * include `permissionMode` and be non-empty.
+   */
+  allowedPermissionModes?: ClaudeCodePermissionMode[] | undefined
+  /**
+   * Upper bound in milliseconds for one run; an overrun ends the run as an
+   * error. Omitted means unbounded: only cancellation stops a run.
+   */
+  timeoutMs?: number | undefined
   /** Grace in milliseconds between Claude Code managed-range termination tiers. */
   disposeGraceMs?: number
 }

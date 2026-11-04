@@ -52,6 +52,17 @@ export interface Config {
    * `bypassPermissions` explicitly skips permission checks.
    */
   permissionMode?: ClaudeCodePermissionMode
+  /**
+   * Modes a delegating call may select through `permission_mode`. Defaults to
+   * `[permissionMode]`, which leaves the tool without that argument. Must
+   * include `permissionMode` and be non-empty.
+   */
+  allowedPermissionModes?: ClaudeCodePermissionMode[] | undefined
+  /**
+   * Upper bound in milliseconds for one run; an overrun ends the run as an
+   * error. Omitted means unbounded: only cancellation stops a run.
+   */
+  timeoutMs?: number | undefined
   /** Grace in milliseconds between Claude Code managed-range termination tiers. */
   disposeGraceMs?: number
 }
@@ -62,10 +73,16 @@ export const Config: z<Config> = z.object({
   env: z.dict(z.string()).default({}),
   permissionMode: z.union([...CLAUDE_CODE_PERMISSION_MODES])
     .default(DEFAULT_CLAUDE_CODE_PERMISSION_MODE),
+  // Absent is distinct from `[]`, which `apply` rejects.
+  allowedPermissionModes: (z.array(z.union([...CLAUDE_CODE_PERMISSION_MODES])) as z<ClaudeCodePermissionMode[] | undefined>)
+    .default(undefined),
+  timeoutMs: (z.number() as z<number | undefined>).default(undefined),
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
 })
 
-type ResolvedConfig = Omit<Required<Config>, 'model'> & Pick<Config, 'model'>
+type ResolvedConfig = Omit<Required<Config>, 'model' | 'timeoutMs' | 'allowedPermissionModes'>
+  & Pick<Config, 'model' | 'timeoutMs'>
+  & { allowedPermissionModes: ClaudeCodePermissionMode[] }
 /* jscpd:ignore-end */
 
 /* jscpd:ignore-start -- Cordis registration and shared-seam plumbing mirror
@@ -73,12 +90,17 @@ type ResolvedConfig = Omit<Required<Config>, 'model'> & Pick<Config, 'model'>
 class ClaudeCodeProvider implements SubagentProvider {
   readonly capabilities: SubagentCapabilities = NO_START_CAPABILITIES
   readonly inheritsParentContext = false
+  readonly permissionModes: readonly ClaudeCodePermissionMode[]
+  readonly defaultPermissionMode: ClaudeCodePermissionMode
 
   constructor(
     readonly name: string,
     private readonly ctx: Context,
     private readonly config: ResolvedConfig,
-  ) {}
+  ) {
+    this.permissionModes = config.allowedPermissionModes
+    this.defaultPermissionMode = config.permissionMode
+  }
 
   async start(request: ResolvedSubagentStartRequest) {
     let cwd: string
@@ -100,7 +122,11 @@ class ClaudeCodeProvider implements SubagentProvider {
     const spec: ClaudeCodeRunSpec = {
       cwd,
       ...this.config.model === undefined ? {} : { model: this.config.model },
-      permissionMode: this.config.permissionMode,
+      // The service already rejected modes outside `permissionModes`.
+      permissionMode: request.permissionMode === undefined
+        ? this.config.permissionMode
+        : request.permissionMode as ClaudeCodePermissionMode,
+      ...this.config.timeoutMs === undefined ? {} : { timeoutMs: this.config.timeoutMs },
       env: this.config.env,
       disposeGraceMs: this.config.disposeGraceMs,
       spawn: spawnSpec => this.ctx.subprocess.spawn(spawnSpec),
@@ -121,12 +147,32 @@ class ClaudeCodeProvider implements SubagentProvider {
  * @param config - registry name, optional model, permission mode, child environment, and disposal grace.
  */
 export function apply(ctx: Context, config: Config): void {
+  const permissionMode = config.permissionMode ?? DEFAULT_CLAUDE_CODE_PERMISSION_MODE
+  const allowedPermissionModes = config.allowedPermissionModes ?? [permissionMode]
+  if (allowedPermissionModes.length === 0) {
+    throw new Error('subagent-claude-code: allowedPermissionModes must not be empty')
+  }
+  if (!allowedPermissionModes.includes(permissionMode)) {
+    throw new Error(
+      `subagent-claude-code: allowedPermissionModes must include permissionMode "${permissionMode}"`,
+    )
+  }
   const resolved: ResolvedConfig = {
     providerName: config.providerName ?? DEFAULT_PROVIDER_NAME,
     ...config.model === undefined ? {} : { model: config.model },
     env: config.env as Record<string, string>,
-    permissionMode: config.permissionMode ?? DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
+    permissionMode,
+    allowedPermissionModes,
+    ...config.timeoutMs === undefined ? {} : { timeoutMs: config.timeoutMs },
     disposeGraceMs: config.disposeGraceMs as number,
+  }
+  if (resolved.timeoutMs !== undefined) {
+    assertPositiveFinite('subagent-claude-code', 'timeoutMs', resolved.timeoutMs)
+    if (resolved.timeoutMs > MAX_TIMER_DELAY_MS) {
+      throw new Error(
+        `subagent-claude-code: timeoutMs must be no greater than ${MAX_TIMER_DELAY_MS}`,
+      )
+    }
   }
   assertPositiveFinite(
     'subagent-claude-code',

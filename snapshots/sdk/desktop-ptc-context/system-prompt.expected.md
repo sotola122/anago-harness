@@ -1537,6 +1537,7 @@ interface ToolOutputMap {
     provider?: string;
     model?: string;
     reasoningEffort?: string;
+    permissionMode?: string;
   };
   subagent_fork: {
     kind: "activation";
@@ -1544,6 +1545,7 @@ interface ToolOutputMap {
     provider?: string;
     model?: string;
     reasoningEffort?: string;
+    permissionMode?: string;
   };
   todo_write: {
     todos: ({
