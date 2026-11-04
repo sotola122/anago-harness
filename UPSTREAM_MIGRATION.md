@@ -130,6 +130,7 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 A path this tree added and upstream does not have stays. If upstream adds the same path, stop and rename; do not delete the fork path to take upstream. Also keep any added path not listed here.
 
 - `packages/fork/**` (README pair and `.i18n.yaml` included) and `packages/preset/orchestrator-policy/**` (outside `packages/fork/`; version alignment and conflicts include it)
+- `packages/fork/web-search-exa/src/exa.ts` and `src/types.ts`: upstream 0.2.2 deleted `packages/web/web-search-exa`, so the fork carries that provider source itself and must not depend on `@deepseek-ai/dsh-web-search-exa` again. A sync that resurrects the upstream package keeps it deleted.
 - `ci/fork/**`, `scripts/fork/**`, `.github/workflows/fork-egress.yml`, `docs/fork.md` and its pair and `.i18n.yaml`
 - `ANAGO_TODO.md`, `ANAGO_PLUGINS_DESIGN.md`, `PROJECT_GUIDELINE.md`, `UPSTREAM_MIGRATION.md`, `.anago/`
 - `snapshots/session/anago-memory/`, `anago-wiki/`, `anago-search/`, `snapshots/session/upstream-compat.cordis.yml`
@@ -193,7 +194,9 @@ node apps/cli/lib/bin.js --profile web --port 0 --no-open
 
 ### Known red
 
-Checked 2026-10-31. A failure outside this list is a sync failure. Do not rewrite expected files to clear these.
+Checked 2026-11-04. A failure outside this list is a sync failure. Do not rewrite expected files to clear these.
+
+`ci/fork/egress-baseline.json` carries one reviewed entry beyond upstream: `learn.microsoft.com` in `packages/llm/llm-pi-ai/src/config.ts`, a JSDoc documentation URL with no fetch. Do not run `--write-baseline` during a sync: it rewrites every current pair and would baseline the six findings below.
 
 `pnpm run test:docs` fails only in `verify-package-readme-model-experience`, at `packages/subagent/tool-subagent/README.md` line 214: content after the `#### What the model sees` paragraph must be a titled H5 plus a `markdown` fence owned by that field. The file matches HEAD; it is not a dirty worktree.
 
