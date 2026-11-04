@@ -30,8 +30,11 @@
   en: a7d5ecc38bd7a94b
   zh: 732c5e0ef5abc2a0
 /deepseek-ai-dsh-tool-subagent-control/use-this-package/list-agents:
-  en: ed19a95c940c048b
-  zh: a734ef9e4892b971
+  en: abe20210b1274903
+  zh: abe20210b1274903
+/deepseek-ai-dsh-tool-subagent-control/lists-the-root-and-all-reachable-continuable-descendants-including-the-caller-in-stable-pre-order-each-row-carries-a-name-a-status-and-for-the-root-and-continuable-descendants-a-description-the-root-is-lead-with-the-description-root-agent-a-descendant-s-name-is-its-full-path-from-the-root-and-its-description-is-its-creation-label-a-child-whose-catalog-entry-has-no-name-and-every-descendant-below-it-is-listed-by-session-id-each-continuable-child-adds-provider-model-and-reasoningeffort-when-recorded-a-live-agent-supplies-its-current-options-and-an-inactive-child-supplies-the-descriptor-live-status-is-running-or-inactive-external-entries-are-omitted-without-reading-child-sessions-readable-one-shot-children-remain-traversal-nodes-unknown-modes-and-unreadable-catalogs-produce-rows-whose-status-is-unsupported-corrupt-or-unavailable-the-status-reports-that-the-row-s-own-descendants-could-not-be-read-while-the-row-itself-stays-an-addressable-member-ordinary-session-forks-lead-separate-subagent-trees:
+  en: 7232e8cfbf1b48db
+  zh: aac0efc37ca5518e
 /deepseek-ai-dsh-tool-subagent-control/understand-the-implementation:
   en: c5cdf01a78c990f2
   zh: 53c180d726ce4502
@@ -42,8 +45,8 @@
   en: c4dffa4789053044
   zh: 5c890ec2393f3261
 /deepseek-ai-dsh-tool-subagent-control/understand-the-implementation/listing-projection:
-  en: 34b0b770c7ae6726
-  zh: d8c589b6bd62be0b
+  en: b40d576c03183358
+  zh: f1ce50bf6d1d60a6
 /deepseek-ai-dsh-tool-subagent-control/understand-the-implementation/source-map:
   en: 988d8adc49bfc0c2
   zh: b3091ceb8d6dcad3
@@ -108,8 +111,8 @@
   en: 094e55d258f2ec2e
   zh: f364bc9046530bff
 /deepseek-ai-dsh-tool-subagent-control/model-experience/listing-result/what-the-model-sees:
-  en: 3b88f602282087f5
-  zh: d597e4681915d25a
+  en: 232a10db4385a318
+  zh: 09257e59636f1627
 /deepseek-ai-dsh-tool-subagent-control/model-experience/listing-result/token-effect:
   en: 8b5491a6a5459bb3
   zh: 87338c341aa9aa56

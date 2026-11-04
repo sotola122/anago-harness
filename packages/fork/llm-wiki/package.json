@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/llm-wiki",
   "description": "LLM wiki: project and global wiki stores with write, search, and lint tools plus a skill.",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

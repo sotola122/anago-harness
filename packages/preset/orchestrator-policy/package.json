@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-orchestrator-policy",
   "description": "Preset-scoped orchestrator contract and a guard that denies direct external-agent CLI starts",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },

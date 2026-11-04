@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/web-search-exa",
   "description": "Exa search provider that resolves its key through the credentials service.",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

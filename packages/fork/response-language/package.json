@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/response-language",
   "description": "Fixed Japanese-response instruction injected as a global system-prompt section.",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
