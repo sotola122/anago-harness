@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to give an agent a named tool that delegates work to a configured backend. Every call starts a managed activation and returns a child id; the runtime owns completion notices and cleanup. Local children support messages and restoration, while external backends execute one task and return their final answer through the completion notice. Supported backends can expose approved child LLM routes. Each instance can select a child preset and depth limit.
+Use this package to give an agent a named tool that delegates work to a configured backend. Every call starts a managed activation and returns the child's name; the runtime owns completion notices and cleanup. Local children support messages and restoration, while external backends execute one task and return their final answer through the completion notice. Supported backends can expose approved child LLM routes. Each instance can select a child preset and depth limit.
 
 ## Table of Contents
 
@@ -60,13 +60,14 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Managed delegation
 
-Every call returns `started subagent <childId>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved. It does not wait for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
+The optional `name` argument names the child, unique among the caller's children and cannot be `lead`; omission selects `agent-1`, `agent-2`, and so on. The [subagent runtime](../subagent/README.md#agent-names) owns the name rule and its errors. Every call returns `started subagent <name>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved, after the runtime accepts the child, where `<name>` is the child's full name from the root, such as `reviewer/checker`. Top-level calls persist `{ kind: 'activation', name: <name>, provider?, model?, reasoningEffort? }` in result presentation metadata; nested Code dispatches retain it in the corresponding `tool/ptc-dispatch` event's `meta` field. It does not wait for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
 
-Every backend’s completion notice carries its final answer. Local Spawn and Fork children can also send messages, accept more work through `send_message` while active, or resume after settling. Codex, Claude Code, ACP, and DSH SDK backends do not accept follow-up messages.
+For every backend, the runtime automatically delivers the completion notice if the calling Agent is still online when the child finishes. The notice includes the final answer unless the child sent that Agent a message just before finishing. Local Spawn and Fork children can also send messages, accept more work through `send_message` while active, or resume after settling. Codex, Claude Code, ACP, and DSH SDK backends do not accept follow-up messages.
 
 `maxDepth` caps recursion (`0` forbids delegation); omission reads the current Host `subagent.maxDepth` setting, initially `1`, at each delegation. A numeric depth requires a provider with the `depthLimit` capability; `'provider-managed'` leaves the budget to an out-of-process provider. The tool stays visible at the cap; each attempted start checks the calling agent's current depth and rejects with an errored result.
 
 <a id="selecting-a-child-preset"></a>
+
 ### Selecting a child preset
 
 Set `agentPreset` to give every child an independent preset by default. Set `allowedAgentPresets` to let the model choose an id through `agent_preset`; without this allowlist, the model cannot override the configured choice. Only in-process spawn supports these options; fork and external backends reject them.
@@ -79,7 +80,7 @@ Compose persona and tools in the [preset plugin list](../../preset/agent-preset-
 
 Set `modelSelection: true` to expose optional `provider`, `model`, and `reasoning_effort` fields; instances without it reject selection fields. Set `modelDiscovery: true` on one instance per tool scope to register `list_subagent_models`; it defaults off independently of `modelSelection`. A second discovery owner in the same scope fails to register. Discovery follows its owning plugin instance, remains available when its delegation provider is absent, and is removed when that instance unloads. Web and Desktop presets enable discovery and route fields on spawn and leave both disabled on fork. The Host’s `/model-selection-settings` service samples the user preference during Agent creation, independently of tool installation. Its creation listener subscribes before projection registration completes and awaits the handle; registration failure or owner disposal rejects Agent publication. When enabled, its exact route list is recorded in each fresh top-level Session, inherited by child Sessions, and preserved on restore; later settings edits affect only new Sessions. Without a recorded Session policy, discovery and explicit selection permit only the parent Agent’s current effective provider/model and its supported efforts. Route fields require a backend that advertises `agentOptions`; in-process Spawn and Fork and DSH SDK qualify, while ACP, Codex, and Claude Code fail the mount.
 
-A call supplies `provider` and `model` together, or supplies only an effort when configured, parent, or provider-owned defaults provide the route. Static `provider.agentRouteDefaults`, when present, form the provider/model baseline; tool configuration and model fields overlay it before route-aware effort merging and exact-route preflight. Providers without these defaults use compatible values from the parent's latest logged request, then the parent's creation options before its first request, while retaining the configured `maxTokens`. Changing the route without an explicit effort clears the inherited route-owned effort, so the selected model resolves its default. The live LLM adapter validates the effective route before child creation. Catalog membership remains advisory, so a model can use an unlisted id when its adapter accepts it.
+A call supplies `provider` and `model` together; `reasoning_effort` requires both fields in the same call. An effort-only call rejects before route lookup or child creation. Omitting all three fields preserves configured child defaults and their existing fallback behavior. With `providerOwnedRoute`, the three fields are independent and the provider interprets them in its own namespace.
 
 Set `purposeRouting: true` to let a call pass `category` instead of naming a provider and model. `light` is for quick lookups, small mechanical edits, and short summaries. `medium` is for ordinary implementation or investigation. `deep` is for hard debugging, design, or long multi-step reasoning. `review` starts one child per route on that row, in table order, and returns `subagentIds` plus `notStarted`. `writing` is for documentation, PR or issue text, translation, and user-facing prose. Omit `category` to use the table's `default` slot. Other categories start exactly one child.
 
@@ -89,7 +90,7 @@ The settings row stores `purposeRoutes`, a volatile table that defaults to `null
 
 The same settings row stores `purposeGuidance`, a volatile value that defaults to `null`. Null keeps the pinned `category` description byte for byte. A non-null value requires `light`, `medium`, `deep`, `review`, `writing`, and `omit`, each a non-empty sentence of at most 200 characters, and `splitting`, which may be empty and is at most 400 characters. A missing or over-long sentence fails when the value is loaded or read. Composition fails, and names the slot, when a sentence contains a provider or model identifier from the current table; it does not fall back to the built-in text. The failed text is not written into the schema. `list_subagent_categories` returns the same purpose clauses and replaces a failed read with the missing-table error so the identifier stays out of the model result.
 
-`purposeRouting: true` also registers `list_subagent_categories` in that tool scope. It takes no arguments. It returns the closed labels, the purpose text shared with the `category` parameter, whether the label starts one child per configured route, and whether omitting `category` can resolve the current `default` row. It does not return provider, model, reasoning effort, or route counts. A missing settings service or a null table still returns the five labels and reports the default row as unresolved. A table read that fails returns the missing-table error and omits the rejected route. The tool is absent when `purposeRouting` is false, including a `providerOwnedRoute` instance; combining those flags still fails at load.
+`purposeRouting: true` also registers `list_subagent_categories` in that tool scope. It takes no arguments. It returns the closed labels, the purpose text shared with the `category` parameter, whether the label starts one child per configured route, and whether omitting `category` can resolve the current `default` row. It does not return provider, model, reasoning effort, or route counts. A missing settings service or a null table still returns the five labels and reports the default row as unresolved. A table read that fails returns the missing-table error and omits the rejected route. The tool is absent when `purposeRouting` is false, including a `providerOwnedRoute` instance; combining those flags still fails at load. Static `provider.agentRouteDefaults`, when present, form the provider/model baseline; tool configuration and model fields overlay it before route-aware effort merging and exact-route preflight. Providers without these defaults use compatible values from the parent's latest logged request, then the parent's creation options before its first request, while retaining the configured `maxTokens`. An explicit provider/model pair without an effort clears configured and inherited effort, even when the route is unchanged, so the selected model resolves its default. The live LLM adapter validates the effective route before child creation. Catalog membership remains advisory, so a model can use an unlisted id when its adapter accepts it.
 
 -----
 
@@ -103,7 +104,7 @@ This section explains how the tool mirrors provider lifecycle and settles runs; 
 
 ### Design concept
 
-One instance is one provider plus one tool name. The plugin registers its definition in the owning composition while the provider is present and disposes it when the provider leaves. Each preset revision owns one shared registration, including tools with preset selection. Agents inherit its definitions; switching presets changes scope ancestry without reinstalling tools. Discovery belongs to the instance configured with `modelDiscovery` and reads the same durable Session policy as the delegation executor. A numeric `maxDepth` or configured LLM selection unsupported by the provider fails the mount. Multiple distinctly named delegation tools may expose model selection in one scope. At most one `purposeRouting` instance in a tool scope may load, because `list_subagent_categories` has one name.
+One instance is one provider plus one tool name. The plugin registers its definition in the owning composition while the provider is present and disposes it when the provider leaves. Each preset revision owns one shared registration, including tools with preset selection. Agents inherit its definitions; switching presets changes scope ancestry without reinstalling tools. Discovery belongs to the instance configured with `modelDiscovery` and reads the same durable Session policy as the delegation executor. A numeric `maxDepth` or configured LLM selection unsupported by the provider fails the mount. Multiple distinctly named delegation tools may expose model selection in one scope.
 
 ### Activation ownership
 
@@ -111,7 +112,7 @@ The tool calls `ctx.subagents.startActivation()` with parent delivery selected. 
 
 ### Result acknowledgement
 
-The canonical tool result is `{ kind: 'activation', subagentId }`. A `review` call also returns `subagentIds` and `notStarted`. It contains no execution Promise or final output; programmatic consumers that need to await results use the subagent service directly.
+The canonical tool result is `{ kind: 'activation', name }`, plus `provider`, `model`, and `reasoningEffort` for the route the call used. A `review` call also returns `names`, `notStarted`, and a `children` list that includes reviewers that did not start. It contains no execution Promise or final output; programmatic consumers that need to await results use the subagent service directly.
 
 ### Context-sensitive wording
 
@@ -159,7 +160,7 @@ The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek
 
 #### Token effect
 
-Fixed schema cost per parent request; `modelSelection` adds three optional route fields, while preset selection adds one enum parameter and default guidance. Purpose routing adds one enum parameter, one description sentence, and the fixed `list_subagent_categories` schema; editing the table does not change that prefix. Editing `purposeGuidance` replaces the `category` description. A visible purpose-routing tool also adds a fixed splitting paragraph, plus `splitting` when that sentence is non-empty. Each tool instance adds one schema; visible delegation tools share one short system-prompt section.
+Fixed schema cost per parent request, including the optional `name` field; `modelSelection` adds three optional route fields, while preset selection adds one enum parameter and default guidance. Purpose routing adds one enum parameter, one description sentence, and the fixed `list_subagent_categories` schema; editing the table does not change that prefix. Editing `purposeGuidance` replaces the `category` description. A visible purpose-routing tool also adds a fixed splitting paragraph, plus `splitting` when that sentence is non-empty. Each tool instance adds one schema; visible delegation tools share one short system-prompt section.
 
 #### KV Cache effect
 
@@ -169,7 +170,7 @@ Prefix-stable while provider instances and their configuration are unchanged. Ad
 
 #### What the model sees
 
-The optional `list_subagent_models` definition reads the calling Session’s route policy, falling back to the current parent route when no policy is recorded. Calls reject while the optional `ctx.llm` service is unavailable. With a recorded policy, provider model lists intersect the advertised catalog with the Session’s authorized routes. Without one, they resolve only the current parent model, even if the catalog omits it. The discovery tool’s own description instructs the model to query options before selecting a child route; omitting or filtering out discovery removes that guidance. Exact-model queries accept authorized ids absent from the catalog; unauthorized provider/model lookups fail before adapter access. Catalog or exact-model lookup failures and cancellation reject the call. Execution independently enforces the same policy.
+The optional `list_subagent_models` definition reads the calling Session’s route policy, falling back to the current parent route when no policy is recorded. Calls reject while the optional `ctx.llm` service is unavailable. With a recorded policy, provider model lists intersect the advertised catalog with the Session’s authorized routes. Without one, they resolve only the current parent model, even if the catalog omits it. The discovery tool’s description tells the model when to query child routes or efforts and to omit optional query fields rather than send empty strings. Delegation tools document their own selection fields and defaults. Exact-model queries accept authorized ids absent from the catalog; unauthorized provider/model lookups fail before adapter access. Catalog or exact-model lookup failures and cancellation reject the call. Execution independently enforces the same policy.
 
 #### Token effect
 
@@ -221,25 +222,28 @@ No parent-prefix cost. The sentence is added only to that child's task.
 
 The parent prefix is unchanged. The sentence is part of the child request, not the reusable parent prefix.
 
+
 ### System prompt
 
 #### What the model sees
 
-Visible delegation tools share one guidance paragraph, listing tools in name order and instructing the model to start independent delegations together and keep working while they run, and to end its turn instead of sleeping or polling when only waiting for their results remains. Ending the turn works because a settled child notifies its parent and a notice that reaches an idle parent starts one independent model request; hosts that keep children progressing alternate `agent.whenIdle()` and `waitForChildren(agent)` ([`dsh-subagent`](../subagent/README.md), [`session.ts`](../../acp/acp/src/session.ts)). When any visible delegation tool uses purpose routing, that paragraph is followed by a fixed splitting paragraph, then by `splitting` when that sentence is non-empty. A route-only edit does not change the paragraph. Hidden or unavailable tools are omitted; no guidance appears when none are visible. With both `subagent` and `subagent_fork` visible, the text is:
+Visible delegation tools share delegation and collaboration guidance, listing tools in name order and instructing the model to start independent delegations together and keep working while they run, and to end its turn instead of sleeping or polling when only waiting for their results remains. Ending the turn works because a settled child notifies its parent and a notice that reaches an idle parent starts one independent model request; hosts that keep children progressing alternate `agent.whenIdle()` and `waitForChildren(agent)` ([`dsh-subagent`](../subagent/README.md), [`session.ts`](../../acp/acp/src/session.ts)). Hidden or unavailable tools are omitted; no guidance appears when none are visible. With both `subagent` and `subagent_fork` visible, the text is:
 
 ##### Tool-guidance section
 
 ```markdown
-Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.
+Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn. Collect the subagent results required to complete the task before giving the user a final answer.
+
+Agents may use different working directories; changes to shared files affect other agents. Split parallel write work into disjoint file or directory scopes. Bash, formatters, code generators, and scripts can overwrite concurrent edits without conflict detection; coordinate their changes explicitly. The agent integrating the work must review the final diff and run relevant tests.
 ```
 
 #### Token effect
 
-At most one short delegation paragraph per parent request, listing the tool names visible to that request.
+Two guidance paragraphs per parent request with visible delegation tools, listing their names and shared-file coordination rules.
 
 #### KV Cache effect
 
-Prefix-stable while the visible tool names are unchanged; adding or removing a visible tool changes the paragraph.
+Prefix-stable while the visible tool names are unchanged; adding or removing a visible tool changes the guidance.
 
 ### Runtime depth context
 
@@ -265,7 +269,7 @@ Depth changes do not alter the system prompt or tool schemas. Updated runtime co
 
 #### What the model sees
 
-The call retains the task description and prompt. Success returns `started subagent <childId>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved; startup rejection returns an error. The canonical value also carries `provider`, `model`, and `reasoningEffort` for the route the call used. A review that starts more than one child, or that leaves a reviewer unstarted, returns `started N subagents: <ids>` and, when needed, `; M reviewer could not start`, then one `started subagent <id> · <model> · <effort>` line per child that started. The canonical `children` list includes reviewers that did not start, with their routes and without an id. Child execution details are delivered separately from this acknowledgement.
+The `description` guidance asks for 3–5 words in the language of the user’s current request. The call retains the task description and prompt. Success returns `started subagent <name>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved; startup rejection, including a duplicate or invalid `name`, returns an error. The canonical value also carries `provider`, `model`, and `reasoningEffort` for the route the call used. A review that starts more than one child, or that leaves a reviewer unstarted, returns `started N subagents: <names>` and, when needed, `; M reviewer could not start`, then one `started subagent <name> · <model> · <effort>` line per child that started. The canonical `children` list includes reviewers that did not start, with their routes and without a name. Child execution details are delivered separately from this acknowledgement.
 
 #### Token effect
 
@@ -279,7 +283,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 #### What the model sees
 
-Answer delivery follows the managed delegation rules above. The returned child id identifies subsequent control and catalog operations; only backends with continuation support accept follow-up messages.
+Answer delivery follows the managed delegation rules above. The returned name addresses the child in `send_message`, `interrupt_agent`, and Team task owners; only backends with continuation support accept follow-up messages.
 
 #### Token effect
 
@@ -301,11 +305,9 @@ These limits define what this tool does not return or enforce; they are current 
 - **Preset references are checked on delegation** — Host-mounted and preset-mounted tools both resolve the target when starting a child. A target can be declared or replaced after tool registration, so loading the tool cannot establish its availability for a later call. Misspelled or unavailable ids remain undetected until selected; that call returns an error.
 - **Shipped fork tools omit model selection** — their configuration leaves `modelSelection` disabled to preserve inherited-prefix reuse. Custom fork tools may enable it under the same Session authorization and adapter validation as other delegation tools.
 - **Depth caps are fixed per instance** — another cap requires another distinctly named tool. Child personas and tools belong to the selected Agent Preset. Explicit LLM selection requires `modelSelection` and is restricted to the Session’s authorized routes, or the current parent route without an enabled policy.
-- **The same-category retry is not enforced** — the tool text tells the parent to re-delegate a failed task once with the same `category`, or to omit it again when the failed call omitted it. The runtime cannot tell that a later call is the same task.
-- **Skill names are not resolved at load** — `categorySkills` checks the key and that the name is non-blank. A missing skill fails when the child calls the skill tool, not when this tool loads.
-- **A null purpose table does not hide labels** — `list_subagent_categories` still returns the five labels and reports the default row as unresolved. A later `category` delegation fails with the missing-table error. The discovery call does not stop that delegation.
 
 <a id="dev-note"></a>
+
 ### Dev Note
 
 <details>

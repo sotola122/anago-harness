@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/xai-oauth",
   "description": "Sign in to xAI (SuperGrok / X Premium) through the pi-ai OAuth flow and drive it from /xai-* commands.",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

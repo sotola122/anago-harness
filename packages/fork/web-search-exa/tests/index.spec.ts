@@ -1,6 +1,6 @@
 /**
  * Plugin and provider suite: config defaults, registration and disposal, the credential
- * resolution order, request mapping through the upstream `ExaSearchProvider`, cancellation,
+ * resolution order, request mapping through the carried `ExaSearchProvider`, cancellation,
  * and the no-key `available()` contract.
  * @module @anago-harness/web-search-exa/test/index.spec
  */
@@ -100,7 +100,7 @@ interface FetchCall {
   readonly init: RequestInit
 }
 
-/** Replace `globalThis.fetch` (the upstream class uses it directly) and record its calls. */
+/** Replace `globalThis.fetch` (the carried class uses it directly) and record its calls. */
 function stubFetch(
   respond: (call: FetchCall) => Response | Promise<Response>,
 ): ReturnType<typeof vi.fn> & { readonly calls: FetchCall[] } {

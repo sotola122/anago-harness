@@ -6,4 +6,4 @@ recording: live
 header:
   class: web-search-unconfigured
   pin: true
-  toolSchemasSource: web-fetch
+  toolSchemasSource: text-turn

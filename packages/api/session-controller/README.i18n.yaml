@@ -15,11 +15,11 @@
   en: 1fdf707322fb6996
   zh: 0204f7e9d4aa3cce
 /session-controller/use-this-package:
-  en: d3d53e899960d96e
-  zh: 16b2bc7fe74215d8
+  en: 9cac36e3c0a32959
+  zh: 37c42cc3edafa798
 /session-controller/client-references:
-  en: 41bdda1ac32df558
-  zh: aa5d0e325924066b
+  en: e8979a803ec3e194
+  zh: c567efcd971728ba
 /session-controller/session-media-references:
   en: 954923654eebe2dc
   zh: 6bd9a7d2ea965aed
@@ -27,8 +27,8 @@
   en: 20f175a8c4bdad33
   zh: 59fe871d60bbd671
 /session-controller/configuration/idle-release:
-  en: 2fb4afb1f5f3bd0a
-  zh: 323058062c0b3abc
+  en: f3a850e1c3651327
+  zh: fb9b8e5347aefb29
 /session-controller/model-experience:
   en: 30b917bf822bb4df
   zh: b0b023b5b526c317
@@ -36,8 +36,8 @@
   en: 22fc0c9dbedd3bb6
   zh: fad040ca55fd0e0a
 /session-controller/known-limitations-and-deferred-work:
-  en: 82720cab279a1d42
-  zh: ac8bfb098d7fc028
+  en: 906d1d0e813340ee
+  zh: 04c1ea9248fc70d3
 /session-controller/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: e88aeb617ffb74ea

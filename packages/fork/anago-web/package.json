@@ -1,7 +1,7 @@
 {
   "name": "@anago-harness/anago-web",
   "description": "Web UI layer for anago profiles: the web-search provider settings cards.",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

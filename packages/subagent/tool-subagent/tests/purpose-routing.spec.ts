@@ -251,7 +251,7 @@ describe('purpose routing execution', () => {
       provider: category === 'writing' ? 'beta' : 'alpha',
       model,
     })
-    expect(result.isError ? undefined : result.value).not.toHaveProperty('subagentIds')
+    expect(result.isError ? undefined : result.value).not.toHaveProperty('names')
   })
 
   it('uses the default row when category is omitted and does not check allowedModels', async () => {
@@ -332,7 +332,7 @@ describe('purpose routing execution', () => {
     let calls = 0
     vi.spyOn(ctx.subagents, 'startActivation').mockImplementation(async (spec) => {
       calls += 1
-      if (spec.request.agentOptions?.model === 'second') throw new Error('second reviewer refused')
+      if (spec.agentOptions?.model === 'second') throw new Error('second reviewer refused')
       return original(spec)
     })
     const result = await callSubagent(ctx, { description: 'review work', prompt: 'review it', category: 'review' }, { agent: parent })
@@ -343,8 +343,8 @@ describe('purpose routing execution', () => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       throw new Error('expected an activation object')
     }
-    expect(value.subagentIds).toHaveLength(2)
-    expect(value.subagentId).toBe(Array.isArray(value.subagentIds) ? value.subagentIds[0] : undefined)
+    expect(value.names).toHaveLength(2)
+    expect(value.name).toBe(Array.isArray(value.names) ? value.names[0] : undefined)
     expect(value.notStarted).toBe(1)
     expect(value).toMatchObject({
       provider: 'alpha',
@@ -353,10 +353,10 @@ describe('purpose routing execution', () => {
     })
     const children = Array.isArray(value.children) ? value.children : []
     expect(children.map(child => child !== null && typeof child === 'object' && 'model' in child ? child.model : undefined)).toEqual(['first', 'second', 'third'])
-    expect(children[0]).toMatchObject({ subagentId: value.subagentId, provider: 'alpha', reasoningEffort: 'high' })
+    expect(children[0]).toMatchObject({ name: value.name, provider: 'alpha', reasoningEffort: 'high' })
     expect(children[1]).toEqual({ provider: 'alpha', model: 'second', reasoningEffort: 'high' })
     expect(children[2]).toMatchObject({ provider: 'alpha', model: 'third', reasoningEffort: 'xhigh' })
-    expect(children[2]).toHaveProperty('subagentId')
+    expect(children[2]).toHaveProperty('name')
     expect(text(result)).toContain('started 2 subagents:')
     expect(text(result)).toContain('1 reviewer could not start')
     expect(text(result)).toContain('· first · high')
@@ -394,7 +394,7 @@ describe('purpose routing execution', () => {
     const interrupt = vi.spyOn(ctx.subagents, 'interrupt')
     vi.spyOn(ctx.subagents, 'startActivation').mockImplementation(async (spec) => {
       const started = await original(spec)
-      if (spec.request.agentOptions?.model === 'first') controller.abort()
+      if (spec.agentOptions?.model === 'first') controller.abort()
       return started
     })
     const aborted = await callSubagent(

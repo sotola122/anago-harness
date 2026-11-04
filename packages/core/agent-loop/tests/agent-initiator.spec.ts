@@ -243,7 +243,7 @@ describe('AgentLoop initiator scope', () => {
         const handle = await exec.agent.ctx.agents.create({
           sessionId: SessionId('child-session'),
           agentOptions: { provider: 'mock', model: 'mock' },
-          parentAgent: exec.agent,
+
           setup: (agentCtx, childAgent) => {
             parentDuringSetup = ctx.agents.requireInitiator()
             explicitChild = childAgent
@@ -282,6 +282,31 @@ describe('AgentLoop initiator scope', () => {
     expect(parentWhileChildDriverActive).toBe(parentHandle.agent)
     expect(ctx.agents.currentInitiator()).toBeUndefined()
     await parentHandle.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('records the initiating agent as the runtime owner of the agents it creates', async () => {
+    const { ctx } = await harness(new MockAdapter([textResponse('ok')]))
+    const parent = await ctx.agents.create({
+      sessionId: SessionId('owner-parent'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    const child = await ctx.agents.withInitiator(parent.agent, () => ctx.agents.create({
+      sessionId: SessionId('owner-child'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    }))
+    expect(ctx.agents.isOwnedBy(child.agent.id, parent.agent)).toBe(true)
+
+    const root = await ctx.agents.create({
+      sessionId: SessionId('owner-root'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    expect(ctx.agents.isOwnedBy(root.agent.id, parent.agent)).toBe(false)
+
+    await child.dispose()
+    expect(ctx.agents.isOwnedBy(child.agent.id, parent.agent)).toBe(false)
+    await root.dispose()
+    await parent.dispose()
     await ctx.fiber.dispose()
   })
 

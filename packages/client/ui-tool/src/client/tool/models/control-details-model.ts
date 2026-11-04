@@ -1,7 +1,7 @@
 /** Entity lists and receipts for agent, job, terminal, and language-server tools. */
 import type { ToolDetailsModel } from '../components/ToolDetails.tsx'
 import {
-  detailBadge, detailList, detailRecord, inspectionItems,
+  detailBadge, detailList, detailRecord, inspectionItems, nonempty,
   type DetailItem, type DetailTranslate,
 } from './detail-model-shared.ts'
 
@@ -30,10 +30,19 @@ function routeFields(route: { provider?: string; model?: string; reasoningEffort
 }
 
 /** Compact started line: model and effort stay verbatim after the localized prefix. */
-function startedLine(id: string, route: { model?: string; reasoningEffort?: string }, t: DetailTranslate): string {
+function startedLine(name: string, route: { model?: string; reasoningEffort?: string }, t: DetailTranslate): string {
   const extra = [route.model, route.reasoningEffort].filter((part): part is string => part !== undefined && part !== '')
-  const base = t('detail.agent.started', { id })
+  const base = t('detail.agent.started', { id: name })
   return extra.length === 0 ? base : `${base} · ${extra.join(' · ')}`
+}
+
+/** Localize task ownership without interpreting inspection providers' own `owner` fields. */
+function teamTaskItems(value: unknown, t: DetailTranslate): DetailItem[] {
+  return inspectionItems(value, t).map(item => ({
+    ...item,
+    fields: item.fields.map(field => field.label === 'owner'
+      ? { ...field, label: t('detail.field.owner') } : field),
+  }))
 }
 
 function agentList(text: string, json: unknown, t: DetailTranslate): ToolDetailsModel | null {
@@ -41,10 +50,11 @@ function agentList(text: string, json: unknown, t: DetailTranslate): ToolDetails
   if (text === '(no subagents)') return detailList([], t('detail.agents.count', { count: 0 }), t)
   const items: DetailItem[] = []
   for (const line of text.split('\n')) {
-    const match = /^(\S+) \[([^\]]+)\]((?: (?:provider|model|effort)=\S+)*)(?: parent=(\S+) depth=(\d+))?(?: — (.*))?$/u.exec(line)
+    // Historical rows name agents by Session ID and carry parent and depth.
+    const match = /^(\S+) \[([^\]]+)\]((?: (?:provider|model|effort)=\S+)*)(?: parent=\S+ depth=\d+)?(?: — (.*))?$/u.exec(line)
     if (match === null) return null
-    const [, id, state, routeText, parent, depth, title] = match
-    if (id === undefined || state === undefined) return null
+    const [, agent, state, routeText, title] = match
+    if (agent === undefined || state === undefined) return null
     const route: { provider?: string; model?: string; reasoningEffort?: string } = {}
     for (const token of (routeText ?? '').split(' ')) {
       const split = token.indexOf('=')
@@ -56,16 +66,13 @@ function agentList(text: string, json: unknown, t: DetailTranslate): ToolDetails
       else if (key === 'effort') route.reasoningEffort = value
     }
     const fields = routeFields(route, t)
-    if (parent !== undefined) {
-      fields.push({ label: t('detail.field.parent'), value: parent }, { label: t('detail.field.depth'), value: depth ?? '' })
-    }
     items.push({
-      title: title ?? id, ...(title === undefined ? {} : { subtitle: id }),
+      title: agent, ...(title === undefined ? {} : { subtitle: title }),
       badge: detailBadge(state, t),
       fields,
     })
   }
-  return detailList(items, t('detail.agents.count', { count: items.length }), t)
+  return { ...detailList(items, t('detail.agents.count', { count: items.length }), t), compact: true }
 }
 
 function jobList(text: string, t: DetailTranslate): ToolDetailsModel | null {
@@ -131,35 +138,37 @@ function stringField(value: unknown): string | undefined {
 
 /** Structured activation route persisted on `tool/result` meta. */
 function activationRoute(meta: unknown): {
-  subagentId?: string
+  name?: string
   provider?: string
   model?: string
   reasoningEffort?: string
-  children?: Array<{ subagentId?: string; provider?: string; model?: string; reasoningEffort?: string }>
+  children?: Array<{ name?: string; provider?: string; model?: string; reasoningEffort?: string }>
 } | undefined {
   if (!detailRecord(meta)) return undefined
   const children = Array.isArray(meta.children)
     ? meta.children.flatMap((child) => {
       if (!detailRecord(child)) return []
-      const subagentId = stringField(child.subagentId)
+      // Receipts recorded before agents had names store the child Session id.
+      const name = stringField(child.name) ?? stringField(child.subagentId)
       const provider = stringField(child.provider)
       const model = stringField(child.model)
       const reasoningEffort = stringField(child.reasoningEffort)
       return [{
-        ...subagentId !== undefined ? { subagentId } : {},
+        ...name !== undefined ? { name } : {},
         ...provider !== undefined ? { provider } : {},
         ...model !== undefined ? { model } : {},
         ...reasoningEffort !== undefined ? { reasoningEffort } : {},
       }]
     })
     : undefined
-  const subagentId = stringField(meta.subagentId)
+  // Receipts recorded before agents had names store the child Session id.
+  const name = stringField(meta.name) ?? stringField(meta.subagentId)
   const provider = stringField(meta.provider)
   const model = stringField(meta.model)
   const reasoningEffort = stringField(meta.reasoningEffort)
-  if (subagentId === undefined && (children === undefined || children.length === 0)) return undefined
+  if (name === undefined && (children === undefined || children.length === 0)) return undefined
   return {
-    ...subagentId !== undefined ? { subagentId } : {},
+    ...name !== undefined ? { name } : {},
     ...provider !== undefined ? { provider } : {},
     ...model !== undefined ? { model } : {},
     ...reasoningEffort !== undefined ? { reasoningEffort } : {},
@@ -167,65 +176,108 @@ function activationRoute(meta: unknown): {
   }
 }
 
-function subagentReceipt(text: string, meta: unknown, prompt: string, t: DetailTranslate): ToolDetailsModel | null {
-  const recorded = activationRoute(meta)
-  const children = recorded?.children
-  if (children !== undefined && children.length > 0) {
-    const items = children.map((child) => {
-      const id = child.subagentId
-      return id === undefined
-        ? { title: t('detail.agent.notStarted'), badge: { label: t('detail.agent.notStarted'), tone: 'warning' as const }, fields: routeFields(child, t) }
-        : { title: startedLine(id, child, t), badge: { label: t('detail.receipt.started'), tone: 'info' as const }, fields: [{ label: t('detail.field.agent'), value: id }, ...routeFields(child, t)] }
-    })
-    const started = children.filter(child => child.subagentId !== undefined)
-    const only = started.length === 1 && children.length === 1 ? started[0] : undefined
-    const summary = only?.subagentId !== undefined
-      ? startedLine(only.subagentId, only, t)
-      : t('detail.agent.startedCount', { count: started.length })
-    return { ...detailList(items, summary, t), expandedSummary: prompt || summary }
-  }
+/** One review fan-out receipt from persisted metadata, or null when the call started a single child. */
+function fanOutReceipt(meta: unknown, prompt: string, t: DetailTranslate): ToolDetailsModel | null {
+  const children = activationRoute(meta)?.children
+  if (children === undefined || children.length === 0) return null
+  const items = children.map((child) => {
+    const name = child.name
+    return name === undefined
+      ? { title: t('detail.agent.notStarted'), badge: { label: t('detail.agent.notStarted'), tone: 'warning' as const }, fields: routeFields(child, t) }
+      : { title: startedLine(name, child, t), badge: { label: t('detail.receipt.started'), tone: 'info' as const }, fields: [{ label: t('detail.field.agent'), value: name }, ...routeFields(child, t)] }
+  })
+  const started = children.filter(child => child.name !== undefined)
+  const only = started.length === 1 && children.length === 1 ? started[0] : undefined
+  const summary = only?.name !== undefined
+    ? startedLine(only.name, only, t)
+    : t('detail.agent.startedCount', { count: started.length })
+  return { ...detailList(items, summary, t), expandedSummary: prompt || summary }
+}
+
+/** Read a delegation receipt recorded as model-facing text. */
+function textReceipt(text: string, prompt: string, t: DetailTranslate): ToolDetailsModel | null {
   const lines = text.split('\n').flatMap((line) => {
-    const match = /^started subagent (\S+)(?: · (\S+))?(?: · (\S+))?$/u.exec(line)
+    const match = /^started subagent (\S+) · (\S+)(?: · (\S+))?$/u.exec(line)
     if (match === null || match[1] === undefined) return []
     const model = match[2]
     const reasoningEffort = match[3]
     return [{
-      subagentId: match[1],
+      name: match[1],
       ...model !== undefined ? { model } : {},
       ...reasoningEffort !== undefined ? { reasoningEffort } : {},
     }]
   })
   if (lines.length > 1) {
     const items = lines.map(child => ({
-      title: startedLine(child.subagentId, child, t),
+      title: startedLine(child.name, child, t),
       badge: { label: t('detail.receipt.started'), tone: 'info' as const },
-      fields: [{ label: t('detail.field.agent'), value: child.subagentId }, ...routeFields(child, t)],
+      fields: [{ label: t('detail.field.agent'), value: child.name }, ...routeFields(child, t)],
     }))
     return {
       ...detailList(items, t('detail.agent.startedCount', { count: lines.length }), t),
       expandedSummary: prompt || t('detail.agent.startedCount', { count: lines.length }),
     }
   }
-  const started = /^started (background subagent job|subagent) (\S+)(?: · (\S+))?(?: · (\S+))?$/u.exec(text.split('\n')[0] ?? '')
+  const started = /^started subagent (\S+) · (\S+)(?: · (\S+))?$/u.exec(text.split('\n')[0] ?? '')
   if (started !== null) {
-    const id = started[2] ?? ''
-    const model = started[3]
-    const reasoningEffort = started[4]
-    const fromText = started[1] === 'subagent'
-      ? {
-        ...model !== undefined ? { model } : {},
-        ...reasoningEffort !== undefined ? { reasoningEffort } : {},
-      }
-      : {}
-    const route = recorded ?? fromText
-    const fields = [{ label: t(started[1] === 'subagent' ? 'detail.field.agent' : 'detail.field.job'), value: id }, ...routeFields(route, t)]
-    const title = started[1] === 'subagent' ? startedLine(id, route, t) : prompt
+    const name = started[1] ?? ''
+    const model = started[2]
+    const reasoningEffort = started[3]
+    const route = {
+      ...model !== undefined ? { model } : {},
+      ...reasoningEffort !== undefined ? { reasoningEffort } : {},
+    }
+    const fields = [{ label: t('detail.field.agent'), value: name }, ...routeFields(route, t)]
+    const title = startedLine(name, route, t)
     return {
       ...detailList([{ title: prompt || title, badge: { label: t('detail.receipt.started'), tone: 'info' }, fields }], title, t),
       expandedSummary: prompt || title,
     }
   }
   return null
+}
+
+/**
+ * Read a successful delegation receipt from persisted metadata or historical text.
+ * @param args - Recorded creation arguments, including description and full prompt.
+ * @param text - Single recorded text block; absent for other content layouts.
+ * @param meta - Tool-owned result metadata; only absent metadata permits legacy text parsing.
+ *   Its `name` is the child's model-facing agent name and is absent from receipts recorded before agents had names.
+ * @param t - Conversation translator.
+ * @returns Started task details, a historical synchronous reply, or null for unsupported data.
+ */
+export function subagentDetails(
+  args: Record<string, unknown>, text: string | undefined, meta: unknown, t: DetailTranslate,
+): ToolDetailsModel | null {
+  const fields: DetailItem['fields'][number][] = []
+  const description = arg(args, 'description')
+  if (meta === undefined) {
+    if (text === undefined) return null
+    const receipt = textReceipt(text, arg(args, 'prompt'), t)
+    if (receipt !== null) return receipt
+    // Historical results lack the structured receipt stored by current tools.
+    const started = /^started (background subagent job|subagent) (\S+)$/u.exec(text)
+    if (started === null) {
+      return detailList([{ title: t('detail.agent.reply'), markdown: text, fields: [], groups: [{ label: t('detail.field.task'), items: [{ description: arg(args, 'prompt'), fields: [] }] }] }], t('detail.agent.reply'), t)
+    }
+    if (nonempty(description)) fields.push({ label: t('detail.field.agentDescription'), value: description })
+    if (started[1] === 'background subagent job') fields.push({ label: t('detail.field.job'), value: started[2] ?? '' })
+    else fields.push({ label: t('detail.field.id'), value: started[2] ?? '' })
+  } else {
+    const fanOut = fanOutReceipt(meta, arg(args, 'prompt'), t)
+    if (fanOut !== null) return fanOut
+    if (!detailRecord(meta) || meta.kind !== 'activation') return null
+    if (meta.name !== undefined && !nonempty(meta.name)) return null
+    if (meta.subagentId !== undefined && !nonempty(meta.subagentId)) return null
+    if (meta.name === undefined && meta.subagentId === undefined) return null
+    if (nonempty(description)) fields.push({ label: t('detail.field.agentDescription'), value: description })
+    if (meta.name !== undefined) fields.push({ label: t('detail.field.agentName'), value: meta.name })
+    if (meta.subagentId !== undefined) fields.push({ label: t('detail.field.id'), value: meta.subagentId })
+  }
+  return detailList([{
+    title: t('detail.receipt.started'), fields,
+    groups: [{ label: t('detail.field.task'), items: [{ description: arg(args, 'prompt'), fields: [] }] }],
+  }], description || arg(args, 'prompt'), t)
 }
 
 /**
@@ -241,7 +293,8 @@ function subagentReceipt(text: string, meta: unknown, prompt: string, t: DetailT
 export function controlDetails(
   name: string, args: Record<string, unknown>, text: string, json: unknown, t: DetailTranslate, meta?: unknown,
 ): ToolDetailsModel | null {
-  const target = arg(args, 'target') || arg(args, 'agent_id') || arg(args, 'sessionId') || arg(args, 'job_id')
+  // Historical `send_message` and `interrupt_agent` records name their target with `agent_id`.
+  const target = arg(args, 'target') || arg(args, 'agent') || arg(args, 'agent_id') || arg(args, 'sessionId') || arg(args, 'job_id')
   switch (name) {
     case 'list_agents': return agentList(text, json, t)
     case 'job_list': return jobList(text, t)
@@ -254,12 +307,12 @@ export function controlDetails(
     case 'team_task_get':
     case 'team_task_update':
       if (!detailRecord(json) || typeof json.subject !== 'string') return null
-      return detailList(inspectionItems(json, t), json.subject, t)
+      return detailList(teamTaskItems(json, t), json.subject, t)
     case 'team_task_list':
       if (!detailRecord(json) || !Array.isArray(json.tasks)) return null
       if (json.nextCursor !== undefined && typeof json.nextCursor !== 'number') return null
       return {
-        ...detailList(inspectionItems(json.tasks, t), t('detail.tasks.count', { count: json.tasks.length }), t),
+        ...detailList(teamTaskItems(json.tasks, t), t('detail.tasks.count', { count: json.tasks.length }), t),
         ...(json.nextCursor === undefined ? {} : { caption: t('detail.tasks.nextPage', { cursor: String(json.nextCursor) }) }),
       }
     case 'send_message': {
@@ -272,12 +325,18 @@ export function controlDetails(
     case 'interrupt_agent':
       if (detailRecord(json) && typeof json.previousStatus === 'string') return receipt(target, { label: t('detail.receipt.interrupt'), tone: 'warning' }, t, [{ label: t('detail.field.previousStatus'), value: detailBadge(json.previousStatus, t).label }])
       return text === `interrupt requested for agent ${target}` ? receipt(target, { label: t('detail.receipt.interrupt'), tone: 'warning' }, t) : null
-    case 'wait_agent':
+    case 'wait_agent': {
       if (!detailRecord(json) || typeof json.timedOut !== 'boolean') return null
       if (detailRecord(json.noProgress) && typeof json.noProgress.message === 'string') return detailList([{ title: t('detail.wait.noProgress'), description: json.noProgress.message, fields: [] }], t('detail.wait.noProgress'), t)
-      return receipt(t('detail.wait.title'), { label: t(json.timedOut ? 'detail.wait.timeout' : 'detail.wait.changed'), tone: 'neutral' }, t)
+      const label = t(json.timedOut ? 'detail.wait.timeout' : 'detail.wait.ended')
+      return {
+        ...receipt(t('detail.wait.title'), { label, tone: 'neutral' }, t),
+        summary: label,
+        expandedSummary: '',
+      }
+    }
     case 'subagent': {
-      const receiptModel = subagentReceipt(text, meta, arg(args, 'prompt'), t)
+      const receiptModel = fanOutReceipt(meta, arg(args, 'prompt'), t) ?? textReceipt(text, arg(args, 'prompt'), t)
       if (receiptModel !== null) return receiptModel
       return detailList([{ title: t('detail.agent.reply'), markdown: text, fields: [], groups: [{ label: t('detail.field.task'), items: [{ description: arg(args, 'prompt'), fields: [] }] }] }], t('detail.agent.reply'), t)
     }

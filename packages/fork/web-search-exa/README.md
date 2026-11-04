@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@anago-harness/web-search-exa` registers an Exa-backed search provider with `ctx.web` under the id `exa`. It is a thin wrapper around the upstream `ExaSearchProvider` exported by `@deepseek-ai/dsh-web-search-exa`: the wrapper resolves the API key for every search and delegates the HTTP request and response mapping to a fresh upstream instance. An upstream failure is rewritten before it leaves the wrapper, so its message names the provider and the credential reference and carries only a redacted, bounded detail.
+`@anago-harness/web-search-exa` registers an Exa-backed search provider with `ctx.web` under the id `exa`. The fork carries the Exa provider implementation itself (`src/exa.ts` and `src/types.ts`) because upstream 0.2.2 no longer ships `@deepseek-ai/dsh-web-search-exa`. On top of that implementation, the plugin resolves the API key for every search through the credentials service, the launch environment, or a literal config value, and rewrites a provider failure so its message names the provider and the credential reference and carries only a redacted, bounded detail.
 
 ## Table of Contents
 
@@ -39,7 +39,7 @@ Add the row and select the provider in the `web` row:
     fetchProvider: http
 ```
 
-Do not load the upstream `@deepseek-ai/dsh-web-search-exa` plugin at the same time. Both register the id `exa`, and `ctx.web` rejects a duplicate id.
+The provider registers the fixed id `exa`. No other package may register that id in the same composition, because `ctx.web` rejects a duplicate id.
 
 ### Key resolution order
 
@@ -79,28 +79,30 @@ A request's `maxResults` is sent to Exa as `numResults`, a cost and latency opti
 | Transport failure or unparseable body | `WEB_PROVIDER_ERROR` | The same rewritten form, with the upstream failure kept as `cause`. |
 | Caller cancellation | `WEB_ABORTED` | No additional detail. |
 
-The wrapper never passes an upstream message through unchanged. `upstreamFailure` in `src/provider.ts` applies `redactSecret` and `boundedProviderDetail` from `@anago-harness/web-search-credentials` to the upstream message, so a key or base64 encoding echoed by a proxy, gateway, or provider becomes `[REDACTED]` and the detail is capped at 200 characters. When nothing printable survives, the message states the failure class alone. Cancellation keeps `WEB_ABORTED`; every other failure keeps the upstream code, and `cause` retains the upstream error for logs.
+The wrapper never passes a provider message through unchanged. `upstreamFailure` in `src/provider.ts` applies `redactSecret` and `boundedProviderDetail` from `@anago-harness/web-search-credentials` to the provider message, so a key or base64 encoding echoed by a proxy, gateway, or provider becomes `[REDACTED]` and the detail is capped at 200 characters. When nothing printable survives, the message states the failure class alone. Cancellation keeps `WEB_ABORTED`; every other failure keeps the provider code, and `cause` retains the provider error for logs.
 
 -----
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The upstream plugin builds its provider once from `config.apiKey ?? launchEnvironmentOf(ctx).get('EXA_API_KEY')`. It never reads `ctx.credentials`, so a key saved from the settings surface is invisible to it, and a key stored only in credentials makes the upstream provider unavailable at selection time. This fork package closes that gap: it resolves through the credentials service first, keeps the provider selectable when no key is locally visible, and re-resolves the key for each search so a key change needs no restart.
+Upstream 0.2.2 removed `@deepseek-ai/dsh-web-search-exa` when it made DeepSeek Search the default, so the fork carries that provider implementation in this package. `src/exa.ts` holds the `ExaSearchProvider` class, the `EXA_DEFAULT_*` constants, and the response mapping; `src/types.ts` holds the Exa wire types. The plugin entry and the credential wrapper build on that implementation: the wrapper resolves through the credentials service first, keeps the provider selectable when no key is locally visible, and re-resolves the key for each search so a key change needs no restart.
 
 The `anago-core` bundle owns the row and selects `exa` as the search provider; this package does not ship a `cordis.patch.yml`.
 
 | File | Role |
 | --- | --- |
 | [`src/index.ts`](src/index.ts) | Plugin entry: `Volatile` config schema, provider registration through `ctx.effect`, and the per-search option projection. |
-| [`src/provider.ts`](src/provider.ts) | `ExaCredentialSearchProvider`: `available()`, per-search key resolution, query bounds, delegation to the upstream class, and the failure rewrite. |
+| [`src/provider.ts`](src/provider.ts) | `ExaCredentialSearchProvider`: `available()`, per-search key resolution, query bounds, delegation to the carried class, and the failure rewrite. |
+| [`src/exa.ts`](src/exa.ts) | `ExaSearchProvider` carried from the removed upstream package: the HTTP request, the response mapping, and the `EXA_DEFAULT_*` constants. |
+| [`src/types.ts`](src/types.ts) | Exa wire types; types only, no runtime code. |
 | [`tests/index.spec.ts`](tests/index.spec.ts) | Unit suite with an injected `fetch` supplied through `globalThis.fetch`. |
 
-`search()` checks cancellation and the query bound, snapshots the settings once, resolves the key, and then constructs exactly one `new ExaSearchProvider({ apiKey, baseURL, searchType, highlightsPerResult })` for that search. Nothing is retained between searches. Concurrent searches therefore cannot share a key or an option snapshot, and each one gets its own upstream instance. The wrapper does not call the upstream `available()`; the upstream `search()` validates the values it receives and maps its own failures.
+`search()` checks cancellation and the query bound, snapshots the settings once, resolves the key, and then constructs exactly one `new ExaSearchProvider({ apiKey, baseURL, searchType, highlightsPerResult })` for that search. Nothing is retained between searches. Concurrent searches therefore cannot share a key or an option snapshot, and each one gets its own provider instance. The wrapper does not call the carried `available()`; the carried `search()` validates the values it receives and maps its own failures.
 
-`upstreamFailure` reads the upstream `code` without requiring the harness class, keeps `WEB_ABORTED` (also for a rejection named `AbortError`), and defaults an unknown code to `WEB_PROVIDER_ERROR`. It builds the message from the provider name, the reference, the code, and the redacted bounded detail, and never from the raw body or the key.
+`upstreamFailure` reads the failure's `code` without requiring the harness class, keeps `WEB_ABORTED` (also for a rejection named `AbortError`), and defaults an unknown code to `WEB_PROVIDER_ERROR`. It builds the message from the provider name, the reference, the code, and the redacted bounded detail, and never from the raw body or the key.
 
-The upstream class consumes `globalThis.fetch`, so the tests install a fake there and restore the global after each case.
+The carried class consumes `globalThis.fetch`, so the tests install a fake there and restore the global after each case.
 
 -----
 
@@ -108,7 +110,6 @@ The upstream class consumes `globalThis.fetch`, so the tests install a fake ther
 ## Further Exploration
 
 - [fork group](../README.md) — the package map for this group.
-- [upstream Exa provider](../../web/web-search-exa/README.md) — the request/response mapping this wrapper delegates to.
 - [web service](../../web/web/README.md) — provider selection and the `WebError` taxonomy.
 - [tool-web](../../web/tool-web/README.md) — the model-facing `web_search` tool that renders these sources.
 
@@ -117,7 +118,7 @@ The upstream class consumes `globalThis.fetch`, so the tests install a fake ther
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through `@deepseek-ai/dsh-tool-web`: the model sees the upstream provider's `maxResults`-bounded URLs, titles, first non-blank highlights, and publication dates, or the wrapper's `WebError` text under the tool's error wrapper — `Exa search failed for "<reference>" (<code>): <redacted detail>` or `Exa search aborted`. No upstream message, key, or raw body reaches the model. Results with no non-blank highlight are dropped, so a call can return fewer sources than requested.
+Indirectly, through `@deepseek-ai/dsh-tool-web`: the model sees the carried provider's `maxResults`-bounded URLs, titles, first non-blank highlights, and publication dates, or the wrapper's `WebError` text under the tool's error wrapper — `Exa search failed for "<reference>" (<code>): <redacted detail>` or `Exa search aborted`. No provider message, key, or raw body reaches the model. Results with no non-blank highlight are dropped, so a call can return fewer sources than requested.
 
 #### KV Cache effect
 
@@ -127,12 +128,13 @@ The provider itself adds no request prefix; the search tool owns any cache effec
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Query validation is wrapper-owned.** The upstream `ExaSearchProvider` does not validate the query. This wrapper rejects a blank query and one longer than `2000` characters (the documented Exa field limit) with `WEB_PROVIDER_ERROR`; the limit is a constant, not a config field.
+- **The provider source is fork-owned.** Upstream 0.2.2 removed `@deepseek-ai/dsh-web-search-exa`; `src/exa.ts` and `src/types.ts` are carried copies, so upstream fixes to the Exa request or response mapping no longer arrive automatically.
+- **Query validation is wrapper-owned.** The carried `ExaSearchProvider` does not validate the query. This wrapper rejects a blank query and one longer than `2000` characters (the documented Exa field limit) with `WEB_PROVIDER_ERROR`; the limit is a constant, not a config field.
 - **No generated answer.** Exa returns sources only, so `content` is never set.
 - **Highlights are required for a source.** A result with no non-blank highlight is dropped rather than given an invented snippet.
 - **Only a narrow Exa surface is exposed.** `livecrawl`, category, domain/date filters, and full-text contents are not available because the seam has no provider-neutral fields for them.
 - **Abort classification is name-based.** A failure whose code is `WEB_ABORTED`, or whose `name` is `AbortError`, maps to `WEB_ABORTED`; an abort with another shape surfaces as `WEB_PROVIDER_ERROR`.
-- **Duplicate ids are rejected.** Do not mount this package together with the upstream `@deepseek-ai/dsh-web-search-exa` plugin.
+- **The id `exa` is fixed.** No other package may register that id in the same composition; `ctx.web` rejects a duplicate id.
 - **No package-owned display metadata or settings card.** The bundle owns the row, and a separate settings card owns the key form.
 - **No real-key end-to-end run in this suite.** The tests use an injected `fetch` and never open a socket.
 
@@ -142,5 +144,5 @@ The provider itself adds no request prefix; the search tool owns any cache effec
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The wrapper deliberately does not delegate `available()` to the upstream class: the upstream `available()` requires a non-empty key, which would make a credentials-only key fail selection before the asynchronous resolver could run. The upstream class is constructed once per search so concurrent calls never share options. `EXA_QUERY_MAX_CHARS` is defined in `src/provider.ts`; the upstream class and its wire types remain unmodified. Upstream failures are rewritten rather than passed through: the wrapper owns the model-visible message and keeps the upstream failure as `cause`.
+The wrapper deliberately does not delegate `available()` to the carried class: the carried `available()` requires a non-empty key, which would make a credentials-only key fail selection before the asynchronous resolver could run. The carried class is constructed once per search so concurrent calls never share options. `EXA_QUERY_MAX_CHARS` is defined in `src/provider.ts`; the carried class and its wire types live in `src/exa.ts` and `src/types.ts`. Provider failures are rewritten rather than passed through: the wrapper owns the model-visible message and keeps the provider failure as `cause`.
 </details>
