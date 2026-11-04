@@ -42,7 +42,9 @@ kind: "package-bundle"
 | `providerName` | `claude-code` | `ctx.subagents` 上的非空注册名称；每个已挂载实例都需要唯一值 |
 | `model` | Claude 原生设置 | 为本提供方实例的每次运行固定的可选非空模型名称；省略时不发送 SDK 覆盖 |
 | `env` | `{}` | 叠加在已清理凭据的父环境之上的显式 SDK/CLI 环境 |
-| `permissionMode` | `dontAsk` | 为本提供方实例的每次运行固定的原生非交互权限策略 |
+| `permissionMode` | `dontAsk` | 调用未指定模式时应用的原生非交互权限策略 |
+| `allowedPermissionModes` | `[permissionMode]` | 调用可通过工具的 `permission_mode` 参数选择的模式；必须非空且包含 `permissionMode`，否则加载失败。仅当列出两个以上模式时，该参数才会出现在工具 schema 中 |
+| `timeoutMs` | 无限制 | 可选的运行上限；超时后以 error 结束并停止进程。未设置时只有取消能结束运行 |
 | `disposeGraceMs` | `3000` | 共享 managed-range owner 各终止层级之间的宽限 |
 
 | `permissionMode` 值 | 原生行为 |
@@ -52,6 +54,8 @@ kind: "package-bundle"
 | `auto` | 由 Claude Code 原生分类器允许或拒绝权限请求 |
 | `plan` | 使用原生规划模式，拒绝执行审批，并把完整计划作为最终答案返回 |
 | `bypassPermissions` | 显式设置 SDK 的危险确认并跳过权限检查 |
+
+权限提示无人应答（`permissionPrompts: 'none'`）：模式、分类器、规则与 hooks 仍然照常判断，凡本应弹出提示的调用一律被拒绝。当 CLI 的 `init` 消息报告的模式与请求不一致时，运行以失败结束。已 `completed` 的运行若其结果列出被拒绝的工具调用，会附带一条诊断，指明被拒绝的工具与模式（绝不包含工具输入），因为该答案可能描述了未完成的工作。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-claude-code)是每个受支持字段及其 JSDoc 的穷尽式真源。已配置的 `model` 会原样传给该提供方实例的每次 query；省略时保留原生模型选择。具有凭证特征的环境变量会在显式 `env` 覆盖生效前被移除，因此供子进程使用的 API 密钥必须在该配置中显式提供。提供方省略 SDK 的 `settingSources` 选项，因此 Claude Code 会相对于所选子级工作目录 读取宿主机常规的用户、项目与本地设置。它不会复制或过滤这些文件、创建或修改登录状态、检查 `PATH`，也不会回退到宿主 `claude` 可执行文件。
 

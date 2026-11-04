@@ -42,7 +42,9 @@ The layer inserts Host rows only, so any profile can select it, including the sh
 | `providerName` | `claude-code` | Non-empty registry name on `ctx.subagents`; each mounted instance needs a unique value |
 | `model` | native Claude settings | Optional non-empty model name fixed for every run from this provider instance; omission sends no SDK override |
 | `env` | `{}` | Explicit SDK/CLI environment layered over the credential-scrubbed parent environment |
-| `permissionMode` | `dontAsk` | Native non-interactive permission policy fixed for every run from this provider instance |
+| `permissionMode` | `dontAsk` | Native non-interactive permission policy applied when a call names no mode |
+| `allowedPermissionModes` | `[permissionMode]` | Modes a call may select through the tool's `permission_mode` argument; must be non-empty and include `permissionMode`, otherwise loading fails. The argument appears in the tool schema only when two or more modes are listed |
+| `timeoutMs` | unbounded | Optional run limit; an overrun ends the run as an error and stops the process. Without it only cancellation ends a run |
 | `disposeGraceMs` | `3000` | Grace between the shared managed-range owner's termination tiers |
 
 | `permissionMode` value | Native behavior |
@@ -52,6 +54,8 @@ The layer inserts Host rows only, so any profile can select it, including the sh
 | `auto` | Let Claude Code's native classifier allow or deny permission requests |
 | `plan` | Run in native planning mode, deny execution approval, and return the completed plan as the final answer |
 | `bypassPermissions` | Explicitly set the SDK's dangerous confirmation and bypass permission checks |
+
+Permission prompts are answered by nobody (`permissionPrompts: 'none'`): the mode, classifier, rules, and hooks still decide, and anything that would prompt is denied. A run fails when the CLI's `init` message reports a mode other than the requested one. A `completed` run whose result lists denied tool calls carries a diagnostic naming the denied tools and mode (never tool inputs), because its answer may describe unfinished work.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-subagent-claude-code) is the exhaustive source for every accepted field and its JSDoc. A configured `model` passes unchanged to every query from that provider instance; omission leaves native model selection in force. Credential-shaped ambient variables are removed before the explicit `env` overlay, so an API key intended for the child must be supplied there. The provider omits the SDK `settingSources` option, so Claude Code reads the host's normal user, project, and local settings relative to the selected child working directory. It does not copy or filter those files, create or modify login state, inspect `PATH`, or fall back to a host `claude` executable.
 

@@ -8,7 +8,7 @@ The unified activation API manages local conversations and external executions. 
 
 Every backend uses startActivation. Capability flags validate request options; prepareContinuable selects local Agent creation, while start selects one external execution. The model-facing tool uses parent delivery. Workflow and code mode consumers can await caller results without injecting another parent message. Historical children with unavailable descriptors remain discoverable as `mode: 'unknown'` without granting continuation capabilities; the [package README](../../packages/subagent/subagent/README.md) defines catalog persistence.
 
-Optional `cwd` selects the child's initial directory; relative paths resolve against the parent's current effective directory. Omitting it captures that directory at admission. Local child Sessions retain the parent's original project, and cold resume retains their logged directory state.
+Optional `cwd` selects the child's initial directory; relative paths resolve against the parent's current effective directory. Omitting it captures that directory at admission. Local child Sessions retain the parent's original project, and cold resume retains their logged directory state. Optional `permissionMode` selects one of the provider's declared modes for that execution alone; omitting it applies the provider's configured default, and a provider that does not declare the mode rejects the request with `UNSUPPORTED_CAPABILITY`.
 
 ```ts type-equiv
 /**
@@ -122,6 +122,12 @@ interface SubagentStartRequest {
    * start otherwise.
    */
   readonly maxDepth?: number
+  /**
+   * Product-native permission mode for this run only. Requires a provider whose
+   * {@link SubagentProvider.permissionModes} lists it; rejected at start
+   * otherwise. Omission lets the provider apply its configured default.
+   */
+  readonly permissionMode?: string
 }
 ```
 
@@ -278,10 +284,11 @@ interface SubagentResult {
    */
   readonly structured?: unknown
   /**
-   * Provider-authored, non-assistant failure detail for a non-`completed`
-   * result. Providers keep this text free of tool inputs, file contents,
-   * environment values, credentials, and raw protocol payloads, and limit it
-   * to 4096 UTF-8 bytes. Consumers present it separately from {@link output}.
+   * Provider-authored, non-assistant detail for a failed run, or for a
+   * `completed` run whose answer may describe unfinished work. Providers keep
+   * this text free of tool inputs, file contents, environment values,
+   * credentials, and raw protocol payloads, and limit it to 4096 UTF-8 bytes.
+   * Consumers present it separately from {@link output}.
    */
   readonly diagnostic?: string
   /** Why the run ended. A non-`completed` reason means `output` may be partial. */
@@ -368,6 +375,14 @@ interface SubagentProvider {
    * is detached immutable data and requires `agentOptions` support.
    */
   readonly agentRouteDefaults?: Readonly<{ provider: string; model: string }>
+  /**
+   * Permission modes a start request may select through
+   * {@link SubagentStartRequest.permissionMode}. Absent means the provider
+   * accepts no per-run mode. Includes the provider's configured default.
+   */
+  readonly permissionModes?: readonly string[]
+  /** Mode applied when a request omits one; a member of {@link permissionModes}. */
+  readonly defaultPermissionMode?: string
   /**
    * Establish one external execution and return its owned handle.
    * The service has already validated that every requested start-time

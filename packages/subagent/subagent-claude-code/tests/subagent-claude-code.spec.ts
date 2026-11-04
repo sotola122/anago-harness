@@ -882,20 +882,8 @@ describe('query options and result mapping', () => {
     expect(options).not.toHaveProperty('settingSources')
 
     const callbackSignal = new AbortController().signal
-    await expect(options.canUseTool!(
-      'Bash',
-      { command: 'cat /private/secret.txt', token: 'SECRET_TOKEN' },
-      {
-        signal: callbackSignal,
-        toolUseID: 'tool-1',
-        requestId: 'request-1',
-        blockedPath: '/private/secret.txt',
-        decisionReason: 'SECRET_TOKEN in /private/secret.txt',
-      },
-    )).resolves.toEqual({
-      behavior: 'deny',
-      message: 'This unattended Claude Code subagent cannot request human approval.',
-    })
+    expect(options.permissionPrompts).toBe('none')
+    expect(options).not.toHaveProperty('canUseTool')
     await expect(options.onElicitation!(
       {
         serverName: 'private-server',
@@ -912,7 +900,6 @@ describe('query options and result mapping', () => {
       { signal: callbackSignal, requestId: 'request-3' },
     )).resolves.toEqual({ behavior: 'cancelled' })
     expect(diagnostics).toEqual([
-      'Claude Code unattended decision (mode: acceptEdits; request: tool permission; decision: denied): the provider does not request human approval',
       'Claude Code unattended decision (mode: acceptEdits; request: MCP elicitation; decision: declined): the provider does not collect interactive MCP input',
       'Claude Code unattended decision (mode: acceptEdits; request: user dialog; decision: cancelled): the provider does not render blocking dialogs',
     ])
@@ -947,11 +934,12 @@ describe('query options and result mapping', () => {
         : ['AskUserQuestion'])
       if (permissionMode === 'bypassPermissions') {
         expect(options.allowDangerouslySkipPermissions).toBe(true)
-        expect(options).not.toHaveProperty('canUseTool')
+        expect(options).not.toHaveProperty('permissionPrompts')
       } else {
         expect(options).not.toHaveProperty('allowDangerouslySkipPermissions')
-        expect(options.canUseTool).toBeTypeOf('function')
+        expect(options.permissionPrompts).toBe('none')
       }
+      expect(options).not.toHaveProperty('canUseTool')
     },
   )
 
@@ -1758,5 +1746,258 @@ describe('query and process disposal', () => {
     expect(result).not.toBe('timeout')
     expect(errorCause(result)).toBe(waitFailure)
     expect(child.terminate).toHaveBeenCalledOnce()
+  })
+})
+
+function initMessage(permissionMode: string): SDKMessage {
+  return { type: 'system', subtype: 'init', permissionMode } as SDKMessage
+}
+
+function successWithDenials(
+  denied: readonly string[],
+): SDKResultMessage {
+  return {
+    ...success('the edit is done'),
+    permission_denials: denied.map((tool_name, index) => ({
+      tool_name,
+      tool_use_id: `tool-${index}`,
+      tool_input: { file_path: '/private/secret.txt', token: 'SECRET_TOKEN' },
+    })),
+  }
+}
+
+describe('per-run permission mode', () => {
+  it.each(CLAUDE_CODE_PERMISSION_MODES)(
+    'passes %s to the SDK query options of a started run',
+    async (permissionMode) => {
+      const fixture = fakeRun([initMessage(permissionMode), success()])
+      const run = await startClaudeCodeRun(
+        request(),
+        { ...fixture.spec, permissionMode },
+      )
+      await run.result
+      await run.dispose()
+      const options = fixture.options[0]!
+      expect(options.permissionMode).toBe(permissionMode)
+      if (permissionMode === 'bypassPermissions') {
+        expect(options.allowDangerouslySkipPermissions).toBe(true)
+        expect(options).not.toHaveProperty('permissionPrompts')
+      } else {
+        expect(options.permissionPrompts).toBe('none')
+        expect(options).not.toHaveProperty('allowDangerouslySkipPermissions')
+      }
+      expect(options.disallowedTools).toEqual(permissionMode === 'plan'
+        ? ['AskUserQuestion', 'ExitPlanMode']
+        : ['AskUserQuestion'])
+    },
+  )
+
+  it('defaults allowedPermissionModes to the single configured mode', () => {
+    expect(claudeCode.Config({}).allowedPermissionModes).toBeUndefined()
+    expect(claudeCode.Config({}).timeoutMs).toBeUndefined()
+    expect(claudeCode.Config({
+      allowedPermissionModes: ['dontAsk', 'auto'],
+    }).allowedPermissionModes).toEqual(['dontAsk', 'auto'])
+    expect(() => claudeCode.Config({
+      allowedPermissionModes: ['interactive'],
+    } as never)).toThrow()
+  })
+
+  it('fails at load when the allow-list is empty or omits the default mode', () => {
+    const ctx = new Context()
+    const base = { env: {}, disposeGraceMs: 3_000 }
+    expect(() => { claudeCode.apply(ctx, { ...base, allowedPermissionModes: [] }) })
+      .toThrow('allowedPermissionModes must not be empty')
+    expect(() => {
+      claudeCode.apply(ctx, {
+        ...base,
+        permissionMode: 'dontAsk',
+        allowedPermissionModes: ['auto', 'plan'],
+      })
+    }).toThrow('allowedPermissionModes must include permissionMode "dontAsk"')
+    expect(() => {
+      claudeCode.apply(ctx, {
+        ...base,
+        allowedPermissionModes: ['dontAsk'],
+        timeoutMs: 0,
+      })
+    }).toThrow('timeoutMs')
+    expect(() => {
+      claudeCode.apply(ctx, {
+        ...base,
+        timeoutMs: MAX_TIMER_DELAY_MS + 1,
+      })
+    }).toThrow('timeoutMs must be no greater than')
+  })
+
+  it('lets the call argument override the configured mode only within the allow-list', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await mountWorkingDirectoryFixture(ctx)
+    await ctx.plugin(SubagentRuntime)
+    await ctx.plugin(LocalSubprocessRuntime)
+    vi.spyOn(ctx.subprocess, 'spawn').mockImplementation(() => fakeChild().handle)
+    const seen: Array<Options['permissionMode']> = []
+    queryMock.mockImplementation(({ options }) => {
+      seen.push(options.permissionMode)
+      options.spawnClaudeCodeProcess!(sdkSpawnOptions())
+      return queryFrom([initMessage(options.permissionMode!), success()])
+    })
+    await ctx.plugin(claudeCode, {
+      permissionMode: 'dontAsk',
+      allowedPermissionModes: ['dontAsk', 'auto'],
+      env: {},
+    })
+    const provider = ctx.subagents.getProvider('claude-code')!
+    expect(provider.permissionModes).toEqual(['dontAsk', 'auto'])
+    expect(provider.defaultPermissionMode).toBe('dontAsk')
+
+    const omitted = await startExternalActivation(ctx, 'claude-code', request())
+    await omitted.result
+    await omitted.dispose()
+    const chosen = await startExternalActivation(
+      ctx,
+      'claude-code',
+      { ...request(), permissionMode: 'auto' },
+    )
+    await chosen.result
+    await chosen.dispose()
+    expect(seen).toEqual(['dontAsk', 'auto'])
+
+    await expect(startExternalActivation(
+      ctx,
+      'claude-code',
+      { ...request(), permissionMode: 'bypassPermissions' },
+    )).rejects.toThrow('does not allow permission mode "bypassPermissions" (allowed: dontAsk, auto)')
+    expect(seen).toHaveLength(2)
+    await ctx.fiber.dispose()
+  })
+
+  it('fails the run when init reports a different mode than requested', async () => {
+    const fixture = fakeRun([initMessage('default'), success('ran anyway')])
+    const run = await startClaudeCodeRun(
+      request(),
+      { ...fixture.spec, permissionMode: 'auto' },
+    )
+    await expect(run.result).resolves.toEqual({
+      output: [],
+      diagnostic: expectedFailureDiagnostic('query-run', 'permission-mode'),
+      stopReason: 'error',
+    })
+    await run.dispose()
+  })
+
+  it('accepts an init that confirms the requested mode', async () => {
+    const fixture = fakeRun([initMessage('acceptEdits'), success('fine')])
+    const run = await startClaudeCodeRun(
+      request(),
+      { ...fixture.spec, permissionMode: 'acceptEdits' },
+    )
+    await expect(run.result).resolves.toEqual({
+      output: [{ type: 'text', text: 'fine' }],
+      stopReason: 'completed',
+    })
+    await run.dispose()
+  })
+
+  it('reports native denials on a completed run without leaking tool input', async () => {
+    const fixture = fakeRun([
+      initMessage('dontAsk'),
+      successWithDenials(['Edit', 'Write', 'Edit']),
+    ])
+    const run = await startClaudeCodeRun(request(), fixture.spec)
+    const result = await run.result
+    expect(result).toEqual({
+      output: [{ type: 'text', text: 'the edit is done' }],
+      diagnostic: 'Claude Code denied 3 tool calls in dontAsk mode (Edit, Write); its answer may describe unfinished work.',
+      stopReason: 'completed',
+    })
+    expect(result.diagnostic).not.toContain('SECRET_TOKEN')
+    expect(result.diagnostic).not.toContain('/private/secret.txt')
+    await run.dispose()
+  })
+
+  it('uses the singular noun for one denial and omits the diagnostic for none', async () => {
+    const single = fakeRun([successWithDenials(['Bash'])])
+    const singleRun = await startClaudeCodeRun(
+      request(),
+      { ...single.spec, permissionMode: 'auto' },
+    )
+    await expect(singleRun.result).resolves.toMatchObject({
+      diagnostic: 'Claude Code denied 1 tool call in auto mode (Bash); its answer may describe unfinished work.',
+    })
+    await singleRun.dispose()
+
+    const none = fakeRun([successWithDenials([])])
+    const noneRun = await startClaudeCodeRun(request(), none.spec)
+    await expect(noneRun.result).resolves.toEqual({
+      output: [{ type: 'text', text: 'the edit is done' }],
+      stopReason: 'completed',
+    })
+    await noneRun.dispose()
+  })
+})
+
+describe('run timeout', () => {
+  it('ends an overrunning run as an error and stops the process', async () => {
+    const child = fakeChild()
+    const onError = vi.fn()
+    queryMock.mockImplementation(({ options }) => {
+      options.spawnClaudeCodeProcess!(sdkSpawnOptions())
+      return waitingQuery(options.abortController!.signal)
+    })
+    const run = await startClaudeCodeRun(request(), {
+      cwd: '/workspace',
+      permissionMode: 'dontAsk',
+      timeoutMs: 20,
+      env: {},
+      disposeGraceMs: 5,
+      spawn: () => child.handle,
+      onError,
+    })
+    await expect(run.result).resolves.toEqual({
+      output: [],
+      diagnostic: expectedFailureDiagnostic('query-run', 'timeout'),
+      stopReason: 'error',
+    })
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'error')
+    await run.dispose()
+    expect(child.terminate).toHaveBeenCalled()
+  })
+
+  it('does not time out when omitted and keeps cancellation as aborted', async () => {
+    const child = fakeChild()
+    queryMock.mockImplementation(({ options }) => {
+      options.spawnClaudeCodeProcess!(sdkSpawnOptions())
+      return waitingQuery(options.abortController!.signal)
+    })
+    const controller = new AbortController()
+    const run = await startClaudeCodeRun(
+      request(undefined, controller.signal),
+      {
+        cwd: '/workspace',
+        permissionMode: 'dontAsk',
+        env: {},
+        disposeGraceMs: 5,
+        spawn: () => child.handle,
+      },
+    )
+    await new Promise<void>((resolve) => { setTimeout(resolve, 40) })
+    controller.abort()
+    await expect(run.result).resolves.toMatchObject({ stopReason: 'aborted' })
+    await run.dispose()
+  })
+
+  it('lets a run that finishes before the limit complete', async () => {
+    const fixture = fakeRun([success('in time')])
+    const run = await startClaudeCodeRun(
+      request(),
+      { ...fixture.spec, timeoutMs: 5_000 },
+    )
+    await expect(run.result).resolves.toEqual({
+      output: [{ type: 'text', text: 'in time' }],
+      stopReason: 'completed',
+    })
+    await run.dispose()
   })
 })

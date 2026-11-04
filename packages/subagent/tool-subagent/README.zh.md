@@ -156,11 +156,11 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-生成的默认 [`subagent` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent) 在提供方存在时以配置的工具名公开。设置了 `modelSelection` 的实例在每个 Session 中都会增加 `provider`、`model`、`reasoning_effort` 及路由指导。`purposeRouting: true` 的实例还会增加可选的 `category` 和一句重试说明；这段文字不写出提供方或模型。`purposeGuidance` 为 null 时，`category` 说明保持不变。保存的句子在下一次请求中替换它。句子包含路由标识符时，该请求失败，并且该句不会写入 schema。同一实例注册 `list_subagent_categories`。`allowedAgentPresets` 增加 `agent_preset` 枚举及默认或继承选择的引导。上下文继承和继续执行能力决定任务与后续工作描述。Agent 限制同时作用于继承自 preset 的委派工具的 schema、执行入口和指导文本，恢复历史 `toolFilter` 覆盖时也相同；同级 Agent 不受影响。preset 选择提示仅依赖工具配置，因此不依赖其他 preset 的声明顺序。
+生成的默认 [`subagent` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent) 在提供方存在时以配置的工具名公开。设置了 `modelSelection` 的实例在每个 Session 中都会增加 `provider`、`model`、`reasoning_effort` 及路由指导。`purposeRouting: true` 的实例还会增加可选的 `category` 和一句重试说明；这段文字不写出提供方或模型。`purposeGuidance` 为 null 时，`category` 说明保持不变。保存的句子在下一次请求中替换它。句子包含路由标识符时，该请求失败，并且该句不会写入 schema。同一实例注册 `list_subagent_categories`。`allowedAgentPresets` 增加 `agent_preset` 枚举及默认或继承选择的引导。上下文继承和继续执行能力决定任务与后续工作描述。声明两个以上权限模式的提供方会增加可选的 `permission_mode` 枚举，取值限于这些模式，说明中写出默认值；未声明或仅有单一模式的提供方不改变 schema。Agent 限制同时作用于继承自 preset 的委派工具的 schema、执行入口和指导文本，恢复历史 `toolFilter` 覆盖时也相同；同级 Agent 不受影响。preset 选择提示仅依赖工具配置，因此不依赖其他 preset 的声明顺序。
 
 #### Token 影响
 
-每次父级请求承担固定 schema 成本，其中包括可选的 `name` 字段；`modelSelection` 会增加三个可选路由字段，preset 选择则增加一个枚举参数及默认值引导。用途路由增加一个枚举参数、一句描述，以及固定的 `list_subagent_categories` schema；编辑表不会改变该前缀。编辑 `purposeGuidance` 会替换 `category` 说明。可见的用途路由工具还会增加一段固定的分割段落；`splitting` 非空时再附上该句。每个工具实例增加一份 schema；可见委派工具共享一个简短系统提示词段。
+每次父级请求承担固定 schema 成本，其中包括可选的 `name` 字段；`modelSelection` 会增加三个可选路由字段，preset 选择则增加一个枚举参数及默认值引导。用途路由增加一个枚举参数、一句描述，以及固定的 `list_subagent_categories` schema；编辑表不会改变该前缀。声明两个以上权限模式时增加一个可选枚举参数。编辑 `purposeGuidance` 会替换 `category` 说明。可见的用途路由工具还会增加一段固定的分割段落；`splitting` 非空时再附上该句。每个工具实例增加一份 schema；可见委派工具共享一个简短系统提示词段。
 
 #### KV Cache 影响
 
@@ -269,7 +269,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 
 #### 模型看到什么
 
-`description` 提示要求使用用户当前请求的语言，用 3–5 个词描述任务。调用保留任务描述与提示词。成功返回 `started subagent <name>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。启动被拒绝（包括 `name` 重复或无效）则返回错误。规范值还带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。启动了多个子级、或有评审者未能启动的 review，返回 `started N subagents: <names>`，并在需要时附上 `; M reviewer could not start`，然后为每个已启动的子级另起一行 `started subagent <name> · <model> · <effort>`。规范值的 `children` 列表包含未能启动的评审者及其路由，且没有名称。子任务执行详情独立于这条确认交付。
+`description` 提示要求使用用户当前请求的语言，用 3–5 个词描述任务。调用保留任务描述与提示词。成功返回 `started subagent <name>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。启动被拒绝（包括 `name` 重复或无效）则返回错误。规范值还带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。启动了多个子级、或有评审者未能启动的 review，返回 `started N subagents: <names>`，并在需要时附上 `; M reviewer could not start`，然后为每个已启动的子级另起一行 `started subagent <name> · <model> · <effort>`。规范值的 `children` 列表包含未能启动的评审者及其路由，且没有名称。当 schema 提供了权限模式选择时，确认之后另起一行 `permission mode: <mode>` 说明实际生效的模式。子任务执行详情独立于这条确认交付。
 
 #### Token 影响
 

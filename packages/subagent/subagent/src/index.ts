@@ -584,6 +584,16 @@ export class SubagentRuntime extends TypertRemoteService {
         'UNSUPPORTED_CAPABILITY',
       )
     }
+    if (request.permissionMode !== undefined) {
+      const allowed = provider.permissionModes ?? []
+      if (!allowed.includes(request.permissionMode)) {
+        throw new SubagentError(
+          `subagent provider "${provider.name}" does not allow permission mode "${request.permissionMode}"`
+          + (allowed.length === 0 ? '' : ` (allowed: ${allowed.join(', ')})`),
+          'UNSUPPORTED_CAPABILITY',
+        )
+      }
+    }
     const needs: { when: boolean; cap: keyof SubagentCapabilities }[] = [
       { when: request.agentOptions !== undefined, cap: 'agentOptions' },
       { when: request.outputSchema !== undefined, cap: 'outputSchema' },

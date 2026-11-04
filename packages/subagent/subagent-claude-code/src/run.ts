@@ -69,6 +69,8 @@ type ClaudeCodeFailureCategory =
   | 'limit'
   | 'product-error'
   | 'invalid-result'
+  | 'permission-mode'
+  | 'timeout'
   | 'process'
   | 'unknown'
 
@@ -154,6 +156,8 @@ export interface ClaudeCodeRunSpec {
   readonly model?: string
   /** Profile-selected native non-interactive permission mode. */
   readonly permissionMode: ClaudeCodePermissionMode
+  /** Run time limit in milliseconds; omitted means only cancellation ends the run. */
+  readonly timeoutMs?: number
   /** Explicit deployment/test environment layered after shared scrubbing. */
   readonly env: Record<string, string>
   /** Subprocess termination grace passed to the shared managed-range owner. */
@@ -226,20 +230,59 @@ export function successfulResult(message: SDKResultMessage): string {
 }
 
 /**
+ * Summarize native permission denials without tool inputs.
+ * @param mode - permission mode the run executed in.
+ * @param denials - the SDK's authoritative denial list from a result message.
+ * @returns a diagnostic naming the denied tools, or undefined when none were denied.
+ */
+export function permissionDenialDiagnostic(
+  mode: ClaudeCodePermissionMode,
+  denials: readonly { readonly tool_name: string }[],
+): string | undefined {
+  if (denials.length === 0) return undefined
+  const tools = [...new Set(denials.map(denial => denial.tool_name))]
+  const noun = denials.length === 1 ? 'tool call' : 'tool calls'
+  return `Claude Code denied ${denials.length} ${noun} in ${mode} mode (${tools.join(', ')}); its answer may describe unfinished work.`
+}
+
+/** Optional checks and sinks for {@link consumeClaudeQuery}. */
+export interface ConsumeClaudeQueryOptions {
+  /** Mode the run was started with; a different `init` mode fails the run. */
+  readonly expectedPermissionMode?: ClaudeCodePermissionMode
+}
+
+/**
  * Consume the complete SDK stream and require one strict success plus normal
  * iterator completion.
  * @param query - published official SDK query.
  * @param onPermissionDenied - records a safe fact when the SDK reports native denial.
  * @param onResult - records that the SDK supplied a terminal result message.
- * @returns the completed shared result.
+ * @param options - expected effective permission mode.
+ * @returns the completed shared result, with a diagnostic when native denials occurred.
  */
 export async function consumeClaudeQuery(
   query: AsyncIterable<SDKMessage>,
   onPermissionDenied?: () => void,
   onResult?: () => void,
+  options: ConsumeClaudeQueryOptions = {},
 ): Promise<SubagentResult> {
   let answer: string | undefined
+  let denials: readonly { readonly tool_name: string }[] = []
   for await (const message of query) {
+    if (message.type === 'system' && message.subtype === 'init') {
+      const expected = options.expectedPermissionMode
+      // The CLI reports the mode it actually runs in; never continue in another.
+      // The SDK type marks permissionMode as required, but older CLI builds omit it.
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- tolerate a CLI that omits permissionMode
+      if (expected !== undefined && message.permissionMode !== undefined
+        && message.permissionMode !== expected) {
+        throw new ClaudeCodeFailure({
+          stage: 'query-run',
+          category: 'permission-mode',
+        })
+      }
+      continue
+    }
     if (message.type === 'system' && message.subtype === 'permission_denied') {
       onPermissionDenied?.()
       continue
@@ -247,6 +290,10 @@ export async function consumeClaudeQuery(
     if (message.type !== 'result') continue
     onResult?.()
     answer = successfulResult(message)
+    // CLI wire field: absent from older results.
+    if (message.subtype === 'success' && Array.isArray(message.permission_denials)) {
+      denials = message.permission_denials
+    }
   }
   if (answer === undefined) {
     throw new ClaudeCodeFailure({
@@ -254,8 +301,12 @@ export async function consumeClaudeQuery(
       category: 'invalid-result',
     })
   }
+  const diagnostic = options.expectedPermissionMode === undefined
+    ? undefined
+    : permissionDenialDiagnostic(options.expectedPermissionMode, denials)
   return {
     output: [{ type: 'text', text: answer }],
+    ...diagnostic === undefined ? {} : { diagnostic },
     stopReason: 'completed',
   }
 }
@@ -334,20 +385,8 @@ export function claudeQueryOptions(
     permissionMode: spec.permissionMode,
     ...spec.permissionMode === 'bypassPermissions'
       ? { allowDangerouslySkipPermissions: true }
-      : {
-        canUseTool: () => {
-          captureDiagnostic(unattendedDiagnostic(
-            spec.permissionMode,
-            'tool permission',
-            'denied',
-            'the provider does not request human approval',
-          ))
-          return Promise.resolve({
-            behavior: 'deny' as const,
-            message: 'This unattended Claude Code subagent cannot request human approval.',
-          })
-        },
-      },
+      // Mode, classifier, rules and hooks still decide; only prompts are denied.
+      : { permissionPrompts: 'none' as const },
     onElicitation: () => {
       captureDiagnostic(unattendedDiagnostic(
         spec.permissionMode,
@@ -519,6 +558,17 @@ export async function startClaudeCodeRun(
   const publishedChild = child
   const publishedProcessFailure = childProcessFailure
   let receivedResult = false
+  let timedOut = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeoutFailure = new Promise<never>((_resolve, reject) => {
+    if (spec.timeoutMs === undefined) return
+    timer = setTimeout(() => {
+      timedOut = true
+      reject(new ClaudeCodeFailure({ stage: 'query-run', category: 'timeout' }))
+      requestCancel()
+    }, spec.timeoutMs)
+  })
+  void timeoutFailure.catch(() => {})
   const result = settleRunResult({
     attempt: async () => {
       try {
@@ -532,8 +582,9 @@ export async function startClaudeCodeRun(
             ))
           }, () => {
             receivedResult = true
-          }),
+          }, { expectedPermissionMode: spec.permissionMode }),
           publishedProcessFailure,
+          timeoutFailure,
         ])
       } catch (error: unknown) {
         const processOutcome = managedProcess?.outcome
@@ -562,11 +613,13 @@ export async function startClaudeCodeRun(
     },
     collectOutput: () => [],
     collectDiagnostic: () => diagnostic,
-    cancelled: () => controller.signal.aborted,
+    // A timeout cancels the process but must settle as an error, not `aborted`.
+    cancelled: () => controller.signal.aborted && !timedOut,
     onError: spec.onError,
     signal: request.signal,
     onAbort,
   })
+  void result.then(() => { clearTimeout(timer) })
 
   return subprocessRunHandle({
     id: brandString<SessionId>(randomUUID()),
