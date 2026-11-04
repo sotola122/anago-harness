@@ -45,7 +45,7 @@ import type {
 import { attachStructuredRuntime } from './structured.ts'
 import type { StructuredAttachment } from './structured.ts'
 import type { SubagentDelivery } from './control-types.ts'
-import { ActivationPool, ChildLock, activationAgent, captureLocalResult, observeLocalFailure, requireLocalActivation } from './activation.ts'
+import { ActivationPool, ChildLock, activationAgent, captureLocalResult, observeLocalFailure, releaseParentHold, requireLocalActivation } from './activation.ts'
 import type { Activation, ActivationResource, LocalActivation } from './activation.ts'
 
 /** Inputs shared by model steering and human prompt delivery. */
@@ -108,7 +108,12 @@ type MaterializeInputs = MaterializeBase & (
     composition: ChildComposition
     outputSchema?: ObjectJsonSchema | undefined
   }
-  | { kind: 'external'; start: (signal: AbortSignal) => Promise<SubagentRun> }
+  | {
+    kind: 'external'
+    /** Exact creator whose idle release would drop this run's settlement notice. */
+    parent: Agent
+    start: (signal: AbortSignal) => Promise<SubagentRun>
+  }
 )
 
 /**
@@ -458,6 +463,7 @@ export class SubagentManager {
           kind: 'external',
           provider,
           ...ancestry,
+          parent,
           path,
           signal,
           delivery,
@@ -805,7 +811,7 @@ export class SubagentManager {
       inputs.signal.addEventListener('abort', cancelStartup, { once: true })
       try {
         const run = await inputs.start(controller.signal)
-        resource = { kind: 'external', run, controller }
+        resource = { kind: 'external', run, controller, parentHold: undefined }
         void run.result.catch(() => undefined)
         try { this.assertChildIdAvailable(run.id) } catch (error: unknown) {
           await run.dispose()
@@ -888,6 +894,13 @@ export class SubagentManager {
     try {
       this.assertAdmitting(root)
       inputs.signal.throwIfAborted()
+      // An external backend has no local Agent, so its parent must stay resident
+      // until the settlement notice lands; release it on every terminal path.
+      if (inputs.kind === 'external' && activation.kind === 'external') {
+        const { parent } = inputs
+        if (this.ctx.agents.get(parent.id) !== parent) throw new SubagentError('subagent parent is no longer live', 'UNAUTHORIZED')
+        activation.parentHold = this.ctx.agents.hold(parent)
+      }
       const wakeSettlement = (): void => { this.wake(activation) }
       if (activation.kind === 'local') {
         observeLocalFailure(activation, wakeSettlement)
@@ -946,6 +959,7 @@ export class SubagentManager {
       try {
         await (activation.kind === 'local' ? activation.handle.dispose() : activation.run.dispose())
       } finally {
+        releaseParentHold(activation)
         this.resident.delete(activation.childId)
         activation.releaseSlot()
         activation.result.reject(error)
@@ -1093,6 +1107,7 @@ export class SubagentManager {
     activation.releaseSlot()
     const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
     this.notifySettlement(activation, result)
+    releaseParentHold(activation)
     // The sole end publication follows resource release and parent notification,
     // before result delivery. Cleanup failure changes the event, not the captured result.
     this.host.emitLifecycle('subagent/end', {
@@ -1111,7 +1126,16 @@ export class SubagentManager {
     try {
       const parentId = activation.ancestors.at(-1) as SessionId
       const parent = this.ctx.agents.get(parentId)
-      if (parent === undefined || this.rootOf(parent) !== activation.root) return
+      if (parent === undefined || this.rootOf(parent) !== activation.root) {
+        // An external run has no local Agent, so a released parent loses the result.
+        if (activation.kind === 'external') {
+          this.ctx.logger.warn(
+            `subagent "${activation.childId}" finished after its parent "${parentId}" was released; `
+            + `its result was not delivered (stop reason: ${terminal.stopReason})`,
+          )
+        }
+        return
+      }
       const message = createSettlementMessage(
         activation.childId, agentAddress(activation.path, activation.childId), terminal,
         activation.kind === 'local', activation.kind === 'local' && activation.omitClosingText,
