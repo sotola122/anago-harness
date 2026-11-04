@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to give an agent a named tool that delegates work to a configured backend. Every call starts a managed activation and returns a child id; the runtime owns completion notices and cleanup. Local children support messages and restoration, while external backends execute one task and return their final answer through the completion notice. Supported backends can expose approved child LLM routes. Each instance can select a child preset and depth limit.
+Use this package to give an agent a named tool that delegates work to a configured backend. Every call starts a managed activation and returns the child's name; the runtime owns completion notices and cleanup. Local children support messages and restoration, while external backends execute one task and return their final answer through the completion notice. Supported backends can expose approved child LLM routes. Each instance can select a child preset and depth limit.
 
 ## Table of Contents
 
@@ -60,7 +60,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Managed delegation
 
-Every call returns `started subagent <childId>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved, after the runtime accepts the child. Top-level calls persist `{ kind: 'activation', subagentId: <childId>, provider?, model?, reasoningEffort? }` in result presentation metadata; nested Code dispatches retain it in the corresponding `tool/ptc-dispatch` event's `meta` field. It does not wait for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
+The optional `name` argument names the child, unique among the caller's children and cannot be `lead`; omission selects `agent-1`, `agent-2`, and so on. The [subagent runtime](../subagent/README.md#agent-names) owns the name rule and its errors. Every call returns `started subagent <name>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved, after the runtime accepts the child, where `<name>` is the child's full name from the root, such as `reviewer/checker`. Top-level calls persist `{ kind: 'activation', name: <name>, provider?, model?, reasoningEffort? }` in result presentation metadata; nested Code dispatches retain it in the corresponding `tool/ptc-dispatch` event's `meta` field. It does not wait for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
 
 For every backend, the runtime automatically delivers the completion notice if the calling Agent is still online when the child finishes. The notice includes the final answer unless the child sent that Agent a message just before finishing. Local Spawn and Fork children can also send messages, accept more work through `send_message` while active, or resume after settling. Codex, Claude Code, ACP, and DSH SDK backends do not accept follow-up messages.
 
@@ -111,7 +111,7 @@ The tool calls `ctx.subagents.startActivation()` with parent delivery selected. 
 
 ### Result acknowledgement
 
-The canonical tool result is `{ kind: 'activation', subagentId }`. A `review` call also returns `subagentIds` and `notStarted`. It contains no execution Promise or final output; programmatic consumers that need to await results use the subagent service directly.
+The canonical tool result is `{ kind: 'activation', name }`, plus `provider`, `model`, and `reasoningEffort` for the route the call used. A `review` call also returns `names`, `notStarted`, and a `children` list that includes reviewers that did not start. It contains no execution Promise or final output; programmatic consumers that need to await results use the subagent service directly.
 
 ### Context-sensitive wording
 
@@ -159,7 +159,7 @@ The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek
 
 #### Token effect
 
-Fixed schema cost per parent request; `modelSelection` adds three optional route fields, while preset selection adds one enum parameter and default guidance. Purpose routing adds one enum parameter, one description sentence, and the fixed `list_subagent_categories` schema; editing the table does not change that prefix. Editing `purposeGuidance` replaces the `category` description. A visible purpose-routing tool also adds a fixed splitting paragraph, plus `splitting` when that sentence is non-empty. Each tool instance adds one schema; visible delegation tools share one short system-prompt section.
+Fixed schema cost per parent request, including the optional `name` field; `modelSelection` adds three optional route fields, while preset selection adds one enum parameter and default guidance. Purpose routing adds one enum parameter, one description sentence, and the fixed `list_subagent_categories` schema; editing the table does not change that prefix. Editing `purposeGuidance` replaces the `category` description. A visible purpose-routing tool also adds a fixed splitting paragraph, plus `splitting` when that sentence is non-empty. Each tool instance adds one schema; visible delegation tools share one short system-prompt section.
 
 #### KV Cache effect
 
@@ -268,7 +268,7 @@ Depth changes do not alter the system prompt or tool schemas. Updated runtime co
 
 #### What the model sees
 
-The `description` guidance asks for 3–5 words in the language of the user’s current request. The call retains the task description and prompt. Success returns `started subagent <childId>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved; startup rejection returns an error. The canonical value also carries `provider`, `model`, and `reasoningEffort` for the route the call used. A review that starts more than one child, or that leaves a reviewer unstarted, returns `started N subagents: <ids>` and, when needed, `; M reviewer could not start`, then one `started subagent <id> · <model> · <effort>` line per child that started. The canonical `children` list includes reviewers that did not start, with their routes and without an id. Child execution details are delivered separately from this acknowledgement.
+The `description` guidance asks for 3–5 words in the language of the user’s current request. The call retains the task description and prompt. Success returns `started subagent <name>`, plus ` · <model>` and ` · <reasoningEffort>` when those were resolved; startup rejection, including a duplicate or invalid `name`, returns an error. The canonical value also carries `provider`, `model`, and `reasoningEffort` for the route the call used. A review that starts more than one child, or that leaves a reviewer unstarted, returns `started N subagents: <names>` and, when needed, `; M reviewer could not start`, then one `started subagent <name> · <model> · <effort>` line per child that started. The canonical `children` list includes reviewers that did not start, with their routes and without a name. Child execution details are delivered separately from this acknowledgement.
 
 #### Token effect
 
@@ -282,7 +282,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 #### What the model sees
 
-Answer delivery follows the managed delegation rules above. The returned child id identifies subsequent control and catalog operations; only backends with continuation support accept follow-up messages.
+Answer delivery follows the managed delegation rules above. The returned name addresses the child in `send_message`, `interrupt_agent`, and Team task owners; only backends with continuation support accept follow-up messages.
 
 #### Token effect
 

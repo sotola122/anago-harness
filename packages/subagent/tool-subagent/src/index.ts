@@ -250,16 +250,16 @@ interface UsedRoute {
   reasoningEffort?: string
 }
 
-/** One attempted child. `subagentId` is absent when that reviewer did not start. */
+/** One attempted child. `name` is absent when that reviewer did not start. */
 interface ActivationChild extends UsedRoute {
-  subagentId?: string
+  name?: string
 }
 
 /** Result fields a delegation call may return. Review fan-out adds the list fields. */
 interface ActivationResult extends UsedRoute {
   kind: 'activation'
-  subagentId: string
-  subagentIds?: string[]
+  name: string
+  names?: string[]
   notStarted?: number
   /** Present for a review fan-out, in attempt order, including reviewers that did not start. */
   children?: ActivationChild[]
@@ -292,33 +292,33 @@ function renderActivation(value: ActivationResult): ContentBlock[] {
   const children = value.children
   const notStarted = value.notStarted ?? 0
   if (children !== undefined && (children.length > 1 || notStarted > 0)) {
-    const ids = value.subagentIds ?? children.flatMap(child => child.subagentId === undefined ? [] : [child.subagentId])
-    const noun = ids.length === 1 ? 'subagent' : 'subagents'
-    let text = `started ${ids.length} ${noun}: ${ids.join(', ')}`
+    const names = value.names ?? children.flatMap(child => child.name === undefined ? [] : [child.name])
+    const noun = names.length === 1 ? 'subagent' : 'subagents'
+    let text = `started ${names.length} ${noun}: ${names.join(', ')}`
     if (notStarted > 0) {
       text += `; ${notStarted} ${notStarted === 1 ? 'reviewer' : 'reviewers'} could not start`
     }
     // Failed reviewer names stay off this text; the structured result still carries their routes.
-    const lines = children.flatMap(child => child.subagentId === undefined
+    const lines = children.flatMap(child => child.name === undefined
       ? []
-      : [`started subagent ${child.subagentId}${routeSuffix(child)}`])
+      : [`started subagent ${child.name}${routeSuffix(child)}`])
     return [{ type: 'text', text: [text, ...lines].join('\n') }]
   }
-  return [{ type: 'text', text: `started subagent ${value.subagentId}${routeSuffix(value)}` }]
+  return [{ type: 'text', text: `started subagent ${value.name}${routeSuffix(value)}` }]
 }
 
 /** Replayable route facts for the Web card. Failed reviewers stay here, not in model-facing text. */
 function activationMeta(value: ActivationResult) {
   return {
-    subagentId: value.subagentId,
+    name: value.name,
     ...value.provider !== undefined ? { provider: value.provider } : {},
     ...value.model !== undefined ? { model: value.model } : {},
     ...value.reasoningEffort !== undefined ? { reasoningEffort: value.reasoningEffort } : {},
-    ...value.subagentIds !== undefined ? { subagentIds: [...value.subagentIds] } : {},
+    ...value.names !== undefined ? { names: [...value.names] } : {},
     ...value.notStarted !== undefined ? { notStarted: value.notStarted } : {},
     ...value.children !== undefined ? {
       children: value.children.map(child => ({
-        ...child.subagentId !== undefined ? { subagentId: child.subagentId } : {},
+        ...child.name !== undefined ? { name: child.name } : {},
         ...child.provider !== undefined ? { provider: child.provider } : {},
         ...child.model !== undefined ? { model: child.model } : {},
         ...child.reasoningEffort !== undefined ? { reasoningEffort: child.reasoningEffort } : {},
@@ -409,6 +409,7 @@ async function startResolvedChildren(input: {
   }
 
   const startedIds: SessionId[] = []
+  const startedNames: string[] = []
   try {
     for (const item of pending) {
       const child = item.child
@@ -427,8 +428,9 @@ async function startResolvedChildren(input: {
           delivery: 'parent',
         })
         startedIds.push(started.childId)
+        startedNames.push(started.name)
         const placed = ordered[item.index]
-        if (placed !== undefined) ordered[item.index] = { ...placed, subagentId: started.childId }
+        if (placed !== undefined) ordered[item.index] = { ...placed, name: started.name }
         if (slot !== undefined && child.route !== undefined) {
           parent.session.append('subagent/purpose-route', {
             toolCallId: callId,
@@ -464,22 +466,22 @@ async function startResolvedChildren(input: {
     throw error
   }
 
-  const first = startedIds[0]
-  if (first === undefined) {
+  const firstName = startedNames[0]
+  if (firstName === undefined) {
     throw slot === undefined
       ? new Error('the selected child model is unavailable; re-delegate once')
       : purposeUnavailableError(slot, categoryOmitted)
   }
-  const primary = ordered.find(child => child.subagentId === first) ?? {}
+  const primary = ordered.find(child => child.name === firstName) ?? {}
   const route = {
     ...primary.provider !== undefined ? { provider: primary.provider } : {},
     ...primary.model !== undefined ? { model: primary.model } : {},
     ...primary.reasoningEffort !== undefined ? { reasoningEffort: primary.reasoningEffort } : {},
   }
   if (fanOut) {
-    return { kind: 'activation', subagentId: first, subagentIds: startedIds, notStarted, ...route, children: ordered }
+    return { kind: 'activation', name: firstName, names: startedNames, notStarted, ...route, children: ordered }
   }
-  return { kind: 'activation', subagentId: first, ...route }
+  return { kind: 'activation', name: firstName, ...route }
 }
 
 /** Append a not-started purpose route and log the cause the model does not see. */
@@ -623,7 +625,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const definition = defineTool({
       name: toolName,
       description: wording.description
-        + ' This tool starts an independently managed subagent and immediately returns its id. If you are still online when it finishes, the runtime automatically delivers its completion notice. The notice includes the final answer unless the child sent you a message just before finishing.'
+        + ' This tool starts an independently managed subagent and immediately returns its name. If you are still online when it finishes, the runtime automatically delivers its completion notice. The notice includes the final answer unless the child sent you a message just before finishing.'
         + (subagentProvider.prepareContinuable !== undefined
           ? ' Use `send_message` to steer it while running or continue its conversation after it finishes.'
           : ' This backend does not accept follow-up messages.')
@@ -642,6 +644,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           required: true,
           description: 'A short (3-5 word) description of the delegated task, for display. '
             + "Use the language of the user's current request.",
+        },
+        name: {
+          type: 'string',
+          description: 'Optional short name for the subagent, unique among the subagents you create: lower-case letters, '
+            + 'digits, and hyphens, starting with a letter, at most 32 characters; lead is reserved for the root agent. Omitted names default to agent-1, agent-2, and so on.',
         },
         prompt: {
           type: 'string',
@@ -692,12 +699,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           additionalProperties: false,
           properties: {
             kind: { type: 'string', required: true, const: 'activation' },
-            subagentId: { type: 'string', required: true },
+            name: { type: 'string', required: true },
             provider: { type: 'string' },
             model: { type: 'string' },
             reasoningEffort: { type: 'string' },
             ...purposeRouting ? {
-              subagentIds: { type: 'array' as const, items: { type: 'string' as const } },
+              names: { type: 'array' as const, items: { type: 'string' as const } },
               notStarted: { type: 'integer' as const },
               children: {
                 type: 'array' as const,
@@ -705,7 +712,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
                   type: 'object' as const,
                   additionalProperties: false,
                   properties: {
-                    subagentId: { type: 'string' as const },
+                    name: { type: 'string' as const },
                     provider: { type: 'string' as const },
                     model: { type: 'string' as const },
                     reasoningEffort: { type: 'string' as const },
@@ -817,11 +824,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const started = await ctx.subagents.startActivation({
           provider: config.provider,
           label: args.description,
+          ...args.name === undefined ? {} : { name: args.name },
           ...request,
           signal: exec.signal,
           delivery: 'parent',
         })
-        return { kind: 'activation' as const, subagentId: started.childId, ...usedRoute(parent, requestedChildAgentOptions) }
+        return { kind: 'activation' as const, name: started.name, ...usedRoute(parent, requestedChildAgentOptions) }
       },
     })
     const disposeTool = ctx.effect(() => {

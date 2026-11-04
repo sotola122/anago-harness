@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可为 agent 提供具名工具，把工作委派给配置的后端。每次调用都会启动受管理的 activation 并返回子任务 id；运行时负责完成通知与清理。本地子任务支持消息和恢复，外部后端执行一次任务，并通过完成通知返回最终回答。受支持的后端可以公开获准的子级 LLM 路由。每个实例可选择子级 preset 和深度限制。
+使用本包可为 agent 提供具名工具，把工作委派给配置的后端。每次调用都会启动受管理的 activation 并返回子任务的名称；运行时负责完成通知与清理。本地子任务支持消息和恢复，外部后端执行一次任务，并通过完成通知返回最终回答。受支持的后端可以公开获准的子级 LLM 路由。每个实例可选择子级 preset 和深度限制。
 
 ## 目录
 
@@ -60,7 +60,7 @@ kind: "package-reference"
 
 ### 受管理的委派
 
-运行时接受子任务后，每次调用都会返回 `started subagent <childId>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。顶层调用在结果展示 metadata 中持久化 `{ kind: 'activation', subagentId: <childId>, provider?, model?, reasoningEffort? }`；嵌套 Code 派发将其保存在对应 `tool/ptc-dispatch` 事件的 `meta` 字段中。调用不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
+可选的 `name` 参数为子任务命名，在调用方的子级之间唯一，且不能为 `lead`；省略时依次选择 `agent-1`、`agent-2` 等。[subagent 运行时](../subagent/README.zh.md#agent-names)定义名称规则及其错误。运行时接受子任务后，每次调用都会返回 `started subagent <name>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。其中 `<name>` 是子任务从根开始的完整名称，例如 `reviewer/checker`。顶层调用在结果展示 metadata 中持久化 `{ kind: 'activation', name: <name>, provider?, model?, reasoningEffort? }`；嵌套 Code 派发将其保存在对应 `tool/ptc-dispatch` 事件的 `meta` 字段中。调用不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
 
 所有后端都由运行时自动递送完成通知，前提是子任务结束时调用方 Agent 仍在线。通知包含最终回答，除非子任务在结束前刚向该 Agent 发过消息。本地 Spawn 和 Fork 子任务还可以发送消息，在活跃期间通过 `send_message` 接受更多工作，或在结束后恢复。Codex、Claude Code、ACP 与 DSH SDK 后端不接受后续消息。
 
@@ -111,7 +111,7 @@ kind: "package-reference"
 
 ### 结果确认
 
-规范工具结果为 `{ kind: 'activation', subagentId }`。`review` 调用还会返回 `subagentIds` 与 `notStarted`。其中没有执行 Promise 或最终输出；需要等待结果的程序调用方直接使用 subagent 服务。
+规范工具结果为 `{ kind: 'activation', name }`，并带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。`review` 调用还会返回 `names`、`notStarted`，以及包含未能启动评审者的 `children` 列表。其中没有执行 Promise 或最终输出；需要等待结果的程序调用方直接使用 subagent 服务。
 
 ### 随上下文变化的措辞
 
@@ -159,7 +159,7 @@ kind: "package-reference"
 
 #### Token 影响
 
-每次父级请求承担固定 schema 成本；`modelSelection` 会增加三个可选路由字段，preset 选择则增加一个枚举参数及默认值引导。用途路由增加一个枚举参数、一句描述，以及固定的 `list_subagent_categories` schema；编辑表不会改变该前缀。编辑 `purposeGuidance` 会替换 `category` 说明。可见的用途路由工具还会增加一段固定的分割段落；`splitting` 非空时再附上该句。每个工具实例增加一份 schema；可见委派工具共享一个简短系统提示词段。
+每次父级请求承担固定 schema 成本，其中包括可选的 `name` 字段；`modelSelection` 会增加三个可选路由字段，preset 选择则增加一个枚举参数及默认值引导。用途路由增加一个枚举参数、一句描述，以及固定的 `list_subagent_categories` schema；编辑表不会改变该前缀。编辑 `purposeGuidance` 会替换 `category` 说明。可见的用途路由工具还会增加一段固定的分割段落；`splitting` 非空时再附上该句。每个工具实例增加一份 schema；可见委派工具共享一个简短系统提示词段。
 
 #### KV Cache 影响
 
@@ -268,7 +268,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 
 #### 模型看到什么
 
-调用保留任务描述与提示词。成功返回 `started subagent <childId>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。启动被拒绝则返回错误。规范值还带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。启动了多个子级、或有评审者未能启动的 review，返回 `started N subagents: <ids>`，并在需要时附上 `; M reviewer could not start`，然后为每个已启动的子级另起一行 `started subagent <id> · <model> · <effort>`。规范值的 `children` 列表包含未能启动的评审者及其路由，且没有 id。子任务执行详情独立于这条确认交付。
+`description` 提示要求使用用户当前请求的语言，用 3–5 个词描述任务。调用保留任务描述与提示词。成功返回 `started subagent <name>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。启动被拒绝（包括 `name` 重复或无效）则返回错误。规范值还带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。启动了多个子级、或有评审者未能启动的 review，返回 `started N subagents: <names>`，并在需要时附上 `; M reviewer could not start`，然后为每个已启动的子级另起一行 `started subagent <name> · <model> · <effort>`。规范值的 `children` 列表包含未能启动的评审者及其路由，且没有名称。子任务执行详情独立于这条确认交付。
 
 #### Token 影响
 
@@ -282,7 +282,7 @@ Delegation depth for `subagent`: current 1, maximum 1, remaining levels 0. Do no
 
 #### 模型看到什么
 
-回答投递遵循上文的受管理委派规则。返回的子任务 id 用于后续控制与目录操作；只有支持继续执行的后端才接受后续消息。
+回答投递遵循上文的受管理委派规则。返回的名称用于在 `send_message`、`interrupt_agent` 和 Team 任务所有者中指定该子任务；只有支持继续执行的后端才接受后续消息。
 
 #### Token 影响
 

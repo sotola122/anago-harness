@@ -109,7 +109,7 @@ async function waitNoActivation(ctx: Context, childId: SessionId): Promise<void>
 }
 
 describe('list_agents', () => {
-  it('lists a settled caller-delivery local child with its tree position', async () => {
+  it('lists a settled caller-delivery local child by name', async () => {
     const { ctx, parent } = await setup([textResponse('private result')])
     const started = await ctx.subagents.startActivation({
       delivery: 'caller', provider: 'spawn', label: 'workflow child',
@@ -121,7 +121,11 @@ describe('list_agents', () => {
 
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
-    expect(text(result)).toBe(`${parent.id} [inactive] — root agent\n${started.childId} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — workflow child`)
+    expect(text(result)).toBe('lead [inactive] — root agent\nagent-1 [inactive] provider=mock model=mock — workflow child')
+    expect(result.isError ? undefined : result.value).toEqual([
+      { name: 'lead', status: 'inactive', description: 'root agent' },
+      { name: 'agent-1', status: 'inactive', description: 'workflow child', provider: 'mock', model: 'mock' },
+    ])
   })
 
   it('omits external leaves without diagnostics', async () => {
@@ -132,7 +136,7 @@ describe('list_agents', () => {
     })
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
-    expect(text(result)).toBe(`${parent.id} [inactive] — root agent`)
+    expect(text(result)).toBe('lead [inactive] — root agent')
   })
 
   it('registers list_agents once, globally, without parameters', async () => {
@@ -153,7 +157,7 @@ describe('list_agents', () => {
     await ctx.sessions.flush(parent.session)
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
-    expect(text(result)).toBe(`${parent.id} [inactive] — root agent`)
+    expect(text(result)).toBe('lead [inactive] — root agent')
   })
 
   it('renders direct children in array order with registry statuses', async () => {
@@ -186,6 +190,7 @@ describe('list_agents', () => {
         createdAt: 3,
         label: 'still working',
         mode: 'continuable',
+        name: 'runner',
       },
       {
         id: SessionId('waiting-child'),
@@ -196,7 +201,7 @@ describe('list_agents', () => {
     ] satisfies SubagentCatalogEntry[]
     ctx.subagents.listDescendants = () => Promise.resolve(entries.map(entry => ({
       ...entry, kind: 'child' as const, activity: 'inactive' as const, hasChildren: false,
-      parentId: parent.id, depth: 1,
+      parentId: parent.id, depth: 1, ...'name' in entry ? { path: entry.name } : {},
     })))
     const agents = new Map<string, {
       status: 'running' | 'idle'
@@ -208,10 +213,10 @@ describe('list_agents', () => {
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${parent.id} [inactive] — root agent\n`
-      + `${started.childId} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — real child\n`
-      + `running-child [running] parent=${parent.id} depth=1 — still working\n`
-      + `waiting-child [inactive] parent=${parent.id} depth=1 — waiting on descendants`,
+      'lead [inactive] — root agent\n'
+      + `${started.childId} [inactive] provider=mock model=mock — real child\n`
+      + 'runner [running] — still working\n'
+      + 'waiting-child [inactive] — waiting on descendants',
     )
   })
 
@@ -242,9 +247,9 @@ describe('list_agents', () => {
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${parent.id} [inactive] — root agent\n`
-      + `historical-one-shot [diagnostic: unavailable] parent=${parent.id} depth=1\n`
-      + `${started.childId} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — summarize the doc`,
+      'lead [inactive] — root agent\n'
+      + 'historical-one-shot [unavailable]\n'
+      + 'agent-1 [inactive] provider=mock model=mock — summarize the doc',
     )
   })
 
@@ -257,12 +262,12 @@ describe('list_agents', () => {
     expect(schema?.description).toContain('inactive means no turn is executing')
     // The enum is the closed vocabulary the model renders, so pin it rather than
     // scanning prose that legitimately reads "not to poll for completion".
-    const variants = ctx.tools.get('list_agents')?.output.schema.items?.oneOf ?? []
-    const child = variants.find(variant => variant.properties?.kind?.enum?.includes('child'))
-    expect(child?.properties?.status?.enum).toEqual(['running', 'inactive'])
-    expect(child?.properties?.provider?.type).toBe('string')
-    expect(child?.properties?.model?.type).toBe('string')
-    expect(child?.properties?.reasoningEffort?.type).toBe('string')
+    expect(ctx.tools.get('list_agents')?.output.schema.items?.properties?.status?.enum)
+      .toEqual(['running', 'inactive', 'corrupt', 'unsupported', 'unavailable'])
+    const properties = ctx.tools.get('list_agents')?.output.schema.items?.properties
+    expect(properties?.provider?.type).toBe('string')
+    expect(properties?.model?.type).toBe('string')
+    expect(properties?.reasoningEffort?.type).toBe('string')
   })
 
   it('fails loud when invoked without a calling agent', async () => {
@@ -292,7 +297,7 @@ describe('list_agents', () => {
     expect(typeof tool.apply).toBe('function')
   })
 
-  it('walks the complete descendant tree in pre-order with parent and depth annotations', async () => {
+  it('walks the complete descendant tree in pre-order with full names', async () => {
     const releaseChild = Promise.withResolvers<undefined>()
     const releaseGrandchild = Promise.withResolvers<undefined>()
     const adapter = new GatedAdapter([
@@ -324,9 +329,9 @@ describe('list_agents', () => {
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${parent.id} [inactive] — root agent\n`
-      + `${started.childId} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — waiting branch\n`
-      + `${grandchild.childId} [running] provider=mock model=mock parent=${started.childId} depth=2 — nested leaf`,
+      'lead [inactive] — root agent\n'
+      + 'agent-1 [inactive] provider=mock model=mock — waiting branch\n'
+      + 'agent-1/agent-1 [running] provider=mock model=mock — nested leaf',
     )
 
     expect(text(await callTool(ctx, 'list_agents', {}, ctx.agents.get(grandchild.childId)))).toBe(text(result))
@@ -372,9 +377,9 @@ describe('list_agents', () => {
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${parent.id} [inactive] — root agent\n`
-      + 'deep-leaf [inactive] parent=one-shot-mid depth=2 — deep leaf\n'
-      + `broken-node [diagnostic: unavailable] parent=${parent.id} depth=1`,
+      'lead [inactive] — root agent\n'
+      + 'deep-leaf [inactive] — deep leaf\n'
+      + 'broken-node [unavailable]',
     )
   })
 
@@ -402,11 +407,11 @@ describe('list_agents', () => {
     await vi.waitFor(() => { expect(adapter.requests).toHaveLength(4) })
 
     const expected = [
-      `${parent.id} [inactive] — root agent`,
-      `${alpha} [running] provider=mock model=mock parent=${parent.id} depth=1 — alpha task`,
-      `${beta} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — beta task`,
-      `${gamma} [inactive] provider=mock model=mock parent=${parent.id} depth=1 — gamma task`,
-      `${delta} [running] provider=mock model=mock parent=${parent.id} depth=1 — delta task`,
+      'lead [inactive] — root agent',
+      'agent-1 [running] provider=mock model=mock — alpha task',
+      'agent-2 [inactive] provider=mock model=mock — beta task',
+      'agent-3 [inactive] provider=mock model=mock — gamma task',
+      'agent-4 [running] provider=mock model=mock — delta task',
     ].join('\n')
     for (const caller of [parent, ctx.agents.get(alpha), ctx.agents.get(delta)]) {
       const result = await callTool(ctx, 'list_agents', {}, caller)
