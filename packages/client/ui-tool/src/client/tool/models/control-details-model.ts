@@ -197,7 +197,7 @@ function fanOutReceipt(meta: unknown, prompt: string, t: DetailTranslate): ToolD
 /** Read a delegation receipt recorded as model-facing text. */
 function textReceipt(text: string, prompt: string, t: DetailTranslate): ToolDetailsModel | null {
   const lines = text.split('\n').flatMap((line) => {
-    const match = /^started subagent (\S+)(?: · (\S+))?(?: · (\S+))?$/u.exec(line)
+    const match = /^started subagent (\S+) · (\S+)(?: · (\S+))?$/u.exec(line)
     if (match === null || match[1] === undefined) return []
     const model = match[2]
     const reasoningEffort = match[3]
@@ -218,19 +218,17 @@ function textReceipt(text: string, prompt: string, t: DetailTranslate): ToolDeta
       expandedSummary: prompt || t('detail.agent.startedCount', { count: lines.length }),
     }
   }
-  const started = /^started (background subagent job|subagent) (\S+)(?: · (\S+))?(?: · (\S+))?$/u.exec(text.split('\n')[0] ?? '')
+  const started = /^started subagent (\S+) · (\S+)(?: · (\S+))?$/u.exec(text.split('\n')[0] ?? '')
   if (started !== null) {
-    const name = started[2] ?? ''
-    const model = started[3]
-    const reasoningEffort = started[4]
-    const fromText = started[1] === 'subagent'
-      ? {
-        ...model !== undefined ? { model } : {},
-        ...reasoningEffort !== undefined ? { reasoningEffort } : {},
-      }
-      : {}
-    const fields = [{ label: t(started[1] === 'subagent' ? 'detail.field.agent' : 'detail.field.job'), value: name }, ...routeFields(fromText, t)]
-    const title = started[1] === 'subagent' ? startedLine(name, fromText, t) : prompt
+    const name = started[1] ?? ''
+    const model = started[2]
+    const reasoningEffort = started[3]
+    const route = {
+      ...model !== undefined ? { model } : {},
+      ...reasoningEffort !== undefined ? { reasoningEffort } : {},
+    }
+    const fields = [{ label: t('detail.field.agent'), value: name }, ...routeFields(route, t)]
+    const title = startedLine(name, route, t)
     return {
       ...detailList([{ title: prompt || title, badge: { label: t('detail.receipt.started'), tone: 'info' }, fields }], title, t),
       expandedSummary: prompt || title,

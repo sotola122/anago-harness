@@ -310,6 +310,7 @@ function renderActivation(value: ActivationResult): ContentBlock[] {
 /** Replayable route facts for the Web card. Failed reviewers stay here, not in model-facing text. */
 function activationMeta(value: ActivationResult) {
   return {
+    kind: value.kind,
     name: value.name,
     ...value.provider !== undefined ? { provider: value.provider } : {},
     ...value.model !== undefined ? { model: value.model } : {},

@@ -73,7 +73,7 @@ describe('dsh-tool-subagent', () => {
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected subagent success')
     expect(result.value).toHaveProperty('kind', 'activation')
-    expect(result.value).toEqual({ kind: 'activation', name: 'agent-1', provider: 'mock', model: 'mock' })
+    expect(result.value).toEqual({ kind: 'activation', name: 'agent-1' })
     expect(result.meta).toEqual(result.value)
     expect(text(result)).toMatch(/^started subagent agent-1/)
   })
@@ -772,7 +772,7 @@ describe('dsh-tool-subagent local activation', () => {
     const { ctx, parent } = await continuableSetup()
     const named = await callSubagent(ctx, { description: 'review', prompt: 'review it', name: 'reviewer' }, { agent: parent })
     expect(named.isError, text(named)).toBe(false)
-    expect(text(named)).toBe('started subagent reviewer')
+    expect(text(named)).toBe('started subagent reviewer · mock')
     const childId = ctx.sessionProjections.snapshot(parent.session).values.subagentCatalog?.find(entry => entry.mode === 'continuable' && entry.name === 'reviewer')?.id
     expect(childId).toBeDefined()
     expect(ctx.tools.get('subagent')?.output.presentationMeta?.({}, { kind: 'activation', name: 'reviewer' }))
