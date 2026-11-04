@@ -458,6 +458,9 @@ interface ToolOutputMap {
     name: string;
     status: "running" | "inactive" | "corrupt" | "unsupported" | "unavailable";
     description?: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   })[];
   list_mcp_resource_templates: JsonValue;
   list_mcp_resources: JsonValue;
@@ -509,10 +512,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   todo_write: {
     todos: ({

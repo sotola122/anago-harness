@@ -431,6 +431,9 @@ interface ToolOutputMap {
     name: string;
     status: "running" | "inactive" | "corrupt" | "unsupported" | "unavailable";
     description?: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   })[];
   read: {
     /** Canonical absolute path in the filesystem execution world. */
@@ -479,10 +482,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   todo_write: {
     todos: ({

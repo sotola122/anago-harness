@@ -299,6 +299,9 @@ class ListAgentsOutput(TypedDict):
     name: str
     status: Literal["running", "inactive", "corrupt", "unsupported", "unavailable"]
     description: NotRequired[str]
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    reasoningEffort: NotRequired[str]
 
 class ReadArgs(TypedDict):
     # Path to read, resolved by the filesystem backend.
@@ -390,6 +393,9 @@ class SubagentArgs(TypedDict):
 class SubagentOutput(TypedDict):
     kind: Literal["activation"]
     name: str
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    reasoningEffort: NotRequired[str]
 
 class SubagentForkArgs(TypedDict):
     # Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent.
@@ -405,6 +411,9 @@ class SubagentForkArgs(TypedDict):
 class SubagentForkOutput(TypedDict):
     kind: Literal["activation"]
     name: str
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    reasoningEffort: NotRequired[str]
 
 class TodoWriteArgsTodos(TypedDict):
     # What the task is — a short imperative line.

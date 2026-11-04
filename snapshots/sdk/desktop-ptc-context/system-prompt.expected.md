@@ -533,6 +533,9 @@ interface ToolOutputMap {
     name: string;
     status: "running" | "inactive" | "corrupt" | "unsupported" | "unavailable";
     description?: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   })[];
   plugin_manager: string;
   present: {
@@ -1531,10 +1534,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   todo_write: {
     todos: ({

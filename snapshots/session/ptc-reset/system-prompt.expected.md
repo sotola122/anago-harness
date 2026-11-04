@@ -140,10 +140,10 @@ interface ToolArgsMap {
     job_id: string;
     /** Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false. */
     wait?: boolean;
-    /** Max wait in milliseconds with wait: true. Defaults to and is capped by configuration. */
+    /** Max wait in milliseconds with wait: true. Defaults to ten minutes and is capped by configuration. A single long wait is preferred over re-checking in short slices. */
     timeout_ms?: number;
   } & Record<string, JsonValue>;
-  /** List your entire subagent tree: the root agent and all reachable continuable descendants, including yourself. Rows carry names, descriptions, and status. A descendant's name is its path from the root, such as reviewer/checker. You can message any other agent in the subagent tree. running means it is working; inactive means no turn is executing; it does not indicate task completion, success, or failure. corrupt, unsupported, or unavailable means this row's own descendants could not be read; the row itself is still a member you can message. While you remain active, you will be notified when a direct child finishes; there is no need to keep checking its status. Use send_message to continue the conversation. */
+  /** List your entire subagent tree: the root agent and all reachable continuable descendants, including yourself. Rows carry names, descriptions, status, and recorded provider, model, and reasoning effort. A descendant's name is its path from the root, such as reviewer/checker. You can message any other agent in the subagent tree. running means it is working; inactive means no turn is executing; it does not indicate task completion, success, or failure. corrupt, unsupported, or unavailable means this row's own descendants could not be read; the row itself is still a member you can message. While you remain active, you will be notified when a direct child finishes; there is no need to keep checking its status. Use send_message to continue the conversation. */
   list_agents: Record<string, JsonValue>;
   /** Read a UTF-8 text file and return line-numbered content. */
   read: {
@@ -433,6 +433,9 @@ interface ToolOutputMap {
     name: string;
     status: "running" | "inactive" | "corrupt" | "unsupported" | "unavailable";
     description?: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   })[];
   read: {
     /** Canonical absolute path in the filesystem execution world. */
@@ -481,10 +484,16 @@ interface ToolOutputMap {
   subagent: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   subagent_fork: {
     kind: "activation";
     name: string;
+    provider?: string;
+    model?: string;
+    reasoningEffort?: string;
   };
   template_echo: string;
   todo_write: {
