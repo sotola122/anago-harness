@@ -14,8 +14,11 @@ const kitRepositoryUrl = new RegExp(`\\bgithub\\.com/${organization}/libreoffice
 // Decimal-only tokens collide with sizes, counts, and version components; see docs/AGENTS.md#repository-references.
 const commitCandidate = /(?<![a-z0-9])(?=[\da-f]{0,39}[a-f])[\da-f]{7,40}(?![a-z0-9])/gi
 const excludedPrefixes = ['vendor/', '.agents/notes/archived/']
-/** `PROJECT_GUIDELINE.md` names the design baseline commit and stays byte-for-byte. */
-const excludedFiles = new Set(['PROJECT_GUIDELINE.md'])
+/**
+ * `PROJECT_GUIDELINE.md` names the design baseline commit and stays byte-for-byte.
+ * `ANAGO_RELEASE.json` records the upstream commit each Anago release was built from.
+ */
+const excludedFiles = new Set(['PROJECT_GUIDELINE.md', 'ANAGO_RELEASE.json'])
 const gitOutputLimit = 64 * 1024 * 1024
 // One 41-byte line per object; 1.2 million objects produce about 49 MiB.
 const objectListingLimit = 1024 * 1024 * 1024

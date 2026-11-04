@@ -2,6 +2,16 @@
 
 This procedure merges `upstream` (`https://github.com/deepseek-ai/deepseek-harness`, default branch `master`) into this fork, and is done when `origin/master` contains that merge commit, `git diff --check` exits 0, versions match [Version](#version), and [verification](#verification) shows only the known reds (failures this tree already has). Fork code lives under `packages/fork/*`; an upstream file carries only a listed hook — keep the fork's row and take upstream around it.
 
+## Anago version and release branches
+
+Anago is versioned on its own. `ANAGO_RELEASE.json` at the repository root is the source of truth: it names `anagoVersion` and records the `upstreamVersion` and `upstreamCommit` that release was built from.
+
+- Every release — an upstream sync, or a feature change shipped on top of one — gets its own version and its own branch: `releases/anago-v<anagoVersion>`, cut from `master`. Tag the branch `anago-v<anagoVersion>` when it ships.
+- Package `version` fields continue to mirror the upstream release version. The Loader compares a plugin's declared requirement with the runtime version, so renumbering the workspace would make every installed plugin incompatible. The Anago version names the release; the package versions keep the compatibility contract with downstream plugins.
+- Bump `MAJOR` when a release changes the persisted Session format or another user-visible contract, `MINOR` for an upstream sync or a new capability, and `PATCH` for fixes inside a release branch. Update `ANAGO_RELEASE.json` in the same commit that starts the release branch.
+- `master` tracks upstream `master`. A release branch is cut from `master` and carries the Anago version; it does not merge upstream again until the next release.
+- A release tag can predate structural moves that are already on `master`. The `dsh-v0.2.2-rc.1` tag still had `packages/experimental/agent-team`, while `master` had moved it to `packages/team/agent-team`, so merging the tag alone left `apps/cli` pointing at package names that no longer existed. When `upstream/master` already contains the release, merge `master`, not the tag.
+
 ## Steps
 
 1. Weekly, fetch `upstream`. This tree has no `.github/workflows/fork-sync.yml`; merge `upstream/master`, not `upstream/main`. Add the remote when `git remote` does not list it. The previous sync is PR #7, branch `sync/upstream-2026-10-29`.
