@@ -202,6 +202,25 @@ node apps/cli/lib/bin.js --profile web --port 0 --no-open
 
 `--port 0` lets the OS pick a free port (`packages/bundle/web-app/src/startup.ts`). The printed URL is not `:3080`. With the oauth bundles added, the slash list shows their commands. Tools are `memory`, `wiki_search`, `wiki_lint`, and `wiki_write`.
 
+### Live host
+
+`anago-web.service` serves the maintainer's profile `web-anago` on `100.110.252.31:3080` from this checkout. The maintainer starts, stops, and restarts it; a sync never does. Stop or restart it only on an explicit instruction, and say which code the restarted process will run.
+
+- Build in the sync worktree, never in the checkout the service runs from. The running process resolves `packages/*/lib` lazily, so `pnpm install`, `pnpm run build:artifacts`, or a generator in that checkout swaps modules under a live process and mixes pre-sync and post-sync code. On 2026-11-02 exactly that produced `dsh: fatal load failure: Error: cannot get required service "agents" in inactive context` from `ApiSessionAgentController.releaseIfQuiescent` and a restart loop.
+- Rebuild that checkout only when the service will be restarted right after, and rebuild the whole tree in one pass so every `lib/` file comes from one commit.
+- A verification host runs the same checkout on a spare port. Start it as a transient user service; a shell background job dies with the session that started it:
+
+```sh
+systemd-run --user --unit=anago-verify-<port> --collect \
+  --working-directory=/data_1/git_workspace/anago-harness \
+  /home/hwd/.hermes/node-v26.12.1-linux-x64/bin/node apps/cli/lib/bin.js \
+  --profile web-anago --host <tailnet-ip> --port <spare-port> --no-open
+journalctl --user -u anago-verify-<port> --no-pager | grep 'dsh web: http'
+systemctl --user stop anago-verify-<port>
+```
+
+- Adding a bundle to `~/.dsh/profiles/web-anago` also needs `pnpm install` in that profile directory. Without a TTY pnpm refuses to purge `node_modules`; set `CI=true` for that install, or add the `link:` entry to the profile's `node_modules` by hand and record that the lockfile is stale.
+
 ### Known red
 
 Checked 2026-11-04. A failure outside this list is a sync failure. Do not rewrite expected files to clear these.
@@ -210,7 +229,11 @@ Checked 2026-11-04. A failure outside this list is a sync failure. Do not rewrit
 
 `pnpm run test:docs` fails only in `verify-package-readme-model-experience`, at `packages/subagent/tool-subagent/README.md` line 214: content after the `#### What the model sees` paragraph must be a titled H5 plus a `markdown` fence owned by that field. The file matches HEAD; it is not a dirty worktree.
 
-`pnpm run test:expected` was not run in full. Headless expected, through `vitest.expected.config.ts`, had 13 failures: `headless.expected.e2e.ts` 8, `semantic-checkpoint` 1, `subagent-diagnostic` 1, `subagent-inheritance` 1, `workspace-context-resume` 2. `mcp-pagination` and `session-format-guard` were green. The cause is not only response-language. Many expected files lack `response-language:runtime` (`Reply to the user in Japanese (日本語)...`) and the `llm-wiki` skill catalog. In addition, the DeepSeek defaults test has 0 requests (expected 2), `subagent-diagnostic` is child-session JSON rather than catalog lines, and `subagent-inheritance` has a child-session structure that differs from the expected file.
+`pnpm run test:expected` fails 13 headless cases on `master` as measured on 2026-11-02: `headless.expected.e2e.ts` 8, `semantic-checkpoint` 1, `subagent-diagnostic` 1, `subagent-inheritance` 1, `workspace-context-resume` 2. `mcp-pagination` and `session-format-guard` are green. The cause is not only response-language. Many expected files lack `response-language:runtime` (`Reply to the user in Japanese (日本語)...`) and the `llm-wiki` skill catalog. In addition, the DeepSeek defaults test has 0 requests (expected 2), `subagent-diagnostic` is child-session JSON rather than catalog lines, and `subagent-inheritance` has a child-session structure that differs from the expected file.
+
+`pnpm run test` fails 82 cases on `master` and 54 on the synced tree, measured on this host on 2026-11-02. The residual difference is flaky: the same files pass and fail between runs (`scripts/release/pack.spec.ts`, `packages/experimental/client-ui-forge/tests/controller.host.spec.ts`, macOS-only notarization work, sandboxed shell cases). Compare the failing sets before chasing one, and never treat a difference in this set alone as a sync failure.
+
+**Runtime failure on shutdown.** `ApiSessionAgentController.releaseIfQuiescent` (`packages/api/session-controller/src/agent.ts`) reads `this.ctx.agents` from a timer created by `scheduleRelease`. When the timer fires after the controller's context went inactive — a shutdown, or a live process whose `lib/` was swapped mid-run — that read throws `cannot get required service "agents" in inactive context`, the rejected promise is fire-and-forget, and the process exits with `dsh: fatal load failure`. Observed on 2026-11-02 after an in-place rebuild. Construct the service through `ctx.get('agents')` and return when it is absent, and catch the timer's promise, so a shutdown stays graceful.
 
 `node ci/fork/scan-egress.mjs` exits 1 with 6 NEW findings. Do not update the baseline in this procedure. `WATCH` `api.deepseek.com` fails even when it is in the baseline (`BUILTIN-DEEPSEEK`); the scanner also prints that line for the same pair, and it is not a seventh NEW. A `NEW` beyond these six is a sync diff.
 
@@ -227,4 +250,4 @@ NEW  other	packages/util/plugin-detail/src/files.ts	unpkg.com
 
 - Leave `.dsh/memory/` untracked; `MEMORY.md` is workspace notes.
 - `.gitattributes` has no `merge=ours`. Resolve a binary by the same rule as text.
-- `~/.dsh/profiles/web-anago/package.json` `link:`s `@anago-harness/xai-oauth` and `@anago-harness/copilot-oauth` into this checkout's `packages/fork/`. Moving those paths breaks that profile. Do not launch it.
+- `~/.dsh/profiles/web-anago/package.json` `link:`s `@anago-harness/xai-oauth`, `@anago-harness/copilot-oauth`, and `@anago-harness/openai-codex-oauth` into this checkout's `packages/fork/`. Moving those paths breaks that profile. Reach that profile through the live host or a transient verification service, never by restarting the service itself.
