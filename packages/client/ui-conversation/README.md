@@ -124,7 +124,7 @@ The resident composer survives no-Session and Session transitions. Whitespace hi
 
 In narrow browser settings, the busy-state Enter preference uses a smaller label gutter. Windows and macOS desktop windows retain the standard spacing.
 
-Plain Enter uses the configured delivery mode, exactly Ctrl+Enter or Cmd+Enter uses its complement, and Shift+Enter inserts a line break. Enter with Alt, AltGraph, both Ctrl and Cmd, or Shift plus Ctrl/Cmd leaves the draft and command menu unchanged and keeps the DOM event available to application shortcuts. The Conversation plugin registers the fixed send, newline, complementary-delivery, command-menu, and reference-menu rows and reserves their bindings until it unloads.
+Plain Enter uses the configured delivery mode, exactly Ctrl+Enter or Cmd+Enter uses its complement, and Shift+Enter inserts a line break. On a mobile browser, plain Enter inserts a line break and the Send button submits, so the touch keyboard cannot send by accident. Enter with Alt, AltGraph, both Ctrl and Cmd, or Shift plus Ctrl/Cmd leaves the draft and command menu unchanged and keeps the DOM event available to application shortcuts. The Conversation plugin registers the fixed send, newline, complementary-delivery, command-menu, and reference-menu rows and reserves their bindings until it unloads.
 
 Clicking unused space inside an editable composer preserves its current caret or selection when focused, or restores its previous caret or selection when unfocused. Text selection, scrollbars, controls, and embedded overlays keep their own pointer behavior.
 
