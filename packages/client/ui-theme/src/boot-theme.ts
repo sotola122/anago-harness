@@ -2,8 +2,10 @@
  * Theme bootstrap row for the browser's pre-plugin interval. Each index
  * render embeds the current durable built-in preference, font sizes, and
  * font-family lists. Head CSS colors the document canvas before script
- * execution; the body script installs the palette selector and font variables
- * that the client presenters adopt.
+ * execution, including the Gruvbox background for that preference; the body
+ * script installs the dark-palette attribute, the palette-id marker the named
+ * palette sheet scopes on, and the font variables that the client presenters
+ * adopt.
  */
 
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
@@ -14,6 +16,7 @@ import {
 
 const LIGHT_BACKGROUND = '#fff'
 const DARK_BACKGROUND = '#151517'
+const GRUVBOX_BACKGROUND = '#282828'
 
 /** CSS that colors the document canvas before any script executes. */
 function bootThemeStyle(preference: ThemePreference): string {
@@ -21,6 +24,7 @@ function bootThemeStyle(preference: ThemePreference): string {
   const dark = `:root{color-scheme:dark}body{background-color:${DARK_BACKGROUND};--dsh-boot-bg:${DARK_BACKGROUND}}`
   if (preference === 'light') return light
   if (preference === 'dark') return dark
+  if (preference === 'gruvbox') return `:root{color-scheme:dark}body{background-color:${GRUVBOX_BACKGROUND};--dsh-boot-bg:${GRUVBOX_BACKGROUND}}`
   return `${light}@media(prefers-color-scheme:dark){${dark}}`
 }
 
@@ -37,8 +41,10 @@ function bootThemeBodyScript(preference: ThemePreference, fontSizes: FontSizes, 
   const systemDark = preference === 'system'
     && typeof matchMedia !== 'undefined'
     && matchMedia('(prefers-color-scheme: dark)').matches
-  const dark = preference === 'dark' || systemDark
-  document.documentElement.dataset.dsThemeSource = preference
+  const dark = preference === 'dark' || preference === 'gruvbox' || systemDark
+  const palette = preference === 'system' ? (dark ? 'dark' : 'light') : preference
+  document.documentElement.dataset.dsThemeSource = preference === 'system' ? 'system' : dark ? 'dark' : 'light'
+  document.body.dataset.dsThemePalette = palette
   document.body.toggleAttribute('data-ds-dark-theme', dark)${sizes}${families}
 })()`
 }

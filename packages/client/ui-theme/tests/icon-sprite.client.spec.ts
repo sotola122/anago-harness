@@ -63,7 +63,7 @@ describe('icon sprite', () => {
     expect(reject({ [SEARCH]: svg('<style>path{fill:red}</style>') })).toThrow(/<style> or <script>/)
     expect(reject({ [SEARCH]: svg('<mask id="root"/>') })).toThrow(/element id "root" must start with "dsw-icon-search-outline-regular-"/)
     expect(reject({ [SEARCH]: svg(`<g id="${SEARCH}"/>`) })).toThrow(/must start with/)
-    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark'])
+    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'gruvbox'])
     await fiber.dispose()
   })
 

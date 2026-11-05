@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-theme` 让 Web GUI 用户在设置中选择 `light`、`dark` 或 `system`，并分别设置正文、代码与终端的字体和字号。每个已认证浏览器都把这些值存入 `ui-theme` 设置命名空间，本地提供方默认将其持久化到 `$DSH_HOME/cordis.patch.yml`。插件通过 `prefers-color-scheme` 解析 `system` 并发布不可变的 `ThemeSnapshot`；ui-layout 把每份快照应用到文档。本包还提供 `--dsw-*` token 样式表，并注入同步引导，使所选调色板、字号与字体在外壳加载前生效。第三方主题可通过 `ctx.theme` 注册别名 token 覆盖。
+`dsh-client-ui-theme` 让 Web GUI 用户在设置中选择 `light`、`dark`、`system` 或深色的 `gruvbox` 配色，并分别设置正文、代码与终端的字体和字号。每个已认证浏览器都把这些值存入 `ui-theme` 设置命名空间，本地提供方将其持久化到 `$DSH_HOME/cordis.patch.yml`。插件通过 `prefers-color-scheme` 解析 `system` 并发布不可变的 `ThemeSnapshot`；ui-layout 把每份快照应用到文档。本包还提供 `--dsw-*` token 样式表，并注入同步引导，使所选调色板、字号与字体在外壳加载前生效。第三方主题可通过 `ctx.theme` 注册别名 token 覆盖。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 外观与字号
 
-窄屏浏览器设置中，三个外观选项同排显示，字号标签使用较小的间距。视口宽度不超过 767 CSS px 时（包括窄桌面窗口），字体输入行按标题、说明、输入框纵向排列，输入框占满可用宽度；字号步进器保持在标签右侧。更宽的视口保留字体输入行的横向排列。Windows 和 macOS 桌面窗口的外观选项保留换行，字号标签保留标准间距。主指针精度较低的设备上，字体输入框使用 16 px 文字。
+窄屏浏览器设置中，四个外观选项同排显示，字号标签使用较小的间距。视口宽度不超过 767 CSS px 时（包括窄桌面窗口），字体输入行按标题、说明、输入框纵向排列，输入框占满可用宽度；字号步进器保持在标签右侧。更宽的视口保留字体输入行的横向排列。Windows 和 macOS 桌面窗口的外观选项保留换行，字号标签保留标准间距。主指针精度较低的设备上，字体输入框使用 16 px 文字。
 
 插件在「通用」分区注册外观偏好方块与正文字号步进器。步进器后的「更多字体设置」按钮在其下方展开一个区域，每次打开设置时均为折叠状态，其中包含正文、代码与终端各自的字体行，以及代码与终端的字号步进器。正文步进器接受 10 至 22 px 的整数，默认值为 14 px。它以相同增量调整会话标题与基础文本，包括用户气泡与 composer 草稿；流内行的标题、摘要与表格跟随比正文低一档的字号，小号文本保持固定字号。代码步进器（10–16 px，默认 11）设置代码块字号；行内代码保持大 1 px，工具输出的小号变体使用相同字号。终端步进器（10–20 px，默认 13）设置侧栏终端的单元格字号；修改后保留 shell 与输出，并重新适配网格。每次通过的变更都经 Host settings API 写入。连续快速变更按操作顺序携带命名空间 revision 串行写入，最新写入被拒时重新加载持久值。
 
@@ -45,7 +45,7 @@ Desktop 的固定快捷键 `Cmd`/`Ctrl` + `+`（或 `=`）和 `Cmd`/`Ctrl` + `-`
 
 ### 插件前调色板
 
-当主机组合包含 HTTP 服务器时，宿主侧会把已注册的 `ui-theme` 设置或 schema 默认值嵌入每份 index 响应。head CSS 会在任何脚本运行前选择文档画布的配色方案，其中 `system` 偏好使用 `prefers-color-scheme` 查询；随后，body 脚本会在加载页面和应用脚本之前设置 `body[data-ds-dark-theme]`、`--dsh-content-font-size`、`--dsh-code-font-size`、`--dsh-terminal-font-size` 以及每个非空的 `--dsh-font-family-<role>` 列表，因此首帧绘制就采用所选调色板与正文、代码字号，`ThemeRuntime` 也从已保存的字号与字体开始，不会先渲染默认值。
+当主机组合包含 HTTP 服务器时，宿主侧会把已注册的 `ui-theme` 设置或 schema 默认值嵌入每份 index 响应。head CSS 会在任何脚本运行前选择文档画布的配色方案，其中该偏好使用 Gruvbox 的 `#282828` 背景，`system` 偏好使用 `prefers-color-scheme` 查询；随后，body 脚本会在加载页面和应用脚本之前设置 `body[data-ds-dark-theme]`、`body[data-ds-theme-palette]`（活动主题 id，Gruvbox 样式表以此为作用域）、`--dsh-content-font-size`、`--dsh-code-font-size`、`--dsh-terminal-font-size` 以及每个非空的 `--dsh-font-family-<role>` 列表，因此首帧绘制就采用所选调色板与正文、代码字号，`ThemeRuntime` 也从已保存的字号与字体开始，不会先渲染默认值。
 
 -----
 
@@ -65,9 +65,9 @@ Desktop 的固定快捷键 `Cmd`/`Ctrl` + `+`（或 `=`）和 `Cmd`/`Ctrl` + `-`
 
 `base.css` 持有共享圆角尺度、字体 token 与设置卡片材质别名。`--dsh-font-family-text-default` 与 `--dsh-font-family-code-default` 在 `:root` 上保存内置字体栈；在 `body` 上，`--dsw-font-family` 与 `--ds-font-family-code` 把 `--dsh-font-family-text` 与 `--dsh-font-family-code` 排在这些字体栈之前，未设置的列表解析为内置字体栈（重复一次，字体匹配会忽略重复项）。材质别名在 `body` 上随当前色板解析。组件圆角选择遵循 [Web 样式参考](../../../docs/web-styling.zh.md#corner-radii-and-settings-cards)。
 
-`src/styles/` 下有八张样式表，由 ui-theme 的动态客户端 entry 依次导入：`base.css`、`corner-shape.css`、`design-platform.css`、`focus.css`、`onboarding.css`、`scrollbar.css`、`gradient-shadow-text.css` 与 `shiki.css`。客户端 bundle 将其编译并注入为插件持有的全局样式，因此卸载与 HMR（热模块替换）会随 ui-theme 一同移除。`scrollbar.css` 消费 `--dsw-alias-scrollbar-*` token，必须排在声明这些 token 的 `design-platform.css` 之后。状态标记使用各自的语义状态 token；`--dsw-alias-state-done-primary` 标记已完成的工作（例如已合并的变更请求），浅色主题为 violet-600，深色主题为 violet-400。`--dsw-alias-bg-document-selection` 在两种主题中均使用 40% 不透明度的 blue-500，供保留文档原色的选区使用。`design-platform.css` 还负责代码差异底色的别名及其静态透明度色阶，以及文件对比所用的 `--dsw-alias-file-diff-*` 代码区、行号区和标记配色；`shiki.css` 负责语法颜色。
+`src/styles/` 下有九张样式表，由 ui-theme 的动态客户端 entry 依次导入：`base.css`、`corner-shape.css`、`design-platform.css`、`focus.css`、`onboarding.css`、`scrollbar.css`、`gradient-shadow-text.css`、`shiki.css` 与 `gruvbox.css`。客户端 bundle 将其编译并注入为插件持有的全局样式，因此卸载与 HMR（热模块替换）会随 ui-theme 一同移除。`scrollbar.css` 消费 `--dsw-alias-scrollbar-*` token，必须排在声明这些 token 的 `design-platform.css` 之后。状态标记使用各自的语义状态 token；`--dsw-alias-state-done-primary` 标记已完成的工作（例如已合并的变更请求），浅色主题为 violet-600，深色主题为 violet-400。`--dsw-alias-bg-document-selection` 在两种主题中均使用 40% 不透明度的 blue-500，供保留文档原色的选区使用。`design-platform.css` 还负责代码差异底色的别名及其静态透明度色阶，以及文件对比所用的 `--dsw-alias-file-diff-*` 代码区、行号区和标记配色；`shiki.css` 负责语法颜色。`gruvbox.css` 把这些样式表深色块声明的每个自定义属性重映射到 Gruvbox 配色（背景 `#282828`、前景 `#ebdbb2`、标准红绿黄蓝紫青橙强调色与中性灰阶）。它以 `body[data-ds-theme-palette='gruvbox']` 为作用域，该标记由呈现器与引导脚本随 `body[data-ds-dark-theme]` 一同设置；样式表排在配色样式表之后，因此同等特异度的覆盖生效，且不改动明暗机制。Gruvbox 配色 spec 会枚举两侧深色块的 token，缺少任何一个即失败。
 
-[`focus.css`](src/styles/focus.css) 提供 `:focus-visible` 兜底：通过 `var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary))` 声明焦点环颜色，并通过 `--dsw-focus-ring-width` 声明标准宽度，但不声明轮廓样式——因此禁用轮廓的控件仍然不绘制，而没有自有焦点环的控件保持标准几何，而不是落到 Chromium 的 `auto 1px`。主题将该蓝色解析为浅色模式的 `#4176E6` 和深色模式的 `#7AAAFF`。组件轮廓与焦点环阴影使用同一颜色表达式，包括后代和伪元素上的环。`--dsw-focus-ring-width`（2px）是标准宽度；密集表格与工具栏可以保留 1px，offset 仍由组件决定。
+[`focus.css`](src/styles/focus.css) 提供 `:focus-visible` 兜底：通过 `var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary))` 声明焦点环颜色，并通过 `--dsw-focus-ring-width` 声明标准宽度，但不声明轮廓样式——因此禁用轮廓的控件仍然不绘制，而没有自有焦点环的控件保持标准几何，而不是落到 Chromium 的 `auto 1px`。主题将该蓝色解析为浅色模式的 `#4176E6`、深色模式的 `#7AAAFF` 和 Gruvbox 配色的 `#83A598`。组件轮廓与焦点环阴影使用同一颜色表达式，包括后代和伪元素上的环。`--dsw-focus-ring-width`（2px）是标准宽度；密集表格与工具栏可以保留 1px，offset 仍由组件决定。
 
 指针模态下，`html[data-input-modality='pointer'] body :focus-visible:not(:read-write)` 将焦点环颜色设为透明。后代与伪元素继承该值；规则不清除 `box-shadow`，因此 elevation 阴影与选中态边框独立于焦点环可见性。匹配 `:read-write` 的可编辑文本控件在点击时保留自身焦点反馈。[输入模态](../ui-primitives/README.zh.md#input-modality)决定何时恢复键盘焦点样式；它不移动 DOM 焦点。
 

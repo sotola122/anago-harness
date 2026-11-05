@@ -135,6 +135,10 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/core/system-prompt/src/index.ts` | `ORCHESTRATOR_POLICY` at order 550 |
 | `packages/bundle/web-app/package.json`, `packages/bundle/web-app/presets/orchestrator.patch.yml` | the orchestrator preset mounted on the bundle |
 | `snapshots/**` expected files and session JSONL that differ | the fork behavior in that recording (route fields, injected sections). `pnpm run test:snapshot` must exit 0 |
+| `packages/client/ui-theme/src/`, `packages/client/ui-theme/tests/` | the built-in `gruvbox` preference (`THEME_PREFERENCES`, `BUILTIN_THEMES`, boot head background and `body[data-ds-theme-palette]`, the Appearance cube and locale keys) and `styles/gruvbox.css`: a remap of every token the dark blocks of `design-platform.css`, `shiki.css`, `onboarding.css`, and `gradient-shadow-text.css` declare, scoped on `body[data-ds-theme-palette='gruvbox']` and imported last in `styles.ts`. Keep the Gruvbox palette spec that enumerates both token sets, the theme-list expectations that include `gruvbox`, and the menu-material spec's `gruvbox.css` allowance |
+| `packages/client/ui-layout/src/client/theme-presenter.ts`, `packages/client/ui-layout/tests/theme-presenter.client.spec.ts` | `PALETTE_ATTRIBUTE` (`body[data-ds-theme-palette]`) set to the active theme id on apply and removed on dispose; the dark palette attribute still follows `colorScheme` |
+| `packages/client/ui-primitives/src/JsonTree.module.css` | the Gruvbox-scoped JSON-tree palette, which follows the shared `--shiki-*` tokens instead of the default dark literals |
+| `packages/client/ui-theme/README.md` pair, `packages/client/ui-layout/README.md` pair, `docs/web-styling.md` pair | the Gruvbox preference, palette sheet, and palette-marker text; re-record the pair with `pnpm run verify-translation-pairing --write <pair>` |
 
 ### Fork-owned
 

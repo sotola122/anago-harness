@@ -104,9 +104,14 @@ describe('shared menu material', () => {
   })
 
   it('keeps menu fill and blur tokens owned by the theme on every platform', () => {
+    // The theme's palette sheets own the material: design-platform.css declares
+    // the fills, gradient-shadow-text.css the filter, and gruvbox.css remaps
+    // the fills for its named palette.
+    const MATERIAL_SHEETS = ['design-platform.css', 'gruvbox.css']
     const failures = packageStylesheets().flatMap(file => parseRules(readFileSync(file, 'utf8'))
       .flatMap(rule => rule.declarations.filter(([name]) =>
-        (['--dsw-specific-menu', '--dsw-menu-surface-fill'].includes(name) && !file.endsWith('/ui-theme/src/styles/design-platform.css'))
+        (['--dsw-specific-menu', '--dsw-menu-surface-fill'].includes(name)
+          && !MATERIAL_SHEETS.some(sheet => file.endsWith(`/ui-theme/src/styles/${sheet}`)))
         || (name === '--dsw-menu-backdrop-filter' && !file.endsWith('/ui-theme/src/styles/gradient-shadow-text.css'))))
       .map(([name]) => `${file}: ${name}`))
     expect(failures).toEqual([])

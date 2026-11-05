@@ -1,9 +1,9 @@
 /**
  * Browser theme registry over the `--dsw-*` token stylesheets. The service
- * owns the live theme preference (light/dark/system), resolves `system` through
- * `prefers-color-scheme`, and publishes immutable snapshots; it never touches
- * the DOM — ui-layout's presenter consumes the resolved snapshot. The Host
- * settings scope loads and stores the preference in the user-settings
+ * owns the live theme preference (light/dark/system/gruvbox), resolves `system`
+ * through `prefers-color-scheme`, and publishes immutable snapshots; it never
+ * touches the DOM — ui-layout's presenter consumes the resolved snapshot. The
+ * Host settings scope loads and stores the preference in the user-settings
  * document. The plugin also registers the Appearance and font settings rows
  * into the settings General section — the theme feature owns its own settings
  * surface. Desktop shortcuts adjust text, code, and terminal font sizes together.
@@ -148,6 +148,9 @@ declare module '@deepseek-ai/cordis' {
 const BUILTIN_THEMES: readonly ThemeDefinition[] = Object.freeze([
   Object.freeze({ id: 'light', colorScheme: 'light' as const, tokens: Object.freeze({}) }),
   Object.freeze({ id: 'dark', colorScheme: 'dark' as const, tokens: Object.freeze({}) }),
+  // Named palette: gruvbox.css carries the token overrides, scoped on the
+  // presenter's body[data-ds-theme-palette] marker.
+  Object.freeze({ id: 'gruvbox', colorScheme: 'dark' as const, tokens: Object.freeze({}) }),
 ])
 
 const BUILTIN_INSPECT_TOKENS: readonly ThemeTokenInspection[] = Object.freeze([
