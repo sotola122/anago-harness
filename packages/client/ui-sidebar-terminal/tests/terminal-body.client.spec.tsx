@@ -54,7 +54,10 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => boxHeight)
   vi.stubGlobal('ResizeObserver', class { constructor(callback: () => void) { measure = callback } observe() {} disconnect = disconnect })
 })
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); disconnect.mockClear(); measure = undefined })
+afterEach(() => {
+  cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); disconnect.mockClear(); measure = undefined
+  document.documentElement.style.removeProperty('--dsh-font-family-terminal-default')
+})
 
 const info = { id: 'terminal' as WebTerminalId, title: 'bash', shell: { path: '/bin/bash', name: 'bash', args: ['-i'] }, cwd: '/workspace', cols: 80, rows: 24, state: 'running' as const, exitCode: null }
 const environment = { cwd: '/workspace', maxCols: 200, maxRows: 100, scrollback: 1000, maxInputBytes: 1000, maxBufferedBytes: 100_000 }
@@ -191,7 +194,7 @@ it('displays disconnect, close and exit states and offers explicit reconnection 
 
 it('updates screen, cursor and selection colors without replacing the terminal or clearing output', () => {
   const colors = { backgroundColor: 'rgb(255, 255, 255)', color: 'rgb(23, 25, 29)' }
-  vi.spyOn(window, 'getComputedStyle').mockImplementation(() => colors as CSSStyleDeclaration)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({ ...colors, getPropertyValue: () => '' }) as CSSStyleDeclaration)
   const h = mount({ ...idle, info, phase: 'connected', writable: true })
   const terminal = fake.terminals[0]!
   expect(terminal.options.theme).toMatchObject({
@@ -242,6 +245,15 @@ it('applies the terminal font list and size and refits without replacing the ter
   expect(terminal.dispose).not.toHaveBeenCalled()
 })
 
+it('leads the user list with the operator-configured terminal default', () => {
+  document.documentElement.style.setProperty('--dsh-font-family-terminal-default', '"Fira Mono", monospace')
+  const h = mount({ ...idle, info, phase: 'connected', writable: true })
+  const terminal = fake.terminals[0]!
+  expect(terminal.options.fontFamily).toBe('"Fira Mono", monospace')
+  h.changeTheme({ fontFamilies: { text: '', code: '', terminal: '"MesloLGS NF"' } })
+  expect(terminal.options.fontFamily).toBe('"MesloLGS NF", "Fira Mono", monospace')
+})
+
 it('reads the current theme on xterm render and releases the cursor listener on unmount', () => {
   const colors = { backgroundColor: 'rgb(255, 255, 255)', color: 'rgb(23, 25, 29)' }
   const cursor = document.createElement('span')
@@ -249,7 +261,9 @@ it('reads the current theme on xterm render and releases the cursor listener on 
   cursor.style.backgroundColor = 'black'
   cursor.style.color = 'cyan'
   const readStyle = window.getComputedStyle.bind(window)
-  vi.spyOn(window, 'getComputedStyle').mockImplementation(element => element === cursor ? readStyle(element) : colors as CSSStyleDeclaration)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation(element => element === cursor
+    ? readStyle(element)
+    : ({ ...colors, getPropertyValue: () => '' }) as CSSStyleDeclaration)
   const h = mount({ ...idle, info, phase: 'connected', writable: true })
   const terminal = fake.terminals[0]!
   const screen = terminal.textarea!.parentElement!

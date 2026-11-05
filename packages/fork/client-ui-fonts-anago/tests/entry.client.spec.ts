@@ -52,7 +52,7 @@ describe('client bundle entry', () => {
     expect(new Set(keys)).toEqual(placeholders)
   })
 
-  it('declares a web client bundle and keeps the host row inert', async () => {
+  it('declares a web client bundle', async () => {
     const manifest = JSON.parse(readFileSync(resolve(packageDir, 'package.json'), 'utf8')) as {
       exports: Record<string, { default: string }>
       files: string[]
@@ -62,7 +62,5 @@ describe('client bundle entry', () => {
     expect(manifest.exports['./client']?.default).toBe('./lib/client.js')
     expect(manifest.exports['.']?.default).toBe('./lib/index.js')
     expect(manifest.files).toContain('lib/fonts')
-    const host = readFileSync(resolve(packageDir, 'src/index.ts'), 'utf8')
-    expect(host).toMatch(/export function apply\(\): void \{\}/u)
   })
 })

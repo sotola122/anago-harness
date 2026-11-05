@@ -12031,10 +12031,17 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/fork/client-ui-fonts-anago:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: workspace:*
+        version: link:../../host/webserver
 
   packages/fork/client-ui-session-share:
     devDependencies:

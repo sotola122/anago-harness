@@ -1,5 +1,5 @@
 ---
-description: "日语优先的 Web UI 字体：UDEV Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 作为覆盖更广的回退。"
+description: "日语优先、按界面从配置调整的 Web UI 字体：UDEV Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 作为覆盖更广的回退。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在 Web 配置中挂载本包，Anago 界面就会用日文字形绘制日文：UDEV Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 覆盖其余字符。本包随附各字体的 woff2 文件及其 SIL OFL 许可证，覆盖 `--dsh-font-family-text-default` 与 `--dsh-font-family-code-default`，并在应用根节点设置正文字体栈，现有组件因此无需改动即可继承。在设置中保存的自定义字体仍排在最前。这些字体的 woff2 约占 5.3 MiB，进入客户端包后约 7 MiB。
+在 Web 配置中挂载本包，Anago 界面就会用日文字形绘制日文：UDEV Gothic 负责假名、汉字与全角形式，Intel One Mono 负责拉丁文字与代码，Noto Sans JP 覆盖其余字符。本包随附各字体的 woff2 文件及其 SIL OFL 许可证，并把配置中的 `text`、`code` 与 `terminal` 字体列表写为各界面的默认字体栈（`--dsh-font-family-<role>-default`），因此运维人员改配置或 `cordis.yml` 即可调整排版，不必编辑 CSS。正文字体栈同样落在应用根节点，现有组件无需改动即可继承。在设置中保存的自定义字体仍排在最前。这些字体的 woff2 约占 5.3 MiB，进入客户端包后约 7 MiB。
 
 ## 目录
 
@@ -31,9 +31,13 @@ kind: "package-reference"
 - insert:
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'
+      config:
+        text: "'Noto Sans JP', -apple-system, sans-serif"
+        code: "'JetBrains Mono', monospace"
+        terminal: "'Fira Mono', monospace"
 ```
 
-浏览器半随后挂载一份样式表，并在插件生命周期内保留它。不改动组件，也不新增设置项：这套字体就是界面默认的渲染方式。
+浏览器半随后挂载一份样式表，并在插件生命周期内保留它。省略某个字段时沿用 `src/config.ts` 中的默认字体栈；设为 `''` 时该界面沿用 ui-theme 的内置字体栈。侧边栏终端以 `--dsh-font-family-terminal-default` 作为用户所选列表之后的字体栈。不改动组件，也不新增设置项：这套字体就是界面默认的渲染方式。
 
 | 字体族 | 文件 | 字重 | 绘制的字符 | 大小 |
 |---|---|---|---|---|
@@ -51,11 +55,11 @@ UDEV Gothic 是未经修改的上游字体，仅从 TTF 转换为 WOFF2，名字
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-Node 半是空的 `apply`，仅让本包持有一个 Loader 行，使客户端模块系统为该裸说明符提供 `./client` 产物。浏览器半导入 `src/styles/fonts.css?inline`，把其中的 `__DSH_FONT_*__` 占位符替换为导入的字体字节，并通过 `ctx.effect` 追加一个 `<style data-plugin="…">`；释放时该标签被移除。
+Node 半注册 Loader 行，并通过 `webserver/index-inject` 把校验后的列表作为 `globalThis.__DSH_ANAGO_FONT_CONFIG__` 注入每个页面，因此浏览器半不需要设置服务。浏览器半导入 `src/styles/fonts.css?inline`，把其中的 `__DSH_FONT_*__` 占位符替换为导入的字体字节，追加配置列表对应的 `:root:root` 块，并通过 `ctx.effect` 追加一个 `<style data-plugin="…">`；释放时该标签被移除。
 
 字体字节以 data URL 形式到达，因为客户端包没有字体路由：Host 只为 `client.*.js` 分块提供 `/plugins/<package>/`，相对的 `url()` 会得到 404。`tsdown.config.ts` 增加一个插件，把 `*.woff2` 导入转成 `data:font/woff2;base64,…`，`src/client/font-assets.ts` 把每个文件映射到它的占位符。样式表采用注入而不是链接，原因相同：`apps/web` 只导入 ui-theme 的 `brand-font.css`，本包不修改该入口。
 
-Token 覆盖使用 `:root:root`，因此无需依赖样式表顺序即可胜过 ui-theme 的 `:root` 默认值。样式表还在 `body` 与 `#root` 上设置 `font-family: var(--dsw-font-family)`，未声明字体族的组件因此继承正文栈；代码块保留 `--ds-font-family-code`，它解析到被覆盖的代码默认值。
+Token 覆盖使用 `:root:root`，因此无需依赖样式表顺序即可胜过 ui-theme 的 `:root` 默认值。样式表还在 `body` 与 `#root` 上设置 `font-family: var(--dsw-font-family)`，未声明字体族的组件因此继承正文栈；代码块保留 `--ds-font-family-code`，侧边栏终端读取 `--dsh-font-family-terminal-default`，两者都解析到配置的列表。用户选择的字体列表仍然排在最前，因为 `base.css` 在 `body` 上把该列表组合在这些默认值之前。
 
 字体的来源、字形数量、字宽与文件哈希记录在 `src/fonts/fonts.json`；许可证与文件同目录，为 `UDEV-Gothic-OFL.txt`、`Noto-Sans-JP-OFL.txt` 与 `Intel-One-Mono-OFL.txt`。Noto Sans JP 用 `pyftsubset --flavor=woff2` 按范围切分，Intel One Mono 原样随包。UDEV Gothic 保留上游名称与字形，仅容器由 TTF 变为 WOFF2，浏览器中的应用范围由 CSS `unicode-range` 限定。
 
@@ -80,7 +84,7 @@ Token 覆盖使用 `:root:root`，因此无需依赖样式表顺序即可胜过 
 
 #### 模型所见
 
-无。本包只向浏览器文档注入 `@font-face` 规则与两个 CSS 自定义属性；它不注册提示词段落、工具、会话事件或任何模型可见文本。
+无。本包只向浏览器文档注入 `@font-face` 规则与字体族 token；它不注册提示词段落、工具、会话事件或任何模型可见文本。
 
 #### Token 影响
 

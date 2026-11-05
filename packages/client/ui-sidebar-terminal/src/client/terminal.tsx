@@ -1,5 +1,5 @@
 /** Sidebar terminal screen and connection recovery. */
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Button, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -82,7 +82,8 @@ function TerminalScreen({ state, model, visible, label, theme }: {
   const fit = useRef<FitAddon>()
   const colors = useRef<TerminalTheme>()
   const lastRevision = useRef(0)
-  const fontFamily = terminalFontFamily(theme.fontFamilies.terminal)
+  const stack = useMemo(() => defaultTerminalFontStack(), [])
+  const fontFamily = terminalFontFamily(theme.fontFamilies.terminal, stack)
   const fontSize = theme.fontSizes.terminal
   const current = useRef({ state, visible, fontFamily, fontSize })
   current.current = { state, visible, fontFamily, fontSize }
@@ -165,11 +166,17 @@ function TerminalScreen({ state, model, visible, label, theme }: {
 }
 /* oxlint-enable typescript/no-non-null-assertion */
 
-/** Built-in terminal stack placed after the user's normalized list. */
+/** Built-in terminal stack used when no operator default token is set. */
 const TERMINAL_FONT_STACK = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
 
-function terminalFontFamily(list: string): string {
-  return list === '' ? TERMINAL_FONT_STACK : `${list}, ${TERMINAL_FONT_STACK}`
+/** Operator-configured default stack, falling back to the built-in one. */
+function defaultTerminalFontStack(): string {
+  const configured = getComputedStyle(document.documentElement).getPropertyValue('--dsh-font-family-terminal-default').trim()
+  return configured === '' ? TERMINAL_FONT_STACK : configured
+}
+
+function terminalFontFamily(list: string, stack: string): string {
+  return list === '' ? stack : `${list}, ${stack}`
 }
 
 function fitScreen(xterm: Terminal, fit: FitAddon, state: TerminalViewState, model: TerminalView): void {

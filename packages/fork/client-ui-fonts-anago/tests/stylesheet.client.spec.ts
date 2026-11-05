@@ -19,10 +19,6 @@ function faceOf(family: string): string[] {
   return fontFaces().filter(block => block.includes(`font-family: '${family}'`))
 }
 
-/** Upstream stacks that the fork override has to keep as its tail. */
-const UPSTREAM_TEXT_STACK = "-apple-system, BlinkMacSystemFont,\n    'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif"
-const UPSTREAM_CODE_STACK = "'SF Mono',\n    'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei'"
-
 describe('Japanese font stylesheet', () => {
   it('declares the three families with a blocking-free swap policy', () => {
     const faces = fontFaces()
@@ -49,17 +45,10 @@ describe('Japanese font stylesheet', () => {
     expect(range).not.toContain('U+0041')
   })
 
-  it('replaces the token defaults ahead of the upstream stacks', () => {
-    expect(stylesheet).toContain(':root:root {')
-    const textDefault = /--dsh-font-family-text-default: ([^;]+);/u.exec(stylesheet)?.[1] ?? ''
-    expect(textDefault).toBe("'UDEV Gothic', 'Noto Sans JP', " + UPSTREAM_TEXT_STACK)
-    const codeDefault = /--dsh-font-family-code-default: ([^;]+);/u.exec(stylesheet)?.[1] ?? ''
-    expect(codeDefault).toBe("'Intel One Mono', 'UDEV Gothic', 'Noto Sans JP', " + UPSTREAM_CODE_STACK)
-    // Japanese inside a code span must resolve to the shipped faces, never to the
-    // upstream Chinese-first entries that follow them.
-    const codeFamilies = codeDefault.split(',').map(family => family.trim())
-    expect(codeFamilies.indexOf("'UDEV Gothic'")).toBeLessThan(codeFamilies.indexOf("'PingFang SC'"))
-    expect(codeFamilies.indexOf("'Noto Sans JP'")).toBeLessThan(codeFamilies.indexOf("'Microsoft YaHei'"))
+  it('leaves the default stacks to the configured tokens', () => {
+    expect(stylesheet).not.toContain('--dsh-font-family-text-default')
+    expect(stylesheet).not.toContain('--dsh-font-family-code-default')
+    expect(stylesheet).not.toContain('--dsh-font-family-terminal-default')
   })
 
   it('puts the text stack on the application root so components inherit it', () => {

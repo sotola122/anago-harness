@@ -11,6 +11,26 @@
 
 每个包的条目用三个标识符标注：`inject` 列出插件注入的服务键，其 `cordis.yml` 树还必须加载这些服务的提供者；`refs` 列出声明引用、但未粘贴在此处的类型；`source` 链接到声明配置的源文件。范围限定为 harness 层级（`packages/`）；配置树还可能加载的 vendored cordis 插件（控制台日志记录器等）固定为上游源代码（参见 [vendoring policy](../vendor/README.md)），未收录于此目录。
 
+<!-- BEGIN GENERATED config-catalog:@anago-harness/client-ui-fonts-anago -->
+<a id="anago-harnessclient-ui-fonts-anago"></a>
+
+## `@anago-harness/client-ui-fonts-anago`
+
+- `source`: [`packages/fork/client-ui-fonts-anago/src/config.ts:20`](../packages/fork/client-ui-fonts-anago/src/config.ts)
+
+```ts config-catalog
+/** Configurable font lists by interface. */
+export interface Config {
+  /** Interface and body text list; `''` keeps the built-in stack. */
+  text: string
+  /** Code-block, editor, and diff list; `''` keeps the built-in stack. */
+  code: string
+  /** Sidebar terminal list; `''` keeps the built-in stack. */
+  terminal: string
+}
+```
+<!-- END GENERATED config-catalog:@anago-harness/client-ui-fonts-anago -->
+
 <!-- BEGIN GENERATED config-catalog:@anago-harness/llm-wiki -->
 <a id="anago-harnessllm-wiki"></a>
 
@@ -5229,7 +5249,6 @@ export interface Config {
 <!-- BEGIN GENERATED config-catalog:no-config -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
-| `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
 | `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@anago-harness/copilot-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/copilot-oauth/src/index.ts`](../packages/fork/copilot-oauth/src/index.ts) |

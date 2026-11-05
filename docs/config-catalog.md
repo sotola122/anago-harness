@@ -9,6 +9,26 @@ Both language versions of this file are GENERATED from source (`scripts/gen-conf
 
 Each package entry labels its data with three identifiers: `inject` lists the service keys the plugin injects, so its `cordis.yml` tree must also load providers for those services; `refs` lists the referenced types that are not pasted here; `source` links the file that declares the config. Scope is the harness tier (`packages/`); the vendored cordis plugins a config tree may also load (the console logger, …) are pinned upstream source ([vendoring policy](../vendor/README.md)) and not catalogued here.
 
+<!-- BEGIN GENERATED config-catalog:@anago-harness/client-ui-fonts-anago -->
+<a id="anago-harnessclient-ui-fonts-anago"></a>
+
+## `@anago-harness/client-ui-fonts-anago`
+
+- `source`: [`packages/fork/client-ui-fonts-anago/src/config.ts:20`](../packages/fork/client-ui-fonts-anago/src/config.ts)
+
+```ts config-catalog
+/** Configurable font lists by interface. */
+export interface Config {
+  /** Interface and body text list; `''` keeps the built-in stack. */
+  text: string
+  /** Code-block, editor, and diff list; `''` keeps the built-in stack. */
+  code: string
+  /** Sidebar terminal list; `''` keeps the built-in stack. */
+  terminal: string
+}
+```
+<!-- END GENERATED config-catalog:@anago-harness/client-ui-fonts-anago -->
+
 <!-- BEGIN GENERATED config-catalog:@anago-harness/llm-wiki -->
 <a id="anago-harnessllm-wiki"></a>
 
@@ -5227,7 +5247,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 <!-- BEGIN GENERATED config-catalog:no-config -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
-| `@anago-harness/client-ui-fonts-anago` | — | [`packages/fork/client-ui-fonts-anago/src/index.ts`](../packages/fork/client-ui-fonts-anago/src/index.ts) |
 | `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
 | `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
 | `@anago-harness/copilot-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/copilot-oauth/src/index.ts`](../packages/fork/copilot-oauth/src/index.ts) |

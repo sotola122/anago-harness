@@ -8,8 +8,8 @@ import { readFileSync } from 'node:fs'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FONT_REPLACEMENTS } from '../src/client/font-assets.ts'
-import { installFontStyles, renderFontStylesheet } from '../src/client/styles.ts'
-import { apply as applyHost } from '../src/index.ts'
+import { installFontStyles, renderFontStylesheet, renderFontTokenDefaults } from '../src/client/styles.ts'
+import { Config, FONT_CONFIG_GLOBAL } from '../src/config.ts'
 
 // Vitest serves CSS imports as empty strings; the bundle build hands the entry
 // the shipped stylesheet, so the bench supplies that same text.
@@ -33,6 +33,7 @@ const realDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
 afterEach(() => {
   if (realDocument === undefined) Reflect.deleteProperty(globalThis, 'document')
   else Object.defineProperty(globalThis, 'document', realDocument)
+  Reflect.deleteProperty(globalThis, FONT_CONFIG_GLOBAL)
 })
 
 /**
@@ -94,6 +95,41 @@ describe('renderFontStylesheet', () => {
   })
 })
 
+describe('renderFontTokenDefaults', () => {
+  it('writes every configured list as its default token', () => {
+    expect(renderFontTokenDefaults({
+      text: '"Inter", sans-serif', code: '"Iosevka", monospace', terminal: '"Fira Mono", monospace',
+    })).toBe('\n:root:root {\n'
+      + '  --dsh-font-family-text-default: "Inter", sans-serif;\n'
+      + '  --dsh-font-family-code-default: "Iosevka", monospace;\n'
+      + '  --dsh-font-family-terminal-default: "Fira Mono", monospace;\n}\n')
+  })
+
+  it('keeps the built-in stack for an empty list', () => {
+    const css = renderFontTokenDefaults({ text: '', code: '"Iosevka", monospace', terminal: '' })
+    expect(css).not.toContain('--dsh-font-family-text-default')
+    expect(css).not.toContain('--dsh-font-family-terminal-default')
+    expect(css).toContain('--dsh-font-family-code-default: "Iosevka", monospace;')
+  })
+
+  it('writes nothing when every interface keeps the built-in stack', () => {
+    expect(renderFontTokenDefaults({ text: '', code: '', terminal: '' })).toBe('')
+  })
+
+  it('defaults to the shipped Japanese-first stacks', () => {
+    const css = renderFontTokenDefaults(Config({}))
+    const text = /--dsh-font-family-text-default: ([^;]+);/u.exec(css)?.[1] ?? ''
+    expect(text.startsWith("'UDEV Gothic', 'Noto Sans JP', -apple-system, BlinkMacSystemFont")).toBe(true)
+    const code = /--dsh-font-family-code-default: ([^;]+);/u.exec(css)?.[1] ?? ''
+    expect(code.startsWith("'Intel One Mono', 'UDEV Gothic', 'Noto Sans JP'")).toBe(true)
+    // Japanese inside a code span must resolve to the shipped faces, never to the
+    // upstream Chinese-first entries that follow them.
+    expect(code.indexOf("'UDEV Gothic'")).toBeLessThan(code.indexOf("'PingFang SC'"))
+    expect(code.indexOf("'Noto Sans JP'")).toBeLessThan(code.indexOf("'Microsoft YaHei'"))
+    expect(css).toContain('--dsh-font-family-terminal-default: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;')
+  })
+})
+
 describe('installFontStyles', () => {
   it('does nothing outside a browser document', async () => {
     Reflect.deleteProperty(globalThis, 'document')
@@ -122,11 +158,7 @@ describe('installFontStyles', () => {
 })
 
 describe('plugin entries', () => {
-  it('keeps the host row inert', () => {
-    expect(() => { applyHost() }).not.toThrow()
-  })
-
-  it('mounts the rendered shipped stylesheet from the browser entry', async () => {
+  it('mounts the shipped faces with the default stacks', async () => {
     const tags = installDocument()
     const ctx = new Context()
     applyClient(ctx)
@@ -136,6 +168,22 @@ describe('plugin entries', () => {
     expect(css).not.toMatch(/url\(__DSH_FONT_/u)
     expect(css).toContain('@font-face')
     expect(css).toContain("font-family: 'UDEV Gothic';")
+    expect(css).toContain("--dsh-font-family-text-default: 'UDEV Gothic', 'Noto Sans JP',")
+
+    await ctx.fiber.dispose()
+    expect(tags).toHaveLength(0)
+  })
+
+  it('applies the lists the Host embedded in the page', async () => {
+    const tags = installDocument()
+    const ctx = new Context()
+    Reflect.set(globalThis, FONT_CONFIG_GLOBAL, { text: '"Inter"', code: '', terminal: '"Fira Mono"' })
+    applyClient(ctx)
+
+    const css = tags[0]?.textContent ?? ''
+    expect(css).toContain('--dsh-font-family-text-default: "Inter";')
+    expect(css).not.toContain('--dsh-font-family-code-default')
+    expect(css).toContain('--dsh-font-family-terminal-default: "Fira Mono";')
 
     await ctx.fiber.dispose()
     expect(tags).toHaveLength(0)
