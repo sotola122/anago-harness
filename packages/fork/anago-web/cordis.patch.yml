@@ -13,18 +13,27 @@
   name: '@deepseek-ai/dsh-client-ui-settings-web-search'
   disabled: true
 
-# The fork ships no Japanese dictionary; pin English so a browser that prefers
-# another language never lands on Chinese.
-- id: locale
-  name: '@deepseek-ai/dsh-client-locale'
-  config:
-    preference: en
+# The interface language follows the user's own choice: upstream's locale
+# settings row writes the preference and accepts any BCP-47 id, so the fork
+# pins none here.
 
-# Japanese-first typography (UDEV Gothic, Intel One Mono, Noto Sans JP). The
-# row is new, so it needs an insert patch rather than an entry patch.
+# Typography per interface. These lists become the default tokens the browser
+# applies; a user-selected font list still leads them. Omit a field to keep the
+# stack below, or set it to '' to keep ui-theme's built-in stack. The row is
+# new, so it needs an insert patch rather than an entry patch.
 - insert:
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'
+      config:
+        text: >-
+          'UDEV Gothic', 'Noto Sans JP', -apple-system, BlinkMacSystemFont,
+          'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+          'Helvetica Neue', Helvetica, Arial, sans-serif
+        code: >-
+          'Intel One Mono', 'UDEV Gothic', 'Noto Sans JP', 'SF Mono',
+          'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', Menlo,
+          Courier, 'PingFang SC', 'Microsoft YaHei'
+        terminal: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
 
 # Opt a new web Session into child model selection. The card stores the
 # allowed routes; this row flag makes the tool instance read them. TUI profiles

@@ -1,5 +1,5 @@
 ---
-description: "Japanese-first Web UI fonts: UDEV Gothic for kana, kanji, and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP as the broad fallback."
+description: "Japanese-first Web UI fonts configurable per interface from the profile: UDEV Gothic for kana, kanji, and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP as the broad fallback."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Mount this package in a Web profile and the Anago UI draws Japanese with Japanese glyph shapes: UDEV Gothic for kana, kanji, and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP for every remaining character. The package ships the woff2 faces with their SIL OFL licenses, overrides `--dsh-font-family-text-default` and `--dsh-font-family-code-default`, and sets the text stack on the application root, so existing components inherit it unchanged. A font list saved in Settings still leads the stack. The faces cost about 5.3 MiB of woff2, or about 7 MiB inside the client bundle.
+Mount this package in a Web profile and the Anago UI draws Japanese with Japanese glyph shapes: UDEV Gothic for kana, kanji, and full-width forms, Intel One Mono for Latin and code, and Noto Sans JP for the rest. The package ships the woff2 faces with their SIL OFL licenses and writes the profile's `text`, `code`, and `terminal` lists as each interface's default stack, so an operator changes the typography without editing CSS. The stack reaches the application root, which existing components inherit; a font list saved in Settings still leads. The faces cost about 5.3 MiB of woff2.
 
 ## Table of Contents
 
@@ -31,9 +31,13 @@ Mount `@anago-harness/anago-web` in a Web profile: it inserts this row as `anago
 - insert:
     - id: anago-fonts
       name: '@anago-harness/client-ui-fonts-anago'
+      config:
+        text: "'Noto Sans JP', -apple-system, sans-serif"
+        code: "'JetBrains Mono', monospace"
+        terminal: "'Fira Mono', monospace"
 ```
 
-The browser half then mounts one stylesheet and keeps it for the plugin lifetime. No component changes and no new settings: the fonts are the default the UI renders with.
+The browser half then mounts one stylesheet and keeps it for the plugin lifetime. Omitting a field keeps the stack shipped in `src/config.ts`; `''` keeps ui-theme's built-in stack for that interface. The sidebar terminal uses `--dsh-font-family-terminal-default` as the stack behind a user-selected list. No component changes and no new settings: the fonts are the default the UI renders with.
 
 | Family | Files | Weight | Drawn characters | Size |
 |---|---|---|---|---|
@@ -51,11 +55,11 @@ UDEV Gothic is the unmodified upstream font, converted from TTF to WOFF2 with it
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The node half is an empty `apply`, present so the package holds a Loader row whose bare specifier the client module system serves the `./client` bundle for. The browser half imports `src/styles/fonts.css?inline`, replaces its `__DSH_FONT_*__` placeholders with the imported font bytes, and appends one `<style data-plugin="…">` through `ctx.effect`; disposal removes the tag.
+The node half registers the Loader row and embeds the validated lists in every page as `globalThis.__DSH_ANAGO_FONT_CONFIG__` through `webserver/index-inject`, so the browser half needs no settings service. The browser half imports `src/styles/fonts.css?inline`, replaces its `__DSH_FONT_*__` placeholders with the imported font bytes, appends the `:root:root` block for the configured lists, and adds one `<style data-plugin="…">` through `ctx.effect`; disposal removes the tag.
 
 The font bytes arrive as data URLs because the client bundle has no font route: the Host serves `/plugins/<package>/` only for `client.*.js` chunks, so a relative `url()` would 404. `tsdown.config.ts` adds one plugin that turns a `*.woff2` import into `data:font/woff2;base64,…`, and `src/client/font-assets.ts` maps each file to its placeholder. The stylesheet is injected, not linked, for the same reason: `apps/web` imports only ui-theme's `brand-font.css`, which this package does not modify.
 
-The token override uses `:root:root` so it beats ui-theme's `:root` defaults without depending on stylesheet order. The stylesheet also sets `font-family: var(--dsw-font-family)` on `body` and `#root`, so components that declare no family inherit the text stack; code blocks keep `--ds-font-family-code`, which resolves the overridden code default.
+The token override uses `:root:root` so it beats ui-theme's `:root` defaults without depending on stylesheet order. The stylesheet also sets `font-family: var(--dsw-font-family)` on `body` and `#root`, so components that declare no family inherit the text stack; code blocks keep `--ds-font-family-code` and the sidebar terminal reads `--dsh-font-family-terminal-default`, so both resolve the configured list. A user-selected list still leads because `base.css` composes it ahead of these defaults on `body`.
 
 Font sources, glyph counts, advances, and file hashes live in `src/fonts/fonts.json`; the licenses sit beside them as `UDEV-Gothic-OFL.txt`, `Noto-Sans-JP-OFL.txt`, and `Intel-One-Mono-OFL.txt`. Noto Sans JP was subset per range with `pyftsubset --flavor=woff2` and Intel One Mono ships unchanged. UDEV Gothic keeps its upstream name and glyphs; only the container changed (TTF to WOFF2), and the CSS `unicode-range` restricts where the browser applies it.
 
@@ -80,7 +84,7 @@ Font sources, glyph counts, advances, and file hashes live in `src/fonts/fonts.j
 
 #### What the model sees
 
-Nothing. The package injects `@font-face` rules and two CSS custom properties into the browser document; it registers no prompt section, tool, session event, or model-visible text.
+Nothing. The package injects `@font-face` rules and font-family tokens into the browser document; it registers no prompt section, tool, session event, or model-visible text.
 
 #### Token effect
 

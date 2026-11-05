@@ -3,23 +3,23 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fork/client-ui-fonts-anago/README.md
 /:
-  en: 27b06f0f751b9f00
-  zh: cb2b7d3bc11e8923
+  en: da99a47d8e1ab5ff
+  zh: f03fd0f424f42ed8
 /anago-harness-client-ui-fonts-anago:
   en: 1272418a8ce14feb
   zh: 238dabccc9ff3740
 /anago-harness-client-ui-fonts-anago/summary:
-  en: dd7a56f5f0a337f7
-  zh: 5a2542b2f68b0c73
+  en: 99954da03c23bd8a
+  zh: c6617038ab80729a
 /anago-harness-client-ui-fonts-anago/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /anago-harness-client-ui-fonts-anago/use-this-package:
-  en: f6e0292b2e8b16ea
-  zh: 0f192f5a2d701f44
+  en: 3795ddc08e17b48b
+  zh: 14e1bae877c33b6e
 /anago-harness-client-ui-fonts-anago/understand-the-implementation:
-  en: 7833b641974d97c4
-  zh: 68cdbe9c8afd4e87
+  en: f0eb05ec8f19dd16
+  zh: a28078548b9e84da
 /anago-harness-client-ui-fonts-anago/further-exploration:
   en: 5eecc565b5177eeb
   zh: d993d1248ae1bcdb
@@ -30,8 +30,8 @@
   en: fef2d7ffd357282c
   zh: 8f0c433293f26203
 /anago-harness-client-ui-fonts-anago/model-experience/no-model-context-contribution/what-the-model-sees:
-  en: 10295cbbcf67358c
-  zh: 74ab1489ee74af09
+  en: b61e12f1072d7fbd
+  zh: 9d8a9329f7d169d3
 /anago-harness-client-ui-fonts-anago/model-experience/no-model-context-contribution/token-effect:
   en: a021831ff57572b0
   zh: 0cf9ef80f67dbf51

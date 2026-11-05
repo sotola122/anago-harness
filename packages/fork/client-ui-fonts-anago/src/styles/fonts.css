@@ -74,20 +74,11 @@
   unicode-range: U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F;
 }
 
-/* Anago Gothic leads running text; Intel One Mono leads code with the Japanese
- * faces behind it, so a code span never reaches the upstream Chinese-first CJK
- * entries. Both replace the upstream defaults in ui-theme's base.css through the
- * doubled :root specificity, and an explicit user font list still wins because
- * base.css composes it ahead of these defaults on body. */
-:root:root {
-  --dsh-font-family-text-default: 'UDEV Gothic', 'Noto Sans JP', -apple-system, BlinkMacSystemFont,
-    'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --dsh-font-family-code-default: 'Intel One Mono', 'UDEV Gothic', 'Noto Sans JP', 'SF Mono',
-    'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei';
-}
-
-/* The app root inherits the text stack, so existing components need no font
- * declaration of their own; code and brand surfaces keep their own families. */
+/* The default stacks are not declared here: the browser half writes the
+ * operator-configured lists as `:root:root` tokens after this stylesheet, which
+ * keeps ui-theme's specificity rule so an explicit user font list still leads.
+ * This sheet only guarantees the app root inherits the text stack, so existing
+ * components need no font declaration of their own. */
 body,
 #root {
   font-family: var(--dsw-font-family);
