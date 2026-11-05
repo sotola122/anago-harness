@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { FontFamilies, ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { fontFamilyVariable } from '@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts'
-import { DARK_ATTRIBUTE, THEME_SOURCE_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
+import { DARK_ATTRIBUTE, PALETTE_ATTRIBUTE, THEME_SOURCE_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
 
 const LIGHT_THEME_COLOR = 'rgb(255, 255, 255)'
 const DARK_THEME_COLOR = 'rgb(21, 21, 23)'
@@ -33,6 +33,7 @@ beforeEach(() => {
   document.documentElement.style.removeProperty('color-scheme')
   document.documentElement.removeAttribute(THEME_SOURCE_ATTRIBUTE)
   document.body.removeAttribute(DARK_ATTRIBUTE)
+  document.body.removeAttribute(PALETTE_ATTRIBUTE)
   document.body.removeAttribute('style')
   const style = document.createElement('style')
   style.dataset.themePresenterTest = ''
@@ -51,7 +52,22 @@ describe('ThemePresenter', () => {
     presenter.apply(snapshot('light'))
     expect(document.documentElement.style.colorScheme).toBe('light')
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(false)
+    expect(document.body.getAttribute(PALETTE_ATTRIBUTE)).toBe('light-test')
     expect(themeColorMeta()?.content).toBe(LIGHT_THEME_COLOR)
+  })
+
+  it('publishes the active theme id as the palette marker and retracts it on dispose', () => {
+    const presenter = new ThemePresenter()
+    const active = { id: 'gruvbox', colorScheme: 'dark' as const, tokens: {} }
+    presenter.apply({ preference: 'gruvbox', fontSizes: { text: 14, code: 11, terminal: 13 }, fontFamilies: { text: '', code: '', terminal: '' }, active, themes: [active], revision: 1 })
+    // The named-palette sheet scopes on this marker; the dark palette attribute still selects the base dark tokens.
+    expect(document.body.getAttribute(PALETTE_ATTRIBUTE)).toBe('gruvbox')
+    expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(true)
+    presenter.apply(snapshot('light'))
+    expect(document.body.getAttribute(PALETTE_ATTRIBUTE)).toBe('light-test')
+    presenter.apply({ preference: 'gruvbox', fontSizes: { text: 14, code: 11, terminal: 13 }, fontFamilies: { text: '', code: '', terminal: '' }, active, themes: [active], revision: 2 })
+    presenter.dispose()
+    expect(document.body.hasAttribute(PALETTE_ATTRIBUTE)).toBe(false)
   })
 
   it('dark scheme sets root color-scheme, the attribute, and metadata; switching to light updates one node', () => {

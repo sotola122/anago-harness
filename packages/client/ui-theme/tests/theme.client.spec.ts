@@ -8,6 +8,7 @@ import type {
   ThemeTokenOverrides,
 } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
+import { isThemePreference, THEME_PREFERENCES } from '../src/theme-settings.ts'
 
 const make = (host = stubConfigForm<ThemeSettings>()): {
   ctx: Context
@@ -30,7 +31,7 @@ describe('ThemeRuntime', () => {
     // jsdom matchMedia is absent; system resolves to light.
     expect(snapshot.active.id).toBe('light')
     expect(snapshot.active.colorScheme).toBe('light')
-    expect(snapshot.themes.map(t => t.id)).toEqual(['light', 'dark'])
+    expect(snapshot.themes.map(t => t.id)).toEqual(['light', 'dark', 'gruvbox'])
   })
 
   it('seeds the initial font size from the boot-script body variable, ignoring junk', () => {
@@ -144,6 +145,25 @@ describe('ThemeRuntime', () => {
     expect(host.set).toHaveBeenCalledOnce()
   })
 
+  it('round-trips the gruvbox preference through the settings scope and resolves the dark palette', () => {
+    const { theme, events, host } = make()
+    theme.setTheme('gruvbox')
+    expect(theme.getTheme().preference).toBe('gruvbox')
+    expect(theme.getTheme().active.id).toBe('gruvbox')
+    expect(theme.getTheme().active.colorScheme).toBe('dark')
+    expect(host.set).toHaveBeenCalledWith('preference', 'gruvbox')
+    expect(events).toHaveLength(1)
+    // A reload adopts the stored value instead of resetting to the default.
+    host.publish({ status: 'ready', value: { preference: 'gruvbox', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }, revision: 1, writable: true })
+    expect(make(host).theme.getTheme().preference).toBe('gruvbox')
+  })
+
+  it('accepts only the built-in preferences', () => {
+    expect(THEME_PREFERENCES).toEqual(['light', 'dark', 'system', 'gruvbox'])
+    for (const value of THEME_PREFERENCES) expect(isThemePreference(value)).toBe(true)
+    for (const value of ['sepia', 'gruvbox-light', '', undefined, null]) expect(isThemePreference(value)).toBe(false)
+  })
+
   it('adopts a published Host section without writing it back', () => {
     const { theme, events, host } = make()
     host.publish({ status: 'ready', value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }, revision: 1, writable: true })
@@ -186,12 +206,12 @@ describe('ThemeRuntime', () => {
   it('registered themes join the snapshot; disposing the active one resets to default', () => {
     const { theme, events, host } = make()
     const dispose = theme.register({ id: 'sepia', colorScheme: 'light', tokens: { '--dsw-alias-bg-base': 'red' } })
-    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'sepia'])
+    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'gruvbox', 'sepia'])
     theme.setTheme('sepia')
     expect(theme.getTheme().active.tokens['--dsw-alias-bg-base']).toBe('red')
     dispose()
     expect(theme.getTheme().preference).toBe('system')
-    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark'])
+    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'gruvbox'])
     // Custom ids are in-process extension themes; only the built-in product
     // preferences cross the Host settings schema.
     expect(host.set).not.toHaveBeenCalled()

@@ -1,0 +1,250 @@
+/* Gruvbox dark palette. The presenter sets body[data-ds-theme-palette] to the
+ * active theme id, so this sheet scopes every override on the `gruvbox` value
+ * while `body[data-ds-dark-theme]` keeps the shared dark machinery (dark base
+ * tokens, component dark rules) active. The rule set mirrors every custom
+ * property the dark blocks of design-platform.css, shiki.css,
+ * onboarding.css, and gradient-shadow-text.css declare, and the palette spec
+ * fails when a new dark token has no Gruvbox value here. The sheet is imported
+ * after those sheets, so its equal-specificity declarations win.
+ *
+ * Standard Gruvbox dark palette: bg0 #282828, bg0_s #32302f, bg1 #3c3836,
+ * bg2 #504945, bg3 #665c54, bg4 #7c6f64, gray #928374, fg4 #a89984,
+ * fg3 #bdae93, fg2 #d5c4a1, fg1 #ebdbb2, fg0 #fbf1c7, red #fb4934,
+ * green #b8bb26, yellow #fabd2f, blue #83a598, purple #d3869b,
+ * aqua #8ec07c, orange #fe8019. */
+
+body[data-ds-theme-palette='gruvbox'] {
+  --dsw-static-amber-100: color-mix(in srgb, #fabd2f 16%, #282828);
+  --dsw-static-amber-400: #fabd2f;
+  --dsw-static-amber-500: #fabd2f;
+  --dsw-static-amber-600: #fe8019;
+  --dsw-static-amber-900: color-mix(in srgb, #fabd2f 12%, #282828);
+  --dsw-static-blue-100: color-mix(in srgb, #83a598 22%, #282828);
+  --dsw-static-blue-300: color-mix(in srgb, #83a598 60%, #ebdbb2);
+  --dsw-static-blue-400: #83a598;
+  --dsw-static-blue-450: #83a598;
+  --dsw-static-blue-500: #83a598;
+  --dsw-static-blue-50: color-mix(in srgb, #83a598 10%, #282828);
+  --dsw-static-blue-50p: color-mix(in srgb, #83a598 12%, #282828);
+  --dsw-static-blue-600: #83a598;
+  --dsw-static-blue-75: color-mix(in srgb, #83a598 16%, #282828);
+  --dsw-static-blue-800: color-mix(in srgb, #83a598 25%, #282828);
+  --dsw-static-blue-900: color-mix(in srgb, #83a598 16%, #282828);
+  --dsw-static-blue-950: #282828;
+  --dsw-static-deepseek-100: color-mix(in srgb, #83a598 12%, #282828);
+  --dsw-static-deepseek-200: color-mix(in srgb, #83a598 18%, #282828);
+  --dsw-static-deepseek-300: color-mix(in srgb, #83a598 45%, #282828);
+  --dsw-static-deepseek-400: #83a598;
+  --dsw-static-deepseek-450: #83a598;
+  --dsw-static-deepseek-500: #83a598;
+  --dsw-static-deepseek-50: color-mix(in srgb, #83a598 8%, #282828);
+  --dsw-static-deepseek-600: color-mix(in srgb, #83a598 70%, #282828);
+  --dsw-static-deepseek-700-delete: color-mix(in srgb, #83a598 50%, #282828);
+  --dsw-static-deepseek-800: color-mix(in srgb, #83a598 25%, #282828);
+  --dsw-static-deepseek-900: color-mix(in srgb, #83a598 16%, #282828);
+  --dsw-static-green-100: color-mix(in srgb, #b8bb26 16%, #282828);
+  --dsw-static-green-400: #b8bb26;
+  --dsw-static-green-500: #b8bb26;
+  --dsw-static-green-500-a08: rgb(184 187 38 / 8%);
+  --dsw-static-green-500-a12: rgb(184 187 38 / 12%);
+  --dsw-static-green-900: color-mix(in srgb, #b8bb26 12%, #282828);
+  --dsw-static-neutral-00: #fbf1c7;
+  --dsw-static-neutral-1000: #1d2021;
+  --dsw-static-neutral-100: #d5c4a1;
+  --dsw-static-neutral-150: #d5c4a1;
+  --dsw-static-neutral-200: #bdae93;
+  --dsw-static-neutral-250: #bdae93;
+  --dsw-static-neutral-300: #a89984;
+  --dsw-static-neutral-400: #a89984;
+  --dsw-static-neutral-500: #928374;
+  --dsw-static-neutral-50: #ebdbb2;
+  --dsw-static-neutral-550: #7c6f64;
+  --dsw-static-neutral-600: #665c54;
+  --dsw-static-neutral-700: #504945;
+  --dsw-static-neutral-800: #3c3836;
+  --dsw-static-neutral-850: #32302f;
+  --dsw-static-neutral-900: #282828;
+  --dsw-static-neutral-bluish-00: #fbf1c7;
+  --dsw-static-neutral-bluish-1000: #1d2021;
+  --dsw-static-neutral-bluish-100: #d5c4a1;
+  --dsw-static-neutral-bluish-150: #d5c4a1;
+  --dsw-static-neutral-bluish-200: #d5c4a1;
+  --dsw-static-neutral-bluish-300: #d5c4a1;
+  --dsw-static-neutral-bluish-310: #bdae93;
+  --dsw-static-neutral-bluish-400: #a89984;
+  --dsw-static-neutral-bluish-500: #928374;
+  --dsw-static-neutral-bluish-50: #ebdbb2;
+  --dsw-static-neutral-bluish-55: #ebdbb2;
+  --dsw-static-neutral-bluish-600: #928374;
+  --dsw-static-neutral-bluish-60: #32302f;
+  --dsw-static-neutral-bluish-700: #7c6f64;
+  --dsw-static-neutral-bluish-750: #665c54;
+  --dsw-static-neutral-bluish-75: #d5c4a1;
+  --dsw-static-neutral-bluish-800: #504945;
+  --dsw-static-neutral-bluish-850: #3c3836;
+  --dsw-static-neutral-bluish-875: #32302f;
+  --dsw-static-neutral-bluish-900: #1d2021;
+  --dsw-static-neutral-bluish-90: #d5c4a1;
+  --dsw-static-neutral-bluish-950: #282828;
+  --dsw-static-red-100: color-mix(in srgb, #fb4934 16%, #282828);
+  --dsw-static-red-400: #fb4934;
+  --dsw-static-red-400-a12: rgb(251 73 52 / 12%);
+  --dsw-static-red-500: #fb4934;
+  --dsw-static-red-50: color-mix(in srgb, #fb4934 10%, #282828);
+  --dsw-static-red-600: #fb4934;
+  --dsw-static-red-600-a08: rgb(251 73 52 / 8%);
+  --dsw-static-red-900: color-mix(in srgb, #fb4934 12%, #282828);
+  --dsw-static-violet-400: #d3869b;
+  --dsw-static-violet-600: #d3869b;
+
+  --dsw-alias-bg-base: #282828;
+  --dsw-alias-bg-document-preview: #282828;
+  --dsw-alias-bg-document-selection: color-mix(in srgb, #83a598 40%, transparent);
+  --dsw-alias-label-document-preview: #a89984;
+  --dsw-alias-bg-layer-1: #32302f;
+  --dsw-alias-bg-layer-2: #3c3836;
+  --dsw-alias-bg-layer-3: #504945;
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.5);
+  --dsw-alias-bg-mask-2: rgba(0, 0, 0, 0.2);
+  --dsw-alias-bg-mask-3: rgba(0, 0, 0, 0.48);
+  --dsw-alias-bg-mask-photo: rgba(0, 0, 0, 0.88);
+  --dsw-alias-bg-mask-drop: rgba(40, 40, 40, 0.7);
+  --dsw-alias-bg-module-platform: #3c3836;
+  --dsw-alias-bg-multi-select: #3c3836;
+  --dsw-alias-bg-overlay: #504945;
+  --dsw-alias-bg-skeleton: rgba(235, 219, 178, 0.08);
+  --dsw-alias-border-inverted2: rgba(235, 219, 178, 0.08);
+  --dsw-alias-border-inverted: rgba(235, 219, 178, 0.06);
+  --dsw-alias-border-l1: rgba(235, 219, 178, 0.06);
+  --dsw-alias-border-l2-darkmode-thin: rgba(235, 219, 178, 0.06);
+  --dsw-alias-border-l2: rgba(235, 219, 178, 0.12);
+  --dsw-alias-border-l3: rgba(235, 219, 178, 0.16);
+  --dsw-alias-border-l4: rgba(235, 219, 178, 0.2);
+  --dsw-alias-brand-primary-invert: #fbf1c7;
+  --dsw-alias-brand-primary-new-colorprimary-new-color: #83a598;
+  --dsw-alias-brand-primary: #ebdbb2;
+  --dsw-alias-brand-text: #ebdbb2;
+  --dsw-alias-button-contrast-fill: #ebdbb2;
+  --dsw-alias-button-elevated-fill: #504945;
+  --dsw-alias-button-floating-fill: #3c3836;
+  --dsw-alias-button-floating-hover: #504945;
+  --dsw-alias-button-ghost-active-border: #665c54;
+  --dsw-alias-button-ghost-active-fill: #504945;
+  --dsw-alias-button-ghost-active-hover: #665c54;
+  --dsw-alias-button-info-fill: #83a598;
+  --dsw-alias-button-info-hover: color-mix(in srgb, #83a598 80%, #282828);
+  --dsw-alias-button-primary-dimmed: #665c54;
+  --dsw-alias-button-primary-fill: var(--dsw-alias-brand-primary);
+  --dsw-alias-button-primary-hover: #fbf1c7;
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(29, 32, 33, 0.36);
+  --dsw-alias-button-tool-bar-fill: rgba(102, 92, 84, 0.5);
+  --dsw-alias-button-tool-bar-hover: rgba(102, 92, 84, 0.6);
+  --dsw-alias-illustration-background: #32302f;
+  --dsw-alias-illustration-backing: #504945;
+  --dsw-alias-illustration-detail: #928374;
+  --dsw-alias-illustration-inset: var(--dsw-alias-illustration-backing);
+  --dsw-alias-illustration-shadow: var(--dsw-alias-illustration-backing);
+  --dsw-alias-illustration-surface: #665c54;
+  --dsw-alias-interactive-bg-active: rgba(235, 219, 178, 0.14);
+  --dsw-alias-interactive-bg-hover-accent: rgba(235, 219, 178, 0.24);
+  --dsw-alias-interactive-bg-hover-danger: rgba(251, 73, 52, 0.15);
+  --dsw-alias-interactive-bg-hover-solid: #3c3836;
+  --dsw-alias-interactive-bg-hover: rgba(235, 219, 178, 0.08);
+  --dsw-alias-label-caption: #928374;
+  --dsw-alias-label-deep-diving: color-mix(in srgb, #83a598 70%, #ebdbb2);
+  --dsw-alias-label-deep-diving-shimmer: color-mix(in srgb, #83a598 55%, #a89984);
+  --dsw-alias-label-dimmed: #665c54;
+  --dsw-alias-label-primary-bluish: #ebdbb2;
+  --dsw-alias-label-primary-dimmed: #d5c4a1;
+  --dsw-alias-label-primary-foreground: #1d2021;
+  --dsw-alias-label-primary-inverted: #3c3836;
+  --dsw-alias-label-primary: #ebdbb2;
+  --dsw-alias-label-secondary: #d5c4a1;
+  --dsw-alias-label-shimmer: color-mix(in srgb, #fbf1c7 45%, transparent);
+  --dsw-alias-label-tertiary: #a89984;
+  --dsw-alias-menu-icon: var(--dsw-alias-label-primary-dimmed);
+  --dsw-alias-link: #83a598;
+  --dsw-alias-markdown-citation: #3c3836;
+  --dsw-alias-markdown-code-block-banner: #32302f;
+  --dsw-alias-markdown-code-block: #1d2021;
+  --dsw-alias-markdown-code-segment-selected: #3c3836;
+  --dsw-alias-markdown-code-segment-unselected: #1d2021;
+  --dsw-alias-markdown-inline-code: #3c3836;
+  --dsw-alias-markdown-placeholder: #32302f;
+  --dsw-alias-markdown-tag: #32302f;
+  --dsw-alias-scrollbar-bg-l1: #665c54;
+  --dsw-alias-scrollbar-bg-l2: #7c6f64;
+  --dsw-alias-scrollbar-hover-l1: #7c6f64;
+  --dsw-alias-scrollbar-hover-l2: #928374;
+  --dsw-alias-state-business-primary: #83a598;
+  --dsw-alias-state-business-tertiary: color-mix(in srgb, #83a598 25%, #282828);
+  --dsw-alias-code-diff-added: rgba(184, 187, 38, 0.12);
+  --dsw-alias-code-diff-deleted: rgba(251, 73, 52, 0.12);
+  --dsw-alias-file-diff-added-bg: color-mix(in srgb, #b8bb26 12%, #282828);
+  --dsw-alias-file-diff-added-gutter: color-mix(in srgb, #b8bb26 6%, #282828);
+  --dsw-alias-file-diff-added-marker: #b8bb26;
+  --dsw-alias-file-diff-deleted-bg: color-mix(in srgb, #fb4934 12%, #282828);
+  --dsw-alias-file-diff-deleted-gutter: color-mix(in srgb, #fb4934 6%, #282828);
+  --dsw-alias-file-diff-deleted-marker: #fb4934;
+  --dsw-alias-state-done-primary: #d3869b;
+  --dsw-alias-state-error-primary: #fb4934;
+  --dsw-alias-state-error-secondary: #fb4934;
+  --dsw-alias-state-idle-primary: #665c54;
+  --dsw-alias-state-success-primary: #b8bb26;
+  --dsw-alias-state-success-secondary: #8ec07c;
+  --dsw-alias-state-success-tertiary: color-mix(in srgb, #b8bb26 16%, #282828);
+  --dsw-alias-state-warn-label: #fe8019;
+  --dsw-alias-state-warn-primary: #fabd2f;
+  --dsw-alias-state-warn-secondary: #fabd2f;
+  --dsw-alias-state-warn-tertiary: color-mix(in srgb, #fabd2f 16%, #282828);
+  --dsw-alias-switch-thumb: #a89984;
+  --dsw-alias-toast-bg: #665c54;
+  --dsw-alias-toast-label: #fbf1c7;
+  --dsw-alias-turn-trigger-bg: var(--dsw-alias-interactive-bg-hover);
+  --dsw-alias-turn-trigger-bg-hover: var(--dsw-alias-interactive-bg-active);
+  --dsw-alias-tooltip-bg: #504945;
+  --dsw-alias-tooltip-key-bg: color-mix(in srgb, var(--dsw-alias-tooltip-bg), white 18%);
+  --dsw-specific-bubble-highlight: #504945;
+  --dsw-specific-bubble: #3c3836;
+  --dsw-specific-input-major: #3c3836;
+  --dsw-specific-login-input: #1d2021;
+  --dsw-menu-surface-fill: rgba(50, 48, 47, 0.64);
+  --dsw-alias-menu-group-header-fill: rgba(50, 48, 47, 0.94);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: #3c3836;
+  --dsw-specific-sidebar-fill: #1d2021;
+  --dsw-specific-sidebar-nav-item-active-accent: #3c3836;
+  --dsw-specific-sidebar-nav-item-active: #504945;
+  --dsw-specific-tip: #3c3836;
+
+  --dsw-linear-gradient-think: linear-gradient(180deg, #282828 20.19%, rgba(40, 40, 40, 0) 100%);
+  --dsw-linear-think-select: linear-gradient(180deg, #32302f 20.19%, rgba(50, 48, 47, 0) 100%);
+
+  --dsw-alias-onboarding-accent: #fe8019;
+  --dsw-gradient-onboarding-violet-stops: #504945 33.102%, #d3869b 50.954%, #fbf1c7 85.326%, #504945;
+  --dsw-gradient-onboarding-blue-stops: #504945 18.75%, #83a598 51.78%, #ebdbb2 86.252%, #504945;
+  --dsw-gradient-onboarding-cyan-stops: #504945 21.154%, #8ec07c 50.954%, #ebdbb2 85.326%, #504945;
+  --dsw-alias-onboarding-card-fill: color-mix(in srgb, #3c3836 80%, transparent);
+  --dsw-alias-onboarding-secondary-fill: #504945;
+  --dsw-alias-onboarding-checkbox-border: var(--dsw-alias-border-l2);
+
+  --shiki-token-constant: #d3869b;
+  --shiki-token-string: #b8bb26;
+  --shiki-token-comment: #928374;
+  --shiki-token-keyword: #fb4934;
+  --shiki-token-parameter: #fe8019;
+  --shiki-token-function: #fabd2f;
+  --shiki-token-string-expression: #8ec07c;
+  --shiki-token-punctuation: #a89984;
+  --shiki-token-link: #83a598;
+}
+
+/* Menu surfaces keep their blur; the stroke follows the Gruvbox border scale. */
+body[data-ds-theme-palette='gruvbox'] [data-menu-material] {
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l3);
+}
+
+/* macOS overlays without a menu backing stay nearly opaque, as in the dark palette. */
+html[data-platform='darwin'] body[data-ds-theme-palette='gruvbox'] {
+  --dsw-specific-menu: rgba(50, 48, 47, 0.94);
+}

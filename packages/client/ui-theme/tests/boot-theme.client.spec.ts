@@ -22,6 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   delete document.documentElement.dataset.dsThemeSource
   document.body.removeAttribute(DARK_ATTRIBUTE)
+  delete document.body.dataset.dsThemePalette
   for (const name of ['--dsh-content-font-size', '--dsh-code-font-size', '--dsh-terminal-font-size']) document.body.style.removeProperty(name)
   for (const kind of ['text', 'code', 'terminal']) document.body.style.removeProperty(`--dsh-font-family-${kind}`)
 })
@@ -39,6 +40,20 @@ describe('theme bootstrap row', () => {
     runInNewContext(body.text, { document, matchMedia: globalThis.matchMedia })
     expect(document.documentElement.dataset.dsThemeSource).toBe('dark')
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(true)
+    expect(document.body.dataset.dsThemePalette).toBe('dark')
+  })
+
+  it('pre-paints the Gruvbox canvas and marks the palette before any plugin runs', () => {
+    mockSystemDark(false)
+    const [head, body] = bootThemeInjections('gruvbox')
+    if (head?.kind !== 'style') throw new Error('theme head bootstrap row is not a style')
+    expect(head.text).toBe(':root{color-scheme:dark}body{background-color:#282828;--dsh-boot-bg:#282828}')
+    if (body?.kind !== 'script') throw new Error('theme body bootstrap row is not a script')
+    runInNewContext(body.text, { document, matchMedia: globalThis.matchMedia })
+    // Native chrome mirrors the resolved scheme, not the palette id.
+    expect(document.documentElement.dataset.dsThemeSource).toBe('dark')
+    expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(true)
+    expect(document.body.dataset.dsThemePalette).toBe('gruvbox')
   })
 
   it('lets durable light override a dark OS and clears stale dark state', () => {
@@ -59,6 +74,7 @@ describe('theme bootstrap row', () => {
     executeBootstrap('system')
     expect(document.documentElement.dataset.dsThemeSource).toBe('system')
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(dark)
+    expect(document.body.dataset.dsThemePalette).toBe(dark ? 'dark' : 'light')
   })
 
   it('uses a media query for the system canvas palette', () => {

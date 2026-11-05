@@ -2,8 +2,12 @@
 
 import z from '@deepseek-ai/schemastery'
 
-/** Built-in preferences accepted at the registry and settings boundaries. */
-export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const
+/**
+ * Built-in preferences accepted at the registry and settings boundaries:
+ * `light`, `dark`, `system`, and the dark `gruvbox` palette. `system` follows
+ * `prefers-color-scheme`; every other value names a built-in palette.
+ */
+export const THEME_PREFERENCES = ['light', 'dark', 'system', 'gruvbox'] as const
 
 /** Settings namespace owned by the theme plugin. */
 export const THEME_SETTINGS_NAMESPACE = 'ui-theme'

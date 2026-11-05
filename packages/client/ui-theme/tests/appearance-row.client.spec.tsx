@@ -23,6 +23,7 @@ const COPY: Record<string, string> = {
   'appearance.light': 'Light',
   'appearance.dark': 'Dark',
   'appearance.system': 'System',
+  'appearance.gruvbox': 'Gruvbox',
 }
 
 function emptySessions() {
@@ -66,12 +67,20 @@ const pressed = (name: RegExp): string | null =>
   screen.getByRole('button', { name }).getAttribute('aria-pressed')
 
 describe('AppearanceRow', () => {
-  it('renders the title and three cubes with the preference cube selected', () => {
+  it('renders the title and four cubes with the preference cube selected', () => {
     mount('dark')
     expect(screen.getByText('Appearance')).toBeDefined()
     expect(pressed(/Dark/)).toBe('true')
     expect(pressed(/Light/)).toBe('false')
     expect(pressed(/System/)).toBe('false')
+    expect(pressed(/Gruvbox/)).toBe('false')
+  })
+
+  it('offers and selects the Gruvbox palette', () => {
+    const b = mount('gruvbox')
+    expect(pressed(/Gruvbox/)).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: /Dark/ }))
+    expect(b.setTheme).toHaveBeenCalledWith('dark')
   })
 
   it('click drives setTheme; selection follows the store mirror, not the click echo', () => {

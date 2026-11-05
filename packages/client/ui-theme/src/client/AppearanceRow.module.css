@@ -25,7 +25,7 @@
 
 /* Appearance cube (figma '.Selector Cube' 276x82, pad 20/32, centered
  * icon-over-label column, gap 4); flexed down from the figma width so all
- * three sit on one row in the 800 panel, wrapping when narrower. */
+ * four sit on one row in the 800 panel, wrapping when narrower. */
 .themeCube {
   box-sizing: border-box;
   flex: 1 1 180px;
@@ -58,7 +58,7 @@
   border-color: var(--dsw-static-neutral-bluish-400);
 }
 
-/* Narrow settings panel: all three cubes share one row instead of wrapping to
+/* Narrow settings panel: all four cubes share one row instead of wrapping to
    two. The equal basis and the tighter horizontal padding keep a four-glyph
    label ("跟随系统") on one line at a 390px viewport. */
 @media (max-width: 767px) {
