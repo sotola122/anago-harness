@@ -44,11 +44,16 @@ type AttentionSnapshot = Parameters<Parameters<FontFamilyRowComponentProps['useS
 const noAttention: AttentionSnapshot = new Map()
 const useSessionStatus: FontFamilyRowComponentProps['useSessionStatus'] = selector => selector(noAttention)
 
-function mount(kind: FontRole = 'code', code = '') {
+/** Chain seat with no elected entry: the row's own text field renders. */
+const declinedChain = vi.fn<FontFamilyRowComponentProps['renderSlotChain']>((_key, _owner, opts) => opts?.fallback)
+
+function mount(kind: FontRole = 'code', code = '', renderSlotChain = declinedChain) {
   const store = createFontRowStore().create()
   store.actions.sync({ text: 14, code: 11, terminal: 13 }, { text: '', code, terminal: '' }, 0)
   const setFontFamily = vi.fn()
   const props: FontFamilyRowComponentProps = {
+    renderSlot: () => null,
+    renderSlotChain,
     useSessions: emptySessions(),
     useSessionStatus,
     usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
@@ -62,7 +67,7 @@ function mount(kind: FontRole = 'code', code = '') {
     setFontFamily,
   }
   render(<FontFamilyRow {...props} />)
-  return { store, setFontFamily, field: screen.getByRole<HTMLInputElement>('textbox', { name: 'Code font' }) }
+  return { store, setFontFamily, field: screen.queryByRole<HTMLInputElement>('textbox', { name: 'Code font' }) as HTMLInputElement }
 }
 
 describe('normalizeFontFamily', () => {
@@ -115,5 +120,20 @@ describe('FontFamilyRow', () => {
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Code font' }).value).toBe('"Hack"')
     act(() => { b.store.actions.sync({ text: 14, code: 11, terminal: 13 }, { text: '', code: '"Stale"', terminal: '' }, 1) })
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Code font' }).value).toBe('"Hack"')
+  })
+
+  it('lets the elected chain entry replace the field and write through the normalized commit', () => {
+    let owner: Parameters<FontFamilyRowComponentProps['renderSlotChain']>[1] | undefined
+    const elected = vi.fn<FontFamilyRowComponentProps['renderSlotChain']>((_key, next) => {
+      owner = next
+      return <div data-testid="control" />
+    })
+    const b = mount('code', '"Iosevka"', elected)
+    expect(screen.getByTestId('control')).toBeDefined()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(elected.mock.lastCall?.[0]).toBe('settings.theme.font-family')
+    expect(owner).toMatchObject({ role: 'code', value: '"Iosevka"', label: 'Code font' })
+    expect(owner?.commit("'Fira Code', monospace")).toBe('"Fira Code", monospace')
+    expect(b.setFontFamily).toHaveBeenCalledExactlyOnceWith('"Fira Code", monospace')
   })
 })

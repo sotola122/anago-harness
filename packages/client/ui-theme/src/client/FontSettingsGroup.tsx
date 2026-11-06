@@ -5,7 +5,7 @@
  * expanded so the font lists are visible without a second click.
  */
 import { useId, useState } from 'react'
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { FontRole } from '../theme-settings.ts'
 import type { createFontRowStore } from './settings-store.ts'
@@ -21,9 +21,10 @@ export interface FontSettingsInjected {
   setFontSize: (role: FontRole, px: number) => void
 }
 
-/** Full component props: runtime share + store share + locale seat + injected face. */
+/** Full component props: runtime share + child seat + store share + locale seat + injected face. */
 export type FontSettingsGroupProps =
-  PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createFontRowStore>>
+  PropsRuntime<'settings.general.item'> & PropsRenderSlots<'settings.theme.font-family'>
+  & PropsStore<ReturnType<typeof createFontRowStore>>
   & PropsLocale<'settings.theme'> & FontSettingsInjected
 
 /**
