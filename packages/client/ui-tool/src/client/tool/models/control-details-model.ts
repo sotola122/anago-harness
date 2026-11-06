@@ -277,11 +277,15 @@ export function subagentDetails(
     if (nonempty(description)) fields.push({ label: t('detail.field.agentDescription'), value: description })
     if (meta.name !== undefined) fields.push({ label: t('detail.field.agentName'), value: meta.name })
     if (meta.subagentId !== undefined) fields.push({ label: t('detail.field.id'), value: meta.subagentId })
+    const receiptProvider = stringField(meta.provider)
+    const receiptModel = stringField(meta.model)
+    const receiptEffort = stringField(meta.reasoningEffort)
+    const receiptCategory = stringField(meta.category)
     fields.push(...routeFields({
-      provider: stringField(meta.provider),
-      model: stringField(meta.model),
-      reasoningEffort: stringField(meta.reasoningEffort),
-      category: stringField(meta.category),
+      ...receiptProvider === undefined ? {} : { provider: receiptProvider },
+      ...receiptModel === undefined ? {} : { model: receiptModel },
+      ...receiptEffort === undefined ? {} : { reasoningEffort: receiptEffort },
+      ...receiptCategory === undefined ? {} : { category: receiptCategory },
     }, t))
   }
   return detailList([{
