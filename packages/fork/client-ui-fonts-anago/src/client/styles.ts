@@ -20,6 +20,12 @@ const FONT_FAMILY_DEFAULT_TOKENS = {
   terminal: '--dsh-font-family-terminal-default',
 } as const satisfies Record<keyof Config, string>
 
+/** The bundled face a terminal font list measures with, in `FontFaceSet.load` form. */
+const TERMINAL_MEASURE_FONT = '1em "Intel One Mono"'
+
+/** Text xterm measures its cell with; it selects only the face's Latin file. */
+const TERMINAL_MEASURE_TEXT = 'W'
+
 /** One placeholder left in the rendered stylesheet; the font file it needs is missing. */
 const UNRESOLVED_PLACEHOLDER = /__DSH_FONT_[A-Z0-9_]+__/u
 
@@ -66,7 +72,10 @@ export function renderFontTokenDefaults(families: Config): string {
 }
 
 /**
- * Attach the rendered stylesheet to the document head while the plugin lives.
+ * Attach the rendered stylesheet to the document head while the plugin lives,
+ * and load the face a terminal list measures with. xterm measures its cell when
+ * it opens or its font option changes, never when a web font finishes loading,
+ * so that face has to be ready before a terminal opens.
  * @param ctx - Owning plugin context; disposal removes the tag.
  * @param css - Rendered stylesheet text.
  */
@@ -78,6 +87,9 @@ export function installFontStyles(ctx: Context, css: string): void {
     tag.dataset.pluginCss = `${PLUGIN_ID}/fonts.css`
     tag.textContent = css
     document.head.appendChild(tag)
+    document.fonts.load(TERMINAL_MEASURE_FONT, TERMINAL_MEASURE_TEXT).catch((_loadError: unknown) => {
+      // A face that fails to load leaves xterm measuring the next family in the list, which still draws a consistent grid.
+    })
     return () => { tag.remove() }
   }, 'client-ui-fonts-anago: font faces and font-family tokens')
 }

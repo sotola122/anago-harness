@@ -52,6 +52,8 @@ function mount() {
   const setFontFamily = vi.fn()
   const setFontSize = vi.fn()
   const props: FontSettingsGroupProps = {
+    renderSlot: () => null,
+    renderSlotChain: (_key, _owner, opts) => opts?.fallback,
     useSessions: emptySessions(),
     useSessionStatus,
     usePanelInfo, useSessionRetainInfo: () => undefined, useResource,

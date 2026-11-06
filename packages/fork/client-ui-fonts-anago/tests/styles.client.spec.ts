@@ -40,9 +40,10 @@ afterEach(() => {
  * Install a stub document holding the tags its head receives.
  * @returns the tags appended to the stub head, in append order.
  */
-function installDocument(): StubTag[] {
+function installDocument(load: FontFaceSet['load'] = () => Promise.resolve([])): StubTag[] {
   const tags: StubTag[] = []
   const document = {
+    fonts: { load },
     createElement(): StubTag {
       const tag: StubTag = {
         dataset: {},
@@ -154,6 +155,18 @@ describe('installFontStyles', () => {
     await ctx.fiber.dispose()
     expect(tags).toHaveLength(0)
     expect(tag.removed).toBe(true)
+  })
+
+  it('loads the Latin face a terminal list measures with, and tolerates a failed load', async () => {
+    const load = vi.fn<FontFaceSet['load']>(() => Promise.reject(new Error('blocked')))
+    const tags = installDocument(load)
+    const ctx = new Context()
+    installFontStyles(ctx, 'body {}')
+    await Promise.resolve()
+
+    expect(load).toHaveBeenCalledExactlyOnceWith('1em "Intel One Mono"', 'W')
+    expect(tags).toHaveLength(1)
+    await ctx.fiber.dispose()
   })
 })
 

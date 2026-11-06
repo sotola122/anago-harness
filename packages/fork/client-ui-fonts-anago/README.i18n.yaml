@@ -3,26 +3,29 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fork/client-ui-fonts-anago/README.md
 /:
-  en: da99a47d8e1ab5ff
-  zh: f03fd0f424f42ed8
+  en: 91582759751bdb65
+  zh: dd7d23308d85e264
 /anago-harness-client-ui-fonts-anago:
   en: 1272418a8ce14feb
   zh: 238dabccc9ff3740
 /anago-harness-client-ui-fonts-anago/summary:
-  en: 99954da03c23bd8a
-  zh: c6617038ab80729a
+  en: 9ed1e9087377f75a
+  zh: a90fe4b3de92a0c2
 /anago-harness-client-ui-fonts-anago/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /anago-harness-client-ui-fonts-anago/use-this-package:
-  en: 3795ddc08e17b48b
-  zh: 14e1bae877c33b6e
+  en: 686786e7e06483df
+  zh: e49e93c4d0485385
+/anago-harness-client-ui-fonts-anago/use-this-package/choose-a-font-in-settings:
+  en: 80be2e8d2ad74694
+  zh: 032d2e3bf35e4ed6
 /anago-harness-client-ui-fonts-anago/understand-the-implementation:
-  en: f0eb05ec8f19dd16
-  zh: a28078548b9e84da
+  en: a5e15c6d265a33a0
+  zh: 3d9085ceb5426b47
 /anago-harness-client-ui-fonts-anago/further-exploration:
-  en: 5eecc565b5177eeb
-  zh: d993d1248ae1bcdb
+  en: 5bc2f68a60150b07
+  zh: dcd67e59035c0efb
 /anago-harness-client-ui-fonts-anago/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -39,8 +42,8 @@
   en: e5f089f4e73fc676
   zh: cd3f66de1e6c358d
 /anago-harness-client-ui-fonts-anago/known-limitations-and-deferred-work:
-  en: 20cfb6ef260bd601
-  zh: 3f32cef9d03970a5
+  en: 44b2197179b47abc
+  zh: c4c9447b2dfc861d
 /anago-harness-client-ui-fonts-anago/known-limitations-and-deferred-work/dev-note:
-  en: 6101a13442211d89
-  zh: e54fbee0cf5bd980
+  en: 475f794f0920f70b
+  zh: d8d35a7583a2bb51

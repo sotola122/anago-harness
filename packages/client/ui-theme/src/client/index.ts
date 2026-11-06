@@ -44,10 +44,36 @@ export type { FontFamilies, FontRole, FontSizes, ThemePreference, ThemeSettings 
 /** Namespace owning this feature's settings-row copy. */
 export const SETTINGS_NS = 'settings.theme'
 
+/** Owner share of the `settings.theme.font-family` chain slot. */
+export interface FontFamilyControlOwnerProps {
+  /** Font role the control edits. */
+  role: FontRole
+  /** Normalized persisted font list; `''` selects the role's default stack. */
+  value: string
+  /** Localized role title, used as the control's accessible name. */
+  label: string
+  /**
+   * Normalize and persist one font list.
+   * @param list - font list as entered; a list without names restores the default stack.
+   * @returns the normalized list.
+   */
+  commit: (list: string) => string
+}
+
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The Appearance settings row's copy. */
     'settings.theme': ThemeKey
+  }
+  interface SlotMap {
+    /**
+     * The control beside one font row's title. The first entry whose `select`
+     * returns a non-null value replaces the row's built-in text field; with no
+     * elected entry the row keeps that field. The owner passes the role, the
+     * persisted list, and the commit callback, so an entry owns only its input
+     * and writes through the same normalized settings path.
+     */
+    'settings.theme.font-family': { kind: 'chain'; scope: 'root'; owner: FontFamilyControlOwnerProps }
   }
 }
 
@@ -635,6 +661,7 @@ export function apply(ctx: ClientContext): void {
     name: 'settings.general.item',
     id: 'font-size',
     order: 11,
+    children: { 'settings.theme.font-family': { kind: 'chain', scope: 'root' } },
     store: fontStore,
     locale: SETTINGS_NS,
     inject: (actions: BoundActions<typeof fontStore>): FontSettingsInjected => {

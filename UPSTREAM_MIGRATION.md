@@ -140,6 +140,9 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/client/ui-layout/src/client/theme-presenter.ts`, `packages/client/ui-layout/tests/theme-presenter.client.spec.ts` | `PALETTE_ATTRIBUTE` (`body[data-ds-theme-palette]`) set to the active theme id on apply and removed on dispose; the dark palette attribute still follows `colorScheme` |
 | `packages/client/ui-primitives/src/JsonTree.module.css` | the Gruvbox-scoped JSON-tree palette, which follows the shared `--shiki-*` tokens instead of the default dark literals |
 | `packages/client/ui-theme/README.md` pair, `packages/client/ui-layout/README.md` pair, `docs/web-styling.md` pair | the Gruvbox preference, palette sheet, and palette-marker text; re-record the pair with `pnpm run verify-translation-pairing --write <pair>` |
+| `packages/client/ui-theme/src/client/FontFamilyRow.tsx`, `FontSettingsGroup.tsx`, `index.ts`, `packages/client/ui-theme/tests/font-family-row.client.spec.tsx`, `font-settings-group.client.spec.tsx` | the `settings.theme.font-family` chain slot `client-ui-fonts-anago` fills with its font picker: `FontFamilyControlOwnerProps`, the `children` declaration on the `font-size` entry, and the row's `renderSlotChain` call with the text field as its fallback. `slot-catalog.ts` is generated, so run `pnpm run gen-client-catalog` |
+| `packages/client/ui-theme/src/client/locales.ts` | each locale's `fontFamily.<role>.description` names only the role's use, because the picker's Custom field carries the hint for typing a list |
+| `packages/client/ui-theme/README.md` pair | the `settings.theme.font-family` sentence under Fonts; re-record the pair with `pnpm run verify-translation-pairing --write <pair>` |
 
 ### Fork-owned
 
