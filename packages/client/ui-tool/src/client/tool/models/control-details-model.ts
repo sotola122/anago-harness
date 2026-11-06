@@ -21,11 +21,14 @@ function receipt(title: string, badge: NonNullable<DetailItem['badge']>, t: Deta
 
 type DetailField = { label: string; value: string }
 
-function routeFields(route: { provider?: string; model?: string; reasoningEffort?: string }, t: DetailTranslate): DetailField[] {
+type ReceiptRoute = { provider?: string; model?: string; reasoningEffort?: string; category?: string }
+
+function routeFields(route: ReceiptRoute, t: DetailTranslate): DetailField[] {
   const fields: DetailField[] = []
   if (route.provider !== undefined && route.provider !== '') fields.push({ label: t('detail.field.provider'), value: route.provider })
   if (route.model !== undefined && route.model !== '') fields.push({ label: t('detail.field.model'), value: route.model })
   if (route.reasoningEffort !== undefined && route.reasoningEffort !== '') fields.push({ label: t('detail.field.reasoningEffort'), value: route.reasoningEffort })
+  if (route.category !== undefined && route.category !== '') fields.push({ label: t('detail.field.category'), value: route.category })
   return fields
 }
 
@@ -137,14 +140,12 @@ function stringField(value: unknown): string | undefined {
 }
 
 /** Structured activation route persisted on `tool/result` meta. */
-function activationRoute(meta: unknown): {
+function activationRoute(meta: unknown): (ReceiptRoute & {
   name?: string
-  provider?: string
-  model?: string
-  reasoningEffort?: string
-  children?: Array<{ name?: string; provider?: string; model?: string; reasoningEffort?: string }>
-} | undefined {
+  children?: Array<ReceiptRoute & { name?: string }>
+}) | undefined {
   if (!detailRecord(meta)) return undefined
+  const category = stringField(meta.category)
   const children = Array.isArray(meta.children)
     ? meta.children.flatMap((child) => {
       if (!detailRecord(child)) return []
@@ -153,11 +154,13 @@ function activationRoute(meta: unknown): {
       const provider = stringField(child.provider)
       const model = stringField(child.model)
       const reasoningEffort = stringField(child.reasoningEffort)
+      const childCategory = stringField(child.category) ?? category
       return [{
         ...name !== undefined ? { name } : {},
         ...provider !== undefined ? { provider } : {},
         ...model !== undefined ? { model } : {},
         ...reasoningEffort !== undefined ? { reasoningEffort } : {},
+        ...childCategory !== undefined ? { category: childCategory } : {},
       }]
     })
     : undefined
@@ -172,6 +175,7 @@ function activationRoute(meta: unknown): {
     ...provider !== undefined ? { provider } : {},
     ...model !== undefined ? { model } : {},
     ...reasoningEffort !== undefined ? { reasoningEffort } : {},
+    ...category !== undefined ? { category } : {},
     ...children !== undefined && children.length > 0 ? { children } : {},
   }
 }
@@ -273,6 +277,12 @@ export function subagentDetails(
     if (nonempty(description)) fields.push({ label: t('detail.field.agentDescription'), value: description })
     if (meta.name !== undefined) fields.push({ label: t('detail.field.agentName'), value: meta.name })
     if (meta.subagentId !== undefined) fields.push({ label: t('detail.field.id'), value: meta.subagentId })
+    fields.push(...routeFields({
+      provider: stringField(meta.provider),
+      model: stringField(meta.model),
+      reasoningEffort: stringField(meta.reasoningEffort),
+      category: stringField(meta.category),
+    }, t))
   }
   return detailList([{
     title: t('detail.receipt.started'), fields,
