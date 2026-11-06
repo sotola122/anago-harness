@@ -60,7 +60,7 @@ kind: "package-reference"
 
 ### 受管理的委派
 
-可选的 `name` 参数为子任务命名，在调用方的子级之间唯一，且不能为 `lead`；省略时依次选择 `agent-1`、`agent-2` 等。[subagent 运行时](../subagent/README.zh.md#agent-names)定义名称规则及其错误。运行时接受子任务后，每次调用都会返回 `started subagent <name>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。其中 `<name>` 是子任务从根开始的完整名称，例如 `reviewer/checker`。顶层调用在结果展示 metadata 中持久化 `{ kind: 'activation', name: <name>, provider?, model?, reasoningEffort? }`；嵌套 Code 派发将其保存在对应 `tool/ptc-dispatch` 事件的 `meta` 字段中。调用不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
+可选的 `name` 参数为子任务命名，在调用方的子级之间唯一，且不能为 `lead`；省略时依次选择 `agent-1`、`agent-2` 等。[subagent 运行时](../subagent/README.zh.md#agent-names)定义名称规则及其错误。运行时接受子任务后，每次调用都会返回 `started subagent <name>`；若已解析出模型或推理强度，再附上 ` · <model>` 与 ` · <reasoningEffort>`。其中 `<name>` 是子任务从根开始的完整名称，例如 `reviewer/checker`。顶层调用在结果展示 metadata 中持久化 `{ kind: 'activation', name: <name>, provider?, model?, reasoningEffort?, category? }`。调用未指名路由时，记录子任务从父级继承的 provider、model 与 reasoning effort；只有调用指名了 `category` 时才记录它。嵌套 Code 派发把这份 metadata 保存在对应 `tool/ptc-dispatch` 事件的 `meta` 字段中。调用不等待子任务结果。activation 独立于已完成的工具调用拥有这项工作；运行时发送完成通知并释放执行资源。
 
 所有后端都由运行时自动递送完成通知，前提是子任务结束时调用方 Agent 仍在线。通知包含最终回答，除非子任务在结束前刚向该 Agent 发过消息。本地 Spawn 和 Fork 子任务还可以发送消息，在活跃期间通过 `send_message` 接受更多工作，或在结束后恢复。Codex、Claude Code、ACP 与 DSH SDK 后端不接受后续消息。
 
@@ -112,7 +112,7 @@ kind: "package-reference"
 
 ### 结果确认
 
-规范工具结果为 `{ kind: 'activation', name }`，并带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`。`review` 调用还会返回 `names`、`notStarted`，以及包含未能启动评审者的 `children` 列表。其中没有执行 Promise 或最终输出；需要等待结果的程序调用方直接使用 subagent 服务。
+规范工具结果为 `{ kind: 'activation', name }`，并带有本次调用实际使用的 `provider`、`model` 与 `reasoningEffort`（调用未指名路由时，这是子任务从父级继承的路由），以及调用指名的 `category`。`review` 调用还会返回 `names`、`notStarted`，以及包含未能启动评审者的 `children` 列表。其中没有执行 Promise 或最终输出；需要等待结果的程序调用方直接使用 subagent 服务。
 
 ### 随上下文变化的措辞
 

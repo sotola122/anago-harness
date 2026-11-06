@@ -263,6 +263,8 @@ interface ActivationResult extends UsedRoute {
   notStarted?: number
   /** Effective permission mode, present only for a provider that declares modes. */
   permissionMode?: string
+  /** Purpose label the call named. Absent when the call omitted `category`. */
+  category?: string
   /** Present for a review fan-out, in attempt order, including reviewers that did not start. */
   children?: ActivationChild[]
 }
@@ -317,12 +319,14 @@ function renderActivation(value: ActivationResult): ContentBlock[] {
 
 /** Replayable route facts for the Web card. Failed reviewers stay here, not in model-facing text. */
 function activationMeta(value: ActivationResult) {
+  const category = value.category
   return {
     kind: value.kind,
     name: value.name,
     ...value.provider !== undefined ? { provider: value.provider } : {},
     ...value.model !== undefined ? { model: value.model } : {},
     ...value.reasoningEffort !== undefined ? { reasoningEffort: value.reasoningEffort } : {},
+    ...category !== undefined ? { category } : {},
     ...value.names !== undefined ? { names: [...value.names] } : {},
     ...value.notStarted !== undefined ? { notStarted: value.notStarted } : {},
     ...value.permissionMode !== undefined ? { permissionMode: value.permissionMode } : {},
@@ -332,6 +336,7 @@ function activationMeta(value: ActivationResult) {
         ...child.provider !== undefined ? { provider: child.provider } : {},
         ...child.model !== undefined ? { model: child.model } : {},
         ...child.reasoningEffort !== undefined ? { reasoningEffort: child.reasoningEffort } : {},
+        ...category !== undefined ? { category } : {},
       })),
     } : {},
   }
@@ -358,10 +363,12 @@ async function startResolvedChildren(input: {
   cwd?: string
   agentPreset?: string
   maxDepth?: number
+  /** Purpose label the call named. Omission is not the table's `default` slot. */
+  category?: string
 }): Promise<ActivationResult> {
   const {
     runtimeCtx, parent, signal, callId, providerName, subagentProvider, resolution,
-    categoryOmitted, parentOptions, policy, label, prompt, cwd, agentPreset, maxDepth,
+    categoryOmitted, parentOptions, policy, label, prompt, cwd, agentPreset, maxDepth, category,
   } = input
   const slot: PurposeRouteSlot | undefined = resolution.source.kind === 'purpose' ? resolution.source.slot : undefined
   const fanOut = slot !== undefined && isFanOutSlot(slot)
@@ -488,10 +495,11 @@ async function startResolvedChildren(input: {
     ...primary.model !== undefined ? { model: primary.model } : {},
     ...primary.reasoningEffort !== undefined ? { reasoningEffort: primary.reasoningEffort } : {},
   }
+  const namedCategory = category === undefined ? {} : { category }
   if (fanOut) {
-    return { kind: 'activation', name: firstName, names: startedNames, notStarted, ...route, children: ordered }
+    return { kind: 'activation', name: firstName, names: startedNames, notStarted, ...route, ...namedCategory, children: ordered }
   }
-  return { kind: 'activation', name: firstName, ...route }
+  return { kind: 'activation', name: firstName, ...route, ...namedCategory }
 }
 
 /** Append a not-started purpose route and log the cause the model does not see. */
@@ -729,6 +737,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             ...purposeRouting ? {
               names: { type: 'array' as const, items: { type: 'string' as const } },
               notStarted: { type: 'integer' as const },
+              category: { type: 'string' as const },
               children: {
                 type: 'array' as const,
                 items: {
@@ -785,6 +794,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             subagentProvider,
             resolution,
             categoryOmitted: category === undefined,
+            ...category === undefined ? {} : { category },
             parentOptions,
             policy: modelSelectionPolicy,
             label: args.description,

@@ -78,6 +78,34 @@ describe('dsh-tool-subagent', () => {
     expect(text(result)).toMatch(/^started subagent agent-1/)
   })
 
+  it('records the parent route when the call names none, and the logged request when it overrides creation options', async () => {
+    const ctx = await setup({
+      provider: 'mock',
+      parentAgentOptions: { provider: 'alpha', model: 'parent-model', reasoningEffort: ReasoningEffortId('high') },
+    })
+    const parent = modelSelectionSetupAgent(ctx)
+    const inherited = await callSubagent(ctx, { description: 'inherit', prompt: 'work' }, { agent: parent })
+    expect(inherited.isError, text(inherited)).toBe(false)
+    if (inherited.isError) return
+    expect(inherited.value).toMatchObject({ provider: 'alpha', model: 'parent-model', reasoningEffort: 'high' })
+    expect(inherited.meta).toEqual(inherited.value)
+    expect(inherited.value).not.toHaveProperty('category')
+    expect(text(inherited)).toBe('started subagent agent-1 · parent-model · high')
+
+    parent.session.append('request/header', {
+      header: {
+        config: { provider: 'current-provider', model: 'current-model', reasoningEffort: ReasoningEffortId('low') },
+      },
+      reason: 'initial',
+    })
+    const fromHeader = await callSubagent(ctx, { description: 'header', prompt: 'work' }, { agent: parent })
+    expect(fromHeader.isError, text(fromHeader)).toBe(false)
+    if (fromHeader.isError) return
+    expect(fromHeader.value).toMatchObject({ provider: 'current-provider', model: 'current-model', reasoningEffort: 'low' })
+    expect(fromHeader.meta).toMatchObject({ provider: 'current-provider', model: 'current-model', reasoningEffort: 'low' })
+    expect(text(fromHeader)).toBe('started subagent agent-2 · current-model · low')
+  })
+
   it('resolves an explicit child directory without changing the parent directory', async () => {
     let childCwd: string | undefined
     const ctx = await setup({ provider: 'mock' }, {
@@ -716,6 +744,13 @@ describe('dsh-tool-subagent local activation', () => {
     await child!.whenIdle()
     expect(child!.session.requestHeader()?.config.reasoningEffort).toBe(effort ?? 'low')
     expect(parent.options.reasoningEffort).toBe('high')
+    expect(result.isError ? undefined : result.value).toMatchObject({
+      provider: 'mock',
+      model: 'mock',
+      ...effort === undefined ? {} : { reasoningEffort: effort },
+    })
+    expect(result.meta).toMatchObject({ provider: 'mock', model: 'mock' })
+    if (effort === undefined) expect(result.isError ? undefined : result.value).not.toHaveProperty('reasoningEffort')
   })
 
   it('classifies local activations concurrency-safe', async () => {
@@ -754,6 +789,7 @@ describe('dsh-tool-subagent local activation', () => {
     )
     expect(started.isError, text(started)).toBe(false)
     expect(text(started)).toBe('started subagent agent-1 · mock')
+    expect(started.meta).toEqual(started.isError ? undefined : started.value)
     const childId = ctx.sessionProjections.snapshot(parent.session).values.subagentCatalog?.find(entry => entry.mode === 'continuable' && entry.name === 'agent-1')?.id
     expect(childId).toBeDefined()
     expect(started.isError ? undefined : started.value).toEqual({ kind: 'activation', name: 'agent-1', provider: 'mock', model: 'mock' })
