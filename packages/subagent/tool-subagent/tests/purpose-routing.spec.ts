@@ -250,7 +250,10 @@ describe('purpose routing execution', () => {
       kind: 'activation',
       provider: category === 'writing' ? 'beta' : 'alpha',
       model,
+      category,
     })
+    expect(result.meta).toMatchObject({ category })
+    expect(text(result)).not.toContain('category')
     expect(result.isError ? undefined : result.value).not.toHaveProperty('names')
   })
 
@@ -270,6 +273,9 @@ describe('purpose routing execution', () => {
     const result = await callSubagent(ctx, { description: 'general work', prompt: 'do it' })
     expect(result.isError).toBe(false)
     expect(requests[0]).toEqual(expect.objectContaining({ provider: 'gamma', model: 'general' }))
+    expect(result.isError ? undefined : result.value).toMatchObject({ provider: 'gamma', model: 'general' })
+    expect(result.isError ? undefined : result.value).not.toHaveProperty('category')
+    expect(result.meta).not.toHaveProperty('category')
     const parent = modelSelectionSetupAgent(ctx)
     expect(parent.session.snapshotEvents().some(event => event.type === 'subagent/purpose-route')).toBe(true)
   })
@@ -355,6 +361,15 @@ describe('purpose routing execution', () => {
     expect(children.map(child => child !== null && typeof child === 'object' && 'model' in child ? child.model : undefined)).toEqual(['first', 'second', 'third'])
     expect(children[0]).toMatchObject({ name: value.name, provider: 'alpha', reasoningEffort: 'high' })
     expect(children[1]).toEqual({ provider: 'alpha', model: 'second', reasoningEffort: 'high' })
+    expect(value).toMatchObject({ category: 'review' })
+    expect(result.meta).toMatchObject({
+      category: 'review',
+      children: [
+        { category: 'review' },
+        { category: 'review', provider: 'alpha', model: 'second' },
+        { category: 'review' },
+      ],
+    })
     expect(children[2]).toMatchObject({ provider: 'alpha', model: 'third', reasoningEffort: 'xhigh' })
     expect(children[2]).toHaveProperty('name')
     expect(text(result)).toContain('started 2 subagents:')

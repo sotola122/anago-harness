@@ -164,6 +164,45 @@ describe('control detail adapters', () => {
     ])
   })
 
+  it.each(['subagent', 'subagent_fork'])('%s shows provider, model, effort, and category from the receipt', (name) => {
+    const args = { description: 'Review the changes', prompt: 'Read the diff and report defects.' }
+    const meta = {
+      kind: 'activation', name: 'reviewer', provider: 'xai', model: 'grok-4.7', reasoningEffort: 'high', category: 'review',
+    }
+    const fields = detailsCardModel(output(name, 'started subagent reviewer', args, meta), t, 'en')?.items[0]?.fields
+    expect(fields).toEqual([
+      { label: 'Agent task description', value: args.description },
+      { label: 'Agent name', value: 'reviewer' },
+      { label: 'Provider', value: 'xai' },
+      { label: 'Model', value: 'grok-4.7' },
+      { label: 'Reasoning effort', value: 'high' },
+      { label: 'Category', value: 'review' },
+    ])
+    expect(detailsCardModel(output(name, 'started subagent reviewer', args, meta), makeTranslate(zh, commonZh), 'zh-CN')?.items[0]?.fields)
+      .toContainEqual({ label: '用途', value: 'review' })
+    const unlabeled = { ...meta, category: undefined }
+    expect(detailsCardModel(output(name, 'started subagent reviewer', args, unlabeled), t, 'en')?.items[0]?.fields)
+      .not.toContainEqual(expect.objectContaining({ label: 'Category' }))
+  })
+
+  it('shows category on each fan-out row and keeps a receipt that predates names', () => {
+    const fanOut = detailsCardModel(output('subagent', 'started 2 subagents: a, b', { prompt: 'Review' }, {
+      kind: 'activation',
+      name: 'a',
+      category: 'review',
+      children: [
+        { name: 'a', provider: 'xai', model: 'grok-4.7', reasoningEffort: 'high' },
+        { provider: 'xai', model: 'grok-4' },
+      ],
+    }), t, 'en')
+    expect(fanOut?.items[0]?.fields).toContainEqual({ label: 'Category', value: 'review' })
+    expect(fanOut?.items[1]?.fields).toEqual([
+      { label: 'Provider', value: 'xai' },
+      { label: 'Model', value: 'grok-4' },
+      { label: 'Category', value: 'review' },
+    ])
+  })
+
   it('omits the name from metadata recorded before agents had names', () => {
     const args = { description: 'Review the changes', prompt: 'Read the diff and report defects.' }
     const block = { ...output('subagent', 'started subagent child-1', args), meta: { kind: 'activation', subagentId: 'child-1' } }
