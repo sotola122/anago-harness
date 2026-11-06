@@ -430,7 +430,8 @@ describe('composer focus handoff', () => {
     act(() => { shell.focus() })
     let settle!: (outcome: SubmitOutcome) => void
     sink.mockImplementationOnce(() => new Promise<SubmitOutcome>((resolve) => { settle = resolve }))
-    fireEvent.keyDown(textarea, { key: 'Enter' })
+    // The chord submits on every device; a plain Enter is a line break on mobile.
+    fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true })
     expect(textarea.getAttribute('contenteditable')).toBe('false')
     // A browser moves the keyboard to the body once the focused box stops being editable; jsdom does not.
     act(() => { textarea.blur() })
@@ -1682,6 +1683,12 @@ describe('running and lock semantics', () => {
         fireEvent.keyDown(textarea, { key: 'Enter' })
       }
       await act(async () => {})
+      if (gesture === 'enter' && !automatic) {
+        // A touch keyboard's Enter starts a new line; the Send button submits.
+        expect(sink).not.toHaveBeenCalledWith(`send by ${gesture}`, [], 'queue', expect.any(AbortSignal), expect.any(Function))
+        expect(shell.snapshot.draft).toBe(`send by ${gesture}\n`)
+        continue
+      }
       expect(sink).toHaveBeenLastCalledWith(`send by ${gesture}`, [], 'queue', expect.any(AbortSignal), expect.any(Function))
       expect(shell.snapshot.draft).toBe('')
       expect(document.activeElement === textarea).toBe(automatic)
@@ -1698,7 +1705,8 @@ describe('running and lock semantics', () => {
     fireEvent.keyDown(textarea, { key: 'Enter' })
     await act(async () => {})
     expect(shell.snapshot.phase).toBe('claimed')
-    expect(shell.snapshot.draft).toBe('/goal ')
+    // A touch keyboard's Enter ends the line; a desktop Enter submits the command.
+    expect(shell.snapshot.draft).toBe(automatic ? '/goal ' : '/goal \n')
     expect(document.activeElement).toBe(textarea)
   })
 

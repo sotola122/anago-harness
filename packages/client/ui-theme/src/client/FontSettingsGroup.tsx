@@ -2,7 +2,7 @@
  * Font settings registered into the General section item slot: the text
  * font-size row, whose disclosure button expands a region holding the font
  * row for each role and the code and terminal size rows. The region starts
- * collapsed on every mount.
+ * expanded so the font lists are visible without a second click.
  */
 import { useId, useState } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -32,7 +32,7 @@ export type FontSettingsGroupProps =
  * @returns the text size row and, when expanded, the font rows.
  */
 export function FontSettingsGroup({ setFontFamily, setFontSize, ...shared }: FontSettingsGroupProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const regionId = useId()
   const family = (role: FontRole) => (
     <FontFamilyRow {...shared} role={role} setFontFamily={(value) => { setFontFamily(role, value) }} />

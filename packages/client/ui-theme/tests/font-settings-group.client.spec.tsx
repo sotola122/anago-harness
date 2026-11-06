@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
-/** FontSettingsGroup behavior: the text font-size row shows collapsed, its
+/** FontSettingsGroup behavior: the text font-size row shows expanded, its
  * disclosure button toggles the font and size rows, and each row routes its
  * write to its own role. */
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
@@ -69,23 +69,22 @@ function mount() {
 }
 
 describe('FontSettingsGroup', () => {
-  it('starts collapsed and toggles the font rows from the font-size row', () => {
+  it('starts expanded and toggles the font rows from the font-size row', () => {
     const g = mount()
     expect(screen.getByText('Font size')).toBeDefined()
-    expect(g.header.getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByRole('textbox')).toBeNull()
-    fireEvent.click(g.header)
     expect(g.header.getAttribute('aria-expanded')).toBe('true')
     expect(document.getElementById(g.header.getAttribute('aria-controls')!)).not.toBeNull()
     expect(screen.getAllByRole('textbox')).toHaveLength(3)
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Code font' }).value).toBe('"Iosevka"')
     fireEvent.click(g.header)
+    expect(g.header.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByRole('textbox')).toBeNull()
+    fireEvent.click(g.header)
+    expect(screen.getAllByRole('textbox')).toHaveLength(3)
   })
 
   it('routes each row write to its role', () => {
     const g = mount()
-    fireEvent.click(g.header)
     const terminal = screen.getByRole('textbox', { name: 'Terminal font' })
     fireEvent.change(terminal, { target: { value: 'Hack' } })
     fireEvent.blur(terminal)
