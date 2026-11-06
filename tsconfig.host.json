@@ -540,6 +540,7 @@
     { "path": "./packages/fork/openai-codex-oauth" },
     { "path": "./packages/fork/xai-oauth" },
     { "path": "./packages/fork/copilot-oauth" },
+    { "path": "./packages/fork/ui-settings-usage/tsconfig.host.json" },
     { "path": "./packages/boot/cmdline" },
     { "path": "./packages/sdk/server" },
     { "path": "./packages/test-support/llm-replay" },

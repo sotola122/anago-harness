@@ -38,6 +38,7 @@ The fork group holds the packages this fork adds to the product: private policy,
 | [`xai-oauth`](xai-oauth/README.md) | Profile bundle: `/xai-*` commands that sign in to xAI through the pi-ai OAuth flow | (bundle) |
 | [`copilot-oauth`](copilot-oauth/README.md) | Profile bundle: `/copilot-*` commands that sign in to GitHub Copilot through the pi-ai OAuth flow | (bundle) |
 | [`openai-codex-oauth`](openai-codex-oauth/README.md) | Profile bundle: `/codex-*` commands that sign in to OpenAI Codex through the pi-ai OAuth flow | (bundle) |
+| [`ui-settings-usage`](ui-settings-usage/README.md) | Profile bundle: the Settings Usage page, with GitHub Copilot quota and an explained state for other providers | `providerUsage` |
 
 <a id="related-documentation"></a>
 ## Related documentation

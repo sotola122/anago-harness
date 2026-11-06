@@ -38,6 +38,7 @@ fork 组保存本 fork 加入产品的软件包：私有策略、`anago-core` �
 | [`xai-oauth`](xai-oauth/README.zh.md) | 配置捆绑包：通过 pi-ai OAuth 流程登录 xAI 的 `/xai-*` 命令 | （捆绑包） |
 | [`copilot-oauth`](copilot-oauth/README.zh.md) | 配置捆绑包：通过 pi-ai OAuth 流程登录 GitHub Copilot 的 `/copilot-*` 命令 | （捆绑包） |
 | [`openai-codex-oauth`](openai-codex-oauth/README.zh.md) | 配置捆绑包：通过 pi-ai OAuth 流程登录 OpenAI Codex 的 `/codex-*` 命令 | （捆绑包） |
+| [`ui-settings-usage`](ui-settings-usage/README.zh.md) | 配置捆绑包：设置中的用量页面，显示 GitHub Copilot 配额，并说明其他提供方的状态 | `providerUsage` |
 
 <a id="related-documentation"></a>
 ## 相关文档

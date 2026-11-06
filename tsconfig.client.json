@@ -155,6 +155,7 @@
     { "path": "./packages/fork/client-ui-settings-web-search" },
     { "path": "./packages/fork/client-ui-fonts-anago" },
     { "path": "./packages/fork/client-ui-session-share" },
+    { "path": "./packages/fork/ui-settings-usage/tsconfig.client.json" },
     { "path": "./packages/client/ui-user-questions" },
     { "path": "./packages/client/ui-trajectory/tsconfig.client.json" },
     { "path": "./packages/session-query/session-log-export/tsconfig.client.json" },
