@@ -14,7 +14,7 @@ Each package entry labels its data with three identifiers: `inject` lists the se
 
 ## `@anago-harness/client-ui-fonts-anago`
 
-- `source`: [`packages/fork/client-ui-fonts-anago/src/config.ts:20`](../packages/fork/client-ui-fonts-anago/src/config.ts)
+- `source`: [`plugins/client-ui-fonts-anago/src/config.ts:20`](../plugins/client-ui-fonts-anago/src/config.ts)
 
 ```ts config-catalog
 /** Configurable font lists by interface. */
@@ -35,7 +35,7 @@ export interface Config {
 ## `@anago-harness/llm-wiki`
 
 - `inject`: `tools` · `skills` · `commands`
-- `source`: [`packages/fork/llm-wiki/src/config.ts:120`](../packages/fork/llm-wiki/src/config.ts)
+- `source`: [`plugins/llm-wiki/src/config.ts:120`](../plugins/llm-wiki/src/config.ts)
 
 ```ts config-catalog
 /** Resolved plugin configuration (DESIGN §6.6). */
@@ -125,7 +125,7 @@ export type LintCheck = 'links' | 'index' | 'raw'
 ## `@anago-harness/memory`
 
 - `inject`: `tools` · `commands` · `agents`
-- `source`: [`packages/fork/memory/src/config.ts:83`](../packages/fork/memory/src/config.ts)
+- `source`: [`plugins/memory/src/config.ts:83`](../plugins/memory/src/config.ts)
 
 ```ts config-catalog
 /** Resolved plugin configuration (DESIGN §4.4). */
@@ -203,7 +203,7 @@ export interface ReviewConfig {
 
 - `inject`: `systemPrompt`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fork/response-language/src/index.ts:60`](../packages/fork/response-language/src/index.ts)
+- `source`: [`plugins/response-language/src/index.ts:60`](../plugins/response-language/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: one live switch, so the row can be turned off in place. */
@@ -220,7 +220,7 @@ export interface Config {
 ## `@anago-harness/ui-settings-usage`
 
 - `inject`: `credentials` · `typert`
-- `source`: [`packages/fork/ui-settings-usage/src/index.ts:32`](../packages/fork/ui-settings-usage/src/index.ts)
+- `source`: [`plugins/ui-settings-usage/src/index.ts:32`](../plugins/ui-settings-usage/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config; a change applies when the Host next loads the row. */
@@ -248,7 +248,7 @@ export interface CopilotConfig {
 
 - `inject`: `web`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fork/web-search-brave/src/index.ts:37`](../packages/fork/web-search-brave/src/index.ts)
+- `source`: [`plugins/web-search-brave/src/index.ts:37`](../plugins/web-search-brave/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config; every field is volatile, so a settings change reaches the next search. */
@@ -287,7 +287,7 @@ export type BraveSafeSearch = 'off' | 'moderate' | 'strict'
 
 - `inject`: `web`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/fork/web-search-exa/src/index.ts:41`](../packages/fork/web-search-exa/src/index.ts)
+- `source`: [`plugins/web-search-exa/src/index.ts:41`](../plugins/web-search-exa/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config; every field is volatile, so a settings change reaches the next search. */
@@ -5274,11 +5274,11 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 <!-- BEGIN GENERATED config-catalog:no-config -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
-| `@anago-harness/client-ui-session-share` | — | [`packages/fork/client-ui-session-share/src/index.ts`](../packages/fork/client-ui-session-share/src/index.ts) |
-| `@anago-harness/client-ui-settings-web-search` | — | [`packages/fork/client-ui-settings-web-search/src/index.ts`](../packages/fork/client-ui-settings-web-search/src/index.ts) |
-| `@anago-harness/copilot-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/copilot-oauth/src/index.ts`](../packages/fork/copilot-oauth/src/index.ts) |
-| `@anago-harness/openai-codex-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/openai-codex-oauth/src/index.ts`](../packages/fork/openai-codex-oauth/src/index.ts) |
-| `@anago-harness/xai-oauth` | `authorization` · `commands` · `credentials` | [`packages/fork/xai-oauth/src/index.ts`](../packages/fork/xai-oauth/src/index.ts) |
+| `@anago-harness/client-ui-session-share` | — | [`plugins/client-ui-session-share/src/index.ts`](../plugins/client-ui-session-share/src/index.ts) |
+| `@anago-harness/client-ui-settings-web-search` | — | [`plugins/client-ui-settings-web-search/src/index.ts`](../plugins/client-ui-settings-web-search/src/index.ts) |
+| `@anago-harness/copilot-oauth` | `authorization` · `commands` · `credentials` | [`plugins/copilot-oauth/src/index.ts`](../plugins/copilot-oauth/src/index.ts) |
+| `@anago-harness/openai-codex-oauth` | `authorization` · `commands` · `credentials` | [`plugins/openai-codex-oauth/src/index.ts`](../plugins/openai-codex-oauth/src/index.ts) |
+| `@anago-harness/xai-oauth` | `authorization` · `commands` · `credentials` | [`plugins/xai-oauth/src/index.ts`](../plugins/xai-oauth/src/index.ts) |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | `sessionProjections` | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
 | `@deepseek-ai/dsh-api-account-controller` | `deepseekAccount` · `agents` | [`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts) |
@@ -5432,11 +5432,11 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 <!-- BEGIN GENERATED config-catalog:library -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
-| `@anago-harness/anago-core` | — | [`packages/fork/anago-core/src/index.ts`](../packages/fork/anago-core/src/index.ts) |
-| `@anago-harness/anago-web` | — | [`packages/fork/anago-web/src/index.ts`](../packages/fork/anago-web/src/index.ts) |
-| `@anago-harness/fork-policy` | — | [`packages/fork/fork-policy/src/index.ts`](../packages/fork/fork-policy/src/index.ts) |
-| `@anago-harness/knowledge-common` | — | [`packages/fork/knowledge-common/src/index.ts`](../packages/fork/knowledge-common/src/index.ts) |
-| `@anago-harness/web-search-credentials` | — | [`packages/fork/web-search-credentials/src/index.ts`](../packages/fork/web-search-credentials/src/index.ts) |
+| `@anago-harness/anago-core` | — | [`plugins/anago-core/src/index.ts`](../plugins/anago-core/src/index.ts) |
+| `@anago-harness/anago-web` | — | [`plugins/anago-web/src/index.ts`](../plugins/anago-web/src/index.ts) |
+| `@anago-harness/fork-policy` | — | [`plugins/fork-policy/src/index.ts`](../plugins/fork-policy/src/index.ts) |
+| `@anago-harness/knowledge-common` | — | [`plugins/knowledge-common/src/index.ts`](../plugins/knowledge-common/src/index.ts) |
+| `@anago-harness/web-search-credentials` | — | [`plugins/web-search-credentials/src/index.ts`](../plugins/web-search-credentials/src/index.ts) |
 | `@deepseek-ai/dsh-agent-loop-testkit` | — | [`packages/test-support/agent-loop-testkit/src/index.ts`](../packages/test-support/agent-loop-testkit/src/index.ts) |
 | `@deepseek-ai/dsh-anonymous-user-id` | — | [`packages/identity/anonymous-user-id/src/index.ts`](../packages/identity/anonymous-user-id/src/index.ts) |
 | `@deepseek-ai/dsh-app-boot` | — | [`packages/boot/app-boot/src/index.ts`](../packages/boot/app-boot/src/index.ts) |

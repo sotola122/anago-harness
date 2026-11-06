@@ -14,7 +14,7 @@ const positional = process.argv.slice(2).filter(arg => !arg.startsWith('--'))
 const root = positional[0] ?? resolve(here, '../..')
 const baselinePath = positional[1] ?? join(here, 'egress-baseline.json')
 const write = process.argv.includes('--write-baseline')
-const deny = JSON.parse(readFileSync(new URL('../../packages/fork/fork-policy/denylist.json', import.meta.url), 'utf8'))
+const deny = JSON.parse(readFileSync(new URL('../../plugins/fork-policy/denylist.json', import.meta.url), 'utf8'))
 const suffixes = Object.values(deny.suffixes).flat()
 const hosts = new Set(deny.hosts)
 const denied = host => hosts.has(host) || suffixes.some(suffix => host === suffix || host.endsWith('.' + suffix))
@@ -31,7 +31,8 @@ const ignoredHost = host => /^(localhost|127\.|0\.0\.0\.0)|(^|\.)(example\.(com|
 const shipped = file => /\.(m?[jt]sx?|cts|mts|json|ya?ml|nsh|ps1|sh|html|css)$/.test(file)
   && !/(^|\/)(tests?|__tests__|fixtures|snapshots|benchmarks|docs|website)\//.test(file) && !/\.(spec|test|e2e|stress)\./.test(file)
   && !/(^|\/)(pnpm-lock\.yaml|package-lock\.json|uv\.lock|README[^/]*|[^/]*\.i18n\.yaml)$/.test(file)
-const files = execFileSync('git', ['-C', root, 'ls-files'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\n').filter(file => file && shipped(file))
+// Plugin sources live in the plugins/ submodule. Without --recurse-submodules their hosts leave the scan.
+const files = execFileSync('git', ['-C', root, 'ls-files', '--recurse-submodules'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\n').filter(file => file && shipped(file))
 const found = new Set()
 const urlRe = /\b(?:https?|wss?):\/\/([a-z0-9-]+(?:\.[a-z0-9-]+)+)/gi
 for (const file of files) {

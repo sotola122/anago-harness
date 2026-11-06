@@ -9,7 +9,7 @@
 
 英文源文件由系统**生成**，并通过 `pnpm run verify-tool-catalog`（`doc-sync`（文档同步门禁）的一部分）验证新鲜度；本中文文件作为经评审对侧通过双语配对维护。与 Cordis 目录（纯源码 AST 处理）不同，英文生成器会在真实上下文中**启动**每个工具插件并读取 `ctx.tools.schemas()`，因为工具 schema 无法通过静态分析完全确定，例如运行时展开的枚举、拼接的描述、由配置决定的名称以及使用原始 JSON Schema 的 MCP 工具。完整性守卫会 glob 匹配 `packages/*/tool-*`；如果生成器的启动 manifest（元数据清单）遗漏任何包，检查就会失败，因此新工具不会在无人察觉的情况下缺少文档。
 
-范围：`packages/*/tool-*` 下已发布的产品工具，以及 fork 自己位于 `packages/fork/` 的面向模型的工具包（`memory`、`llm-wiki`），每个工具均使用其**默认**配置启动；但如果某个 Config 字段是**必填项**且没有默认值，生成器就必须作出选择，对应包的说明会记录本页展示的是哪个分支。注册的工具**名称**可以是加载时配置，例如 `tool-subagent` 的 `toolName`，因此部署可能以不同名称或额外名称提供某个包；如果存在随产品发布的别名，对应包的说明会予以记录。`examples/` 中的演示工具（例如 `echo`）不在范围内，这与 Cordis 目录仅涵盖包的范围一致。
+范围：`packages/*/tool-*` 下已发布的产品工具，以及 fork 自己位于 `plugins/` 的面向模型的工具包（`memory`、`llm-wiki`），每个工具均使用其**默认**配置启动；但如果某个 Config 字段是**必填项**且没有默认值，生成器就必须作出选择，对应包的说明会记录本页展示的是哪个分支。注册的工具**名称**可以是加载时配置，例如 `tool-subagent` 的 `toolName`，因此部署可能以不同名称或额外名称提供某个包；如果存在随产品发布的别名，对应包的说明会予以记录。`examples/` 中的演示工具（例如 `echo`）不在范围内，这与 Cordis 目录仅涵盖包的范围一致。
 
 <a id="tool-package-map"></a>
 
@@ -2785,7 +2785,7 @@ operations 最多包含 8 条一起应用的 add/patch/remove 操作：其中一
 }
 ```
 
-来源：[`packages/fork/memory/src/tool.ts`](../packages/fork/memory/src/tool.ts)
+来源：[`plugins/memory/src/tool.ts`](../plugins/memory/src/tool.ts)
 
 以随产品发布的默认值启动（`writeApproval: none`、回合结束审查已启用、workspace 存储已启用）；这些默认值都不改变 schema。仅当会话无法被提示时，`writeApproval: ask` 才会把一批操作暂存到 `$DSH_HOME/memories/pending/`，并由 `/memory approve` 应用；否则工具直接写入。子 agent 以只读方式看到 workspace 存储，每次写入都在下一次 pre-step 快照中对模型可见，而不是在轮次中途。
 
@@ -2830,7 +2830,7 @@ operations 最多包含 8 条一起应用的 add/patch/remove 操作：其中一
 }
 ```
 
-来源：[`packages/fork/llm-wiki/src/tool.ts`](../packages/fork/llm-wiki/src/tool.ts)
+来源：[`plugins/llm-wiki/src/tool.ts`](../plugins/llm-wiki/src/tool.ts)
 
 ### `wiki_search`
 
@@ -2874,7 +2874,7 @@ operations 最多包含 8 条一起应用的 add/patch/remove 操作：其中一
 }
 ```
 
-来源：[`packages/fork/llm-wiki/src/search-tool.ts`](../packages/fork/llm-wiki/src/search-tool.ts)
+来源：[`plugins/llm-wiki/src/search-tool.ts`](../plugins/llm-wiki/src/search-tool.ts)
 
 ### `wiki_write`
 
@@ -2921,6 +2921,6 @@ path 相对仓库根，且必须是以下之一：pages/&lt;slug>.md（每个主
 }
 ```
 
-来源：[`packages/fork/llm-wiki/src/write.ts`](../packages/fork/llm-wiki/src/write.ts)
+来源：[`plugins/llm-wiki/src/write.ts`](../plugins/llm-wiki/src/write.ts)
 
 以随产品发布的默认值启动：没有全局 wiki（`global.repo: ''`），页面目录为 `pages/`，三项 lint 检查均为配置集合。schema 不依赖这些值；`global` 范围会报告 wiki 未配置，而不是改变 schema。在会话无法被提示时，`writeApproval: ask` 会以 `WIKI_APPROVAL_UNAVAILABLE` 拒绝 `wiki_write`，且不会暂存任何内容。

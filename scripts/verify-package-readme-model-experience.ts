@@ -41,9 +41,9 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/util/values': 'The package only validates, snapshots, compares, freezes, or rejects caller-owned values; consumers own every model-facing use.',
   'packages/util/official-bundles': 'The package only lists bundle package names and their display metadata; the loaded plugin tree owns model context.',
   'packages/util/code-language': 'The package only maps a filename suffix to a syntax-highlighting language id; the read consumer owns the persisted hint.',
-  'packages/fork/fork-policy': 'The package installs a host egress denylist and returns profile patch lists. It does not construct model input.',
-  'packages/fork/knowledge-common': 'The package only provides knowledge-store file primitives to its consumers; they own every model-facing use.',
-  'packages/fork/web-search-credentials': 'The package only resolves an API key for its provider consumers; they own every model-facing result.',
+  'plugins/fork-policy': 'The package installs a host egress denylist and returns profile patch lists. It does not construct model input.',
+  'plugins/knowledge-common': 'The package only provides knowledge-store file primitives to its consumers; they own every model-facing use.',
+  'plugins/web-search-credentials': 'The package only resolves an API key for its provider consumers; they own every model-facing result.',
 }
 
 /**
@@ -99,16 +99,16 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/attachment/attachment-local': { kind: 'indirect', reason: 'The local backend delegates model request rendering to provider adapters.' },
   'packages/mcp/mcp-manager': { kind: 'indirect', reason: 'The manager only mounts and disposes dsh-mcp-client instances; those instances own every model-facing tool and schema.' },
   'packages/client/ui-jobs': { kind: 'none', reason: 'Browser-side presentation of host-observed output; touches no prompt, message, schema, stream, or tool result.' },
-  'packages/fork/client-ui-settings-web-search': { kind: 'none', reason: 'The cards edit provider configuration for a human; the provider packages own the model-facing search result.' },
-  'packages/fork/client-ui-session-share': { kind: 'none', reason: 'The plugin raises a browser composer block for a human and registers no prompt, tool schema, or session event.' },
-  'packages/fork/ui-settings-usage': { kind: 'none', reason: 'The section shows provider quota to a human; it registers no prompt, tool schema, or session event.' },
-  'packages/fork/openai-codex-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
-  'packages/fork/xai-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
-  'packages/fork/copilot-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
-  'packages/fork/anago-core': { kind: 'indirect', reason: 'The bundle mounts the packages that own each model-facing tool, prompt section, and search provider.' },
-  'packages/fork/anago-web': { kind: 'indirect', reason: 'The bundle mounts browser-only settings cards; provider packages own the model-facing search result.' },
-  'packages/fork/web-search-brave': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },
-  'packages/fork/web-search-exa': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },
+  'plugins/client-ui-settings-web-search': { kind: 'none', reason: 'The cards edit provider configuration for a human; the provider packages own the model-facing search result.' },
+  'plugins/client-ui-session-share': { kind: 'none', reason: 'The plugin raises a browser composer block for a human and registers no prompt, tool schema, or session event.' },
+  'plugins/ui-settings-usage': { kind: 'none', reason: 'The section shows provider quota to a human; it registers no prompt, tool schema, or session event.' },
+  'plugins/openai-codex-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
+  'plugins/xai-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
+  'plugins/copilot-oauth': { kind: 'none', reason: 'The commands obtain a host credential for a human; they register no prompt, tool schema, or session event.' },
+  'plugins/anago-core': { kind: 'indirect', reason: 'The bundle mounts the packages that own each model-facing tool, prompt section, and search provider.' },
+  'plugins/anago-web': { kind: 'indirect', reason: 'The bundle mounts browser-only settings cards; provider packages own the model-facing search result.' },
+  'plugins/web-search-brave': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },
+  'plugins/web-search-exa': { kind: 'indirect', reason: 'The provider returns normalized sources through dsh-tool-web, which owns the model-facing search result.' },
   'packages/shell/shell': { kind: 'indirect', reason: 'The service interface delegates all model rendering to dsh-tool-bash.' },
   'packages/shell/shell-env': { kind: 'indirect', reason: 'The env service exposes managed DSH_* facts through the shell tools (dsh-tool-bash/dsh-tool-pwsh); it registers no prompt or schema of its own.' },
   'packages/shell/bash-local': { kind: 'indirect', reason: 'The executor backend delegates model rendering to dsh-tool-bash.' },
@@ -351,7 +351,7 @@ function isDirectSystemPromptEntry(title: string): boolean {
 
 /** Anchored generated-catalog links in one model-view field. */
 function toolCatalogLinkFragments(text: string): string[] {
-  return [...text.matchAll(/\]\(\.\.\/\.\.\/\.\.\/docs\/tool-catalog\.md#([a-z0-9_-]+)\)/g)]
+  return [...text.matchAll(/\]\((?:\.\.\/){2,3}docs\/tool-catalog\.md#([a-z0-9_-]+)\)/g)]
     .map(match => match[1] as string)
 }
 
@@ -362,7 +362,7 @@ for (const line of readFileSync(resolve(root, 'docs/tool-catalog.md'), 'utf8').s
 }
 
 const failures: Failure[] = []
-const packageJsons = globSync('packages/*/*/package.json', { cwd: root }).map(path => path.split(sep).join('/')).sort()
+const packageJsons = globSync(['packages/*/*/package.json', 'plugins/*/package.json'], { cwd: root }).map(path => path.split(sep).join('/')).sort()
 const scannedPackages = new Set(packageJsons.map(path => path.slice(0, -'/package.json'.length)))
 let structuredCount = 0
 let modelContextEntryCount = 0

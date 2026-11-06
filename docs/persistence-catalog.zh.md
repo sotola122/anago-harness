@@ -705,7 +705,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'memory/review-request': MemoryReviewRequestEventData
 ```
 
-来源：[`packages/fork/memory/src/review.ts:111`](../packages/fork/memory/src/review.ts)
+来源：[`plugins/memory/src/review.ts:111`](../plugins/memory/src/review.ts)
 
 ### `model/*`
 
@@ -4287,13 +4287,13 @@ SHA-256: `6f72ece8f317cd080c4f20a93f1bf709965f5b81ac4669528f5a023191cfcf20`
 
 <a id="persistence-type-memoryreviewrequesteventdata"></a>
 
-<a id="persistence-type-packagesforkmemorysrcreview-inputtsmemoryreviewrequesteventdata"></a>
+<a id="persistence-type-pluginsmemorysrcreview-inputtsmemoryreviewrequesteventdata"></a>
 
 ### `MemoryReviewRequestEventData`
 
 SHA-256: `c9881e6dde417f4a37b83c3633472cec4badca25d3e869443a432421978b244e`
 
-来源：[`packages/fork/memory/src/review-input.ts:40`](../packages/fork/memory/src/review-input.ts)
+来源：[`plugins/memory/src/review-input.ts:40`](../plugins/memory/src/review-input.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
@@ -4307,13 +4307,13 @@ SHA-256: `c9881e6dde417f4a37b83c3633472cec4badca25d3e869443a432421978b244e`
 
 <a id="persistence-type-memorysnapshotsource"></a>
 
-<a id="persistence-type-packagesforkmemorysrcsnapshottsmemorysnapshotsource"></a>
+<a id="persistence-type-pluginsmemorysrcsnapshottsmemorysnapshotsource"></a>
 
 ### `MemorySnapshotSource`
 
 SHA-256: `fc375fc8f10e035e1d9f57b28003e6a5ba36ca7e3bd1b7deda863e30e9783caa`
 
-来源：[`packages/fork/memory/src/snapshot.ts:53`](../packages/fork/memory/src/snapshot.ts)
+来源：[`plugins/memory/src/snapshot.ts:53`](../plugins/memory/src/snapshot.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
@@ -5024,7 +5024,7 @@ SHA-256: `a6941b37a64be8d71b1887a2721d6fd2589e2e890b64a041d9630ce8b0d1b828`
 
 SHA-256: `07e1a58c58b593f507b8e7f25723bb0aa42baae6e00f5ecfddf28cb1e64d3235`
 
-来源：[`packages/fork/memory/src/review-input.ts:42`](../packages/fork/memory/src/review-input.ts) · [`packages/session/session-title/src/types.ts:20`](../packages/session/session-title/src/types.ts) · [`packages/subagent/tool-subagent/src/model-selection.ts:18`](../packages/subagent/tool-subagent/src/model-selection.ts)
+来源：[`packages/session/session-title/src/types.ts:20`](../packages/session/session-title/src/types.ts) · [`packages/subagent/tool-subagent/src/model-selection.ts:18`](../packages/subagent/tool-subagent/src/model-selection.ts) · [`plugins/memory/src/review-input.ts:42`](../plugins/memory/src/review-input.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
@@ -5716,7 +5716,7 @@ SHA-256: `403d8778eec3e2c08738ce16361db40e5eb71a24043a1b69e4d8631b6c0bef15`
 
 <a id="persistence-type-sha256-1921e50bda0d5600513245783f0fbb35e837424339c750d6787d1b66d7eabf97"></a>
 
-<a id="persistence-type-packagesforkllm-wikisrcnoticetswikinoticesource"></a>
+<a id="persistence-type-pluginsllm-wikisrcnoticetswikinoticesource"></a>
 
 <a id="persistence-type-wikinoticesource"></a>
 
@@ -5724,7 +5724,7 @@ SHA-256: `403d8778eec3e2c08738ce16361db40e5eb71a24043a1b69e4d8631b6c0bef15`
 
 SHA-256: `1921e50bda0d5600513245783f0fbb35e837424339c750d6787d1b66d7eabf97`
 
-来源：[`packages/fork/llm-wiki/src/notice.ts:31`](../packages/fork/llm-wiki/src/notice.ts)
+来源：[`plugins/llm-wiki/src/notice.ts:31`](../plugins/llm-wiki/src/notice.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|

@@ -93,7 +93,7 @@
 
 ### 9. カバレッジ 100% — 完了
 
-- `packages/fork/**/src/**/*.{ts,tsx}` が **全ファイル 100% / 100% / 100% / 100%**（statements / branches / functions / lines）。カバレッジゲートは exit 0、`does not meet` なし。
+- `plugins/**/src/**/*.{ts,tsx}` が **全ファイル 100% / 100% / 100% / 100%**（statements / branches / functions / lines）。カバレッジゲートは exit 0、`does not meet` なし。
 - 到達可能なコードはすべてテスト済み（fork 全体で **1736 テスト成功**）。残っていたのは静的に到達不能な防御コードで、削除を基本とし、fs 境界・未信頼 JSON・ライフサイクル不変条件の 5 箇所だけ根拠付き `/* v8 ignore next -- ... */` を付けた。
 - 併せて、既存の型エラー（committed fork テスト 21 件）を修正し、`tsc -b host+client` も 0 エラーにした。
 
@@ -101,7 +101,7 @@
 
 ### no-unknown-casts — 完了
 
-- `packages/fork` の `as unknown` 42 件（src 12 / tests 30）を除去。テストのフェイクはパッケージごとの型付きヘルパーに集約し、src は構造的部分型・`unknown` 戻り値・`JSON.parse` の型注釈で解消。
+- `plugins` の `as unknown` 42 件（src 12 / tests 30）を除去。テストのフェイクはパッケージごとの型付きヘルパーに集約し、src は構造的部分型・`unknown` 戻り値・`JSON.parse` の型注釈で解消。
 - ゲート: `no new assertions; 1361 existing assertions remain`。テスト 1739 件、カバレッジ 100%、lint/JSDoc/jscpd すべて通過。
 
 ### dsh-TUI の運用組み込み — 完了
@@ -213,7 +213,7 @@
 - PATH 上の `dsh`（公開 CLI）でも、private bundle を **プロファイルの `link:` 依存**として宣言すれば解決できる。`~/.dsh/profiles/tui/package.json` に `@anago-harness/{anago-core,memory,llm-wiki,response-language,subagent-cursor,subagent-pi,web-search-brave,web-search-exa,web-search-credentials,knowledge-common}` を `link:` で宣言し、`pnpm add` で `node_modules` に外部ディレクトリへの symlink を作る。
 - 仕組み: `app-boot` の runtime resolution は、プロファイルの `node_modules` にある外部ディレクトリへの symlink を **linked root** として扱い、配下の import は realpath の祖先（リポジトリ）で解決しつつ、`@deepseek-ai/*` などの既知パッケージは公開インストール側へルーティングする。これにより公開 CLI とフォーク bundle を同一プロセスで安全に混在できる。
 - 再現コマンド（プロファイル内で、pnpm を PATH に用意して実行）:
-  `pnpm add --save-exact @mars-sea/dsh-commandcode-provider@0.14.1 link:<repo>/packages/fork/anago-core link:<repo>/packages/fork/memory ...`
+  `pnpm add --save-exact @mars-sea/dsh-commandcode-provider@0.14.1 link:<repo>/plugins/anago-core link:<repo>/plugins/memory ...`
 - 注意: `@mars-sea/dsh-commandcode-provider` は以前 `package.json` に未宣言で、`pnpm add` 時に prune された。現在は `0.14.1` を明示宣言済み。
 - 検証: `dsh tui --dump-default-config` で skip 0 件、pty 起動で pending/エラーなし、`--dump-config-schema` に memory / llm-wiki / response-language / subagent-cursor / subagent-pi / web-search-brave / web-search-exa が現れること。
 - 代替: `~/.local/bin/anago`（リポジトリの `apps/cli/lib/bin.js` を exec）も残している。`dsh-tui` 自身の `tool-ralph` patch 警告のみ残るが、これは外部 bundle のもので無害。
@@ -221,7 +221,7 @@
 
 ## pi TUI 実装の削除（2026-10-24）
 
-- `packages/fork/tui`（`@anago-harness/tui`）と `packages/fork/anago-tui`（バンドル）を削除。`PROFILE_TEMPLATES` の `tui`、`apps/cli` の依存、tsconfig の alias/reference、README ゲートの allowlist、Cordis カタログの `tuiStartup` 分類も同時に削除した。
+- `plugins/tui`（`@anago-harness/tui`）と `plugins/anago-tui`（バンドル）を削除。`PROFILE_TEMPLATES` の `tui`、`apps/cli` の依存、tsconfig の alias/reference、README ゲートの allowlist、Cordis カタログの `tuiStartup` 分類も同時に削除した。
 - プロファイル `~/.dsh/profiles/tui-pi` / `~/.dsh/profiles/tui-oc` を削除。現在の端末 UI は `tui` プロファイル（外部 `@deepseek-harness-tui/dsh-tui` + `anago-core`）のみ。
 - 設計は `ANAGO_PLUGINS_DESIGN.md` §6 に記録として残し、削除済みであることを明記した。
 
@@ -233,8 +233,8 @@
 
 ## xAI OAuth サインイン・プラグイン（2026-10-25）
 
-- 新規 `packages/fork/xai-oauth`（バンドル兼プラグイン）。`llm-pi-ai` が既に登録している `llm-pi-ai/xai` のデバイスコード OAuth を `ctx.authorization.begin()` で呼ぶだけで、フローは再登録しない。コマンドは `/xai-login` / `/xai-status` / `/xai-logout` / `/xai-cancel`。
-- インストール: `dsh plugin --profile <profile> add link:<repo>/packages/fork/xai-oauth` で依存に記録し、`dsh.profile.bundles` に `@anago-harness/xai-oauth` を追加する。`web-anago` には追加済み（3083 の検証ホストで稼働）。
+- 新規 `plugins/xai-oauth`（バンドル兼プラグイン）。`llm-pi-ai` が既に登録している `llm-pi-ai/xai` のデバイスコード OAuth を `ctx.authorization.begin()` で呼ぶだけで、フローは再登録しない。コマンドは `/xai-login` / `/xai-status` / `/xai-logout` / `/xai-cancel`。
+- インストール: `dsh plugin --profile <profile> add link:<repo>/plugins/xai-oauth` で依存に記録し、`dsh.profile.bundles` に `@anago-harness/xai-oauth` を追加する。`web-anago` には追加済み（3083 の検証ホストで稼働）。
 - サインイン: `/xai-login` の 1 行目に検証 URL とコードが出る（Web のコマンド行は 1 行目しか見えないため）。承認後はバックグラウンドでポーリングし、`/xai-status` で状態を確認できる。
 - モデル: Models ページで id が `xai`、API key 空欄のプロバイダを追加する（実 UI で追加・保存を確認済み）。レコードが入るとピッカーに `grok-4.3`〜`grok-4.7` が出る想定。
 - 検証済み: コマンド登録とスラッシュメニュー表示、`/xai-login` の実フロー開始、二重起動の拒否表示、`/xai-cancel` と `Sign-in: cancelled.`、`/xai-status` の URL・コード表示、Models ページでの `xai` 追加（API key 空欄）。テスト 26 件・カバレッジ 100%。
@@ -255,7 +255,7 @@
 
 ## GitHub Copilot OAuth プラグイン検証（2026-10-26）
 
-- 実装: `packages/fork/copilot-oauth`（`/copilot-login` / `/copilot-status` / `/copilot-logout` / `/copilot-cancel`）。既存の `llm-pi-ai/github-copilot` フローのみ使用。実装はコミット済み（履歴参照）。
+- 実装: `plugins/copilot-oauth`（`/copilot-login` / `/copilot-status` / `/copilot-logout` / `/copilot-cancel`）。既存の `llm-pi-ai/github-copilot` フローのみ使用。実装はコミット済み（履歴参照）。
 - レコード: `~/.dsh/.credentials.yaml` の `llm-pi-ai/github-copilot` が `kind: grant` / `payload.type: oauth` で作成され、`availableModelIds` は 24 件、`expires` は約 24 時間先。ファイルは 0600。
 - 実チャット: モデル `github-copilot/gpt-5.6-sol`（GPT-5.6 Sol）で 2 ターン成功（`Completed` 2 秒、応答 "OK" / "READY"、Usage 17.1K tok）。
 - 再起動: 3083 を再起動後もレコードが残り、同じモデルでチャット成功。
@@ -284,11 +284,11 @@
 
 ## OpenAI Codex OAuth プラグイン（2026-10-31）
 
-- 新規 `packages/fork/openai-codex-oauth`（バンドル兼プラグイン）。`llm-pi-ai` が登録済みの `openai-codex` カタログプロバイダ向け OAuth フローを `ctx.authorization.begin()` で駆動するのみで、独自のフロー登録や資格情報の直接書き込みは行わない。資格情報は `llm-pi-ai/openai-codex` として pi-ai が唯一の書き手となり、失効前のリフレッシュも pi-ai が担う。
+- 新規 `plugins/openai-codex-oauth`（バンドル兼プラグイン）。`llm-pi-ai` が登録済みの `openai-codex` カタログプロバイダ向け OAuth フローを `ctx.authorization.begin()` で駆動するのみで、独自のフロー登録や資格情報の直接書き込みは行わない。資格情報は `llm-pi-ai/openai-codex` として pi-ai が唯一の書き手となり、失効前のリフレッシュも pi-ai が担う。
 - コマンド: `/codex-login` / `/codex-code <authorization code or redirect URL>` / `/codex-status` / `/codex-logout` / `/codex-cancel`（すべて `ctx.effect()` 経由で登録）。
 - SSH ポートフォワード案内: ブラウザコールバックはハーネスホストの `127.0.0.1:1455` で待ち受ける。`/codex-login` の成功表示は認可 URL を先頭行にし、「Finish in this browser to sign in automatically. From another machine, forward the callback port first:」、コマンド単独行、ポート 1455 が Codex CLI に占有されているときの `/codex-code` 行、の順で出す。サインイン中の `/codex-status` は「From another machine, forward the callback port first:」とコマンドの 2 行だけを再表示する。`userInfo()` が passwd エントリなしで throw してもコマンドは失敗させず、ユーザー名は `USER`、次に `LOGNAME`、最後に `user` へ落とす。
 - ブラウザフローの選定と `/codex-code` 経路: pi-ai の `openai-codex` フローは最初に `browser`（既定）と `device_code` の `select` プロンプトを提示するが、本プラグインは常に `browser` を選択し、デバイスコードログインは使用しない。ブラウザフローは `http://127.0.0.1:1455/auth/callback` でローカルコールバックを待受し、URL 通知後にローカルコールバックとペーストプロンプトを競合させる。スラッシュコマンドは出力をストリーミングできないため、`/codex-login` は認可 URL が確定した時点で直ちに復帰して URL と案内を表示する。ポート 1455 が Codex CLI などに占有されている場合やリモート／ヘッドレス環境では、ブラウザに表示されたコードまたはリダイレクト URL を `/codex-code <value>` で手動入力して完了させる。ブラウザコールバックが競合に勝利した場合は、退避中のペーストプロンプトを人間による拒否（`AuthorizationDeclinedError`）ではなく通常の Error で破棄し、不要な辞退記録を残さない。
 - インストール: 出荷プロファイルには自動登録されないため、OpenAI Codex へのサインインが必要なプロファイルで個別に導入する。
-  `dsh plugin --profile <profile> add link:/absolute/path/to/packages/fork/openai-codex-oauth` を実行し、`dsh.profile.bundles` に `@anago-harness/openai-codex-oauth` を追加する。
+  `dsh plugin --profile <profile> add link:/absolute/path/to/plugins/openai-codex-oauth` を実行し、`dsh.profile.bundles` に `@anago-harness/openai-codex-oauth` を追加する。
 - 検証済み: 単体テスト 33 件、`src/index.ts` のカバレッジ 100%、lint、パッケージの `tsc -b`、設定カタログ（`docs/config-catalog*.md`）およびプラグインパッケージ一覧の再生成。
 - 実機検証の残り（人間の実 OpenAI アカウント操作が必要）: 実 OpenAI アカウント（ChatGPT Plus/Pro）でのサインイン、`~/.dsh/.credentials.yaml` への `llm-pi-ai/openai-codex` レコード作成、`openai-codex` モデルでの実チャット、プロセス再起動後の維持、トークン自動リフレッシュ、`/codex-logout` によるサインアウト。稼働中の本番プロファイル `web-anago` へのバンドル追加とサービス再起動も未実施。

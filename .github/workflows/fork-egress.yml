@@ -35,4 +35,4 @@ jobs:
       - name: Scan shipped hosts
         run: node ci/fork/scan-egress.mjs
       - name: Run egress guard tests
-        run: pnpm exec vitest run packages/fork/fork-policy/tests/egress-guard.spec.ts
+        run: pnpm exec vitest run plugins/fork-policy/tests/egress-guard.spec.ts

@@ -39,6 +39,11 @@ const CLIENT_ARTIFACT_PATTERNS = [
   'packages/*/*/lib/client.*.js',
   'packages/*/*/lib/client.*.js.map',
   'packages/*/*/lib/assets/**/*',
+  'plugins/*/lib/client.js',
+  'plugins/*/lib/client.js.map',
+  'plugins/*/lib/client.*.js',
+  'plugins/*/lib/client.*.js.map',
+  'plugins/*/lib/assets/**/*',
 ] as const
 
 /** Public values embedded in one set of client artifacts. */

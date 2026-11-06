@@ -736,13 +736,13 @@ const TOOL_PACKAGES: ToolPackage[] = [
     note:
       'web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.',
   },
-  // The fork's own model-facing tool packages live under `packages/fork/`, so
+  // The fork's own model-facing tool packages live under `plugins/`, so
   // the `packages/*/tool-*` completeness glob below cannot see them; they are
   // listed explicitly here.
   {
     pkg: '@anago-harness/memory',
     dir: 'memory',
-    source: 'packages/fork/memory/src/tool.ts',
+    source: 'plugins/memory/src/tool.ts',
     requires: [
       'ctx.tools',
       'ctx.commands',
@@ -777,9 +777,9 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@anago-harness/llm-wiki',
     dir: 'llm-wiki',
     source: {
-      wiki_lint: 'packages/fork/llm-wiki/src/tool.ts',
-      wiki_search: 'packages/fork/llm-wiki/src/search-tool.ts',
-      wiki_write: 'packages/fork/llm-wiki/src/write.ts',
+      wiki_lint: 'plugins/llm-wiki/src/tool.ts',
+      wiki_search: 'plugins/llm-wiki/src/search-tool.ts',
+      wiki_write: 'plugins/llm-wiki/src/write.ts',
     },
     requires: [
       'ctx.tools',
@@ -969,7 +969,7 @@ export function render(catalog: ToolCatalog): string {
     '',
     'This file is GENERATED and verified fresh by `pnpm run verify-tool-catalog` (part of `doc-sync`) — do not edit it by hand. Unlike the cordis catalog (a pure source-AST pass), this generator BOOTS each tool plugin on a real context and reads `ctx.tools.schemas()`, because a tool schema is not statically knowable (runtime-spread enums, concatenated descriptions, config-driven names, raw-JSON-Schema MCP tools). A completeness guard globs `packages/*/tool-*` and fails if any package is missing from the generator\'s boot manifest, so a new tool cannot be silently undocumented.',
     '',
-    'Scope: shipped product tools under `packages/*/tool-*`, plus the fork\'s own model-facing tool packages under `packages/fork/` (`memory`, `llm-wiki`), each booted with its DEFAULT config, except where a Config field is REQUIRED with no default — there the generator must choose, and the per-package note records which branch this page shows. The registered tool NAME can be a load-time config (e.g. `tool-subagent`\'s `toolName`), so a deployment may expose a package under a different or additional name — a per-package note records those shipped aliases where they exist. The `examples/` demo tools (e.g. `echo`) are excluded, matching the cordis catalog\'s packages-only scope.',
+    'Scope: shipped product tools under `packages/*/tool-*`, plus the fork\'s own model-facing tool packages under `plugins/` (`memory`, `llm-wiki`), each booted with its DEFAULT config, except where a Config field is REQUIRED with no default — there the generator must choose, and the per-package note records which branch this page shows. The registered tool NAME can be a load-time config (e.g. `tool-subagent`\'s `toolName`), so a deployment may expose a package under a different or additional name — a per-package note records those shipped aliases where they exist. The `examples/` demo tools (e.g. `echo`) are excluded, matching the cordis catalog\'s packages-only scope.',
     '',
     '## Tool Package Map',
     '',

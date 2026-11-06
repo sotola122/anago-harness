@@ -52,7 +52,7 @@ Each new kind is an additional discriminator on the message source, not a change
 <a id="verification"></a>
 ## Verification
 
-`tsx scripts/persistence-changes.ts --check` reports the acknowledged history. The unit suites for both packages assert the declared `MessageSourceMap` kinds and the injected message payloads, and `vitest run packages/fork` passes 49 files and 1003 tests. Replay of the recorded headless scenario `bash-tool-turn` (with the fork compatibility patch) stays byte-identical, which shows existing recordings are unaffected.
+`tsx scripts/persistence-changes.ts --check` reports the acknowledged history. The unit suites for both packages assert the declared `MessageSourceMap` kinds and the injected message payloads, and `vitest run plugins` passes 49 files and 1003 tests. Replay of the recorded headless scenario `bash-tool-turn` (with the fork compatibility patch) stays byte-identical, which shows existing recordings are unaffected.
 
 <a id="dev-note"></a>
 ## Dev Note

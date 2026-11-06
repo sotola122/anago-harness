@@ -40,7 +40,7 @@ This adds a new event root. Older readers that do not know the event keep the re
 <a id="verification"></a>
 ## Verification
 
-`tsx scripts/persistence-changes.ts --check` reports the acknowledged history. The memory suite asserts that the event exists before the stream starts and carries the exact request, and `vitest run packages/fork/memory/tests` passes 11 files and 239 tests.
+`tsx scripts/persistence-changes.ts --check` reports the acknowledged history. The memory suite asserts that the event exists before the stream starts and carries the exact request, and `vitest run plugins/memory/tests` passes 11 files and 239 tests.
 
 <a id="dev-note"></a>
 ## Dev Note

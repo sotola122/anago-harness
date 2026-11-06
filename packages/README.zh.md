@@ -81,7 +81,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`client/`](client/README.zh.md) | web GUI 浏览器半侧：shell、协议层、对象服务、slot、`ui-*` 插件 |
 | [`test-support/`](test-support/README.zh.md) | 测试基础设施（testkit、回放、Loader 冒烟测试） |
 | [`util/`](util/README.zh.md) | 组间共享的工具与纯数据包列表（`Branded<B>`、home／路径辅助函数、超时、留存、组合包列表） |
-| [`fork/`](fork/README.zh.md) | fork 私有包：出站守卫、`anago-core` 主机能力与 `anago-web` 浏览器卡片 |
+| [`plugins/`](https://github.com/sotola122/dsh-plugins) | fork 私有包：出站守卫、`anago-core` 主机能力与 `anago-web` 浏览器卡片 |
 
 -----
 

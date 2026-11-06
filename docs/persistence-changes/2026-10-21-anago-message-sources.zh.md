@@ -52,7 +52,7 @@ changes:
 <a id="verification"></a>
 ## 验证
 
-`tsx scripts/persistence-changes.ts --check` 报告已确认的历史。两个包的单测断言了声明的 `MessageSourceMap` kind 与注入的消息负载，`vitest run packages/fork` 通过 49 个文件、1003 个测试。使用 fork 兼容 patch 重放已录制的 headless 场景 `bash-tool-turn` 结果字节一致，说明既有录制不受影响。
+`tsx scripts/persistence-changes.ts --check` 报告已确认的历史。两个包的单测断言了声明的 `MessageSourceMap` kind 与注入的消息负载，`vitest run plugins` 通过 49 个文件、1003 个测试。使用 fork 兼容 patch 重放已录制的 headless 场景 `bash-tool-turn` 结果字节一致，说明既有录制不受影响。
 
 <a id="dev-note"></a>
 ## 开发备注

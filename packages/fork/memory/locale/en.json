@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Agent memory",
-    "description": "Persistent agent memory: global and workspace stores, the memory tool, and injected snapshots."
-  }
-}

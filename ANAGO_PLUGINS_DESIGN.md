@@ -46,8 +46,8 @@ This design proposes a third bundle, `anago-tui`, so TUI rows never land in the 
 ### 3.1 The running harness and the checkout
 
 - This session runs on `~/.local/lib/node_modules/@deepseek-ai/dsh` (`@deepseek-ai/dsh@0.2.1-rc.2`), separate from the fork checkout.
-- The fork checkout is 0.2.1-rc.2 plus fork commits (`fix(fork): …`, `docs: brand the fork as Anago Harness`, and others). The only fork package implemented under `packages/fork/` is `@anago-harness/fork-policy`.
-- `@anago-harness/fork-policy`'s `forkDefaultPatches` and `forkLockPatches` both return empty lists today (`packages/fork/fork-policy/src/index.ts`). `packages/boot/app-boot/src/profile-context.ts` splices those two functions between the bundle layers and the profile layer.
+- The fork checkout is 0.2.1-rc.2 plus fork commits (`fix(fork): …`, `docs: brand the fork as Anago Harness`, and others). The only fork package implemented under `plugins/` is `@anago-harness/fork-policy`.
+- `@anago-harness/fork-policy`'s `forkDefaultPatches` and `forkLockPatches` both return empty lists today (`plugins/fork-policy/src/index.ts`). `packages/boot/app-boot/src/profile-context.ts` splices those two functions between the bundle layers and the profile layer.
 
 ### 3.2 Installed plugins (the port sources)
 
@@ -71,8 +71,8 @@ Supporting facts:
 
 ### 3.3 The fork's receiving structure
 
-- `packages/*/*` is the unit for the pnpm workspace, tsdown, and vitest. `scripts/check-workspace-constraints.ts` treats `packages/fork/` as non-release private packages: excluded from `standardReleaseMemberDirectory`, `private: true` required, and the version must equal the root's.
-- Naming follows the existing scope: `@anago-harness/*` with no `dsh-` prefix. `fork-policy` lives at `packages/fork/fork-policy`.
+- `packages/*/*` is the unit for the pnpm workspace, tsdown, and vitest. `scripts/check-workspace-constraints.ts` treats `plugins/` as non-release private packages: excluded from `standardReleaseMemberDirectory`, `private: true` required, and the version must equal the root's.
+- Naming follows the existing scope: `@anago-harness/*` with no `dsh-` prefix. `fork-policy` lives at `plugins/fork-policy`.
 - `tsconfig.base.json` carries a hand-written `@anago-harness/fork-policy` alias outside the generated region. The `references` in `tsconfig.host.json` and `tsconfig.client.json` are also manual.
 - Shipped profile bundle lists live in `PROFILE_TEMPLATES` (`packages/boot/app-boot/src/profile.ts`): `acp`, `web`, `headless`, `sdk`, `sdk-minimal`. There is no `tui` template.
 - An existing profile keeps the bundle list it was created with, so a template change only affects new profiles. Rebuild one with `dsh rescue --from-default-profile <name>` (`apps/cli/src/args.ts`).
@@ -124,7 +124,7 @@ Supporting facts:
 
 ## 4. Target structure
 
-### 4.1 Packages (all under `packages/fork/<dir>`, `private: true`, version equal to the root)
+### 4.1 Packages (all under `plugins/<dir>`, `private: true`, version equal to the root)
 
 | Directory | npm name | Kind | Origin | Row ids |
 |---|---|---|---|---|
@@ -198,7 +198,7 @@ graph TD
 
 ### 4.3 Bundle definitions
 
-`packages/fork/anago-core/cordis.patch.yml`:
+`plugins/anago-core/cordis.patch.yml`:
 
 ```yaml
 # anago-core: the fork's host capabilities over dsh-base.
@@ -243,7 +243,7 @@ graph TD
     fetchProvider: http
 ```
 
-`packages/fork/anago-web/cordis.patch.yml`:
+`plugins/anago-web/cordis.patch.yml`:
 
 ```yaml
 - insert:
@@ -260,7 +260,7 @@ graph TD
   disabled: true
 ```
 
-`packages/fork/anago-tui/cordis.patch.yml`:
+`plugins/anago-tui/cordis.patch.yml`:
 
 ```yaml
 - insert:
@@ -377,7 +377,7 @@ tui: {
 
 ## 6. TUI plugin (inheriting pi's TUI) — 実装は 2026-10-24 に削除
 
-> この章は設計時の記録。`packages/fork/tui` / `packages/fork/anago-tui`、`tui` プロファイルテンプレート、`tui-pi` / `tui-oc` プロファイルは 2026-10-24 に削除した。現在の端末 UI は外部の dsh-TUI バンドルを使う。
+> この章は設計時の記録。`plugins/tui` / `plugins/anago-tui`、`tui` プロファイルテンプレート、`tui-pi` / `tui-oc` プロファイルは 2026-10-24 に削除した。現在の端末 UI は外部の dsh-TUI バンドルを使う。
 
 ### 6.1 What is inherited and what is not
 
@@ -394,7 +394,7 @@ Only one package is depended on: `@earendil-works/pi-tui`. Reading pi's implemen
 ### 6.2 Package layout
 
 ```
-packages/fork/tui/
+plugins/tui/
   package.json            # exports: "." -> lib/index.js, "./startup" -> lib/startup.js
   (no cordis.patch.yml; anago-tui owns the rows)
   src/
@@ -621,7 +621,7 @@ No PTY dependency is introduced. A real-terminal check is a manual acceptance st
 | README Model Experience | Add an entry in `scripts/doc-standard.spec.ts` and `scripts/verify-package-readme-model-experience.ts` | Plugins describe the real effect; libraries say they construct no model input |
 | README Known Limitations | Required; a package without one registers a reason in `NO_LIMITATIONS` | `scripts/verify-package-readme-limitations.ts` |
 | `tests/` | `tests/*.spec.ts` | What vitest discovers |
-| `packages/fork/README.md` | Add the package to the table | Group README |
+| `plugins/README.md` | Add the package to the table | Group README |
 | `packages/README.md` | Update the group description when needed | |
 | `docs/config-catalog.md` | Regenerate with `pnpm run gen-config-catalog` | Packages with a `Config` |
 | `docs/tool-catalog.md` | Follow the §8.5 decision | |
@@ -631,16 +631,16 @@ No PTY dependency is introduced. A real-terminal check is a manual acceptance st
 | Client-half contract test | A package-local `tests/manifest.spec.ts` pins `dsh.client.platform === 'web'`, the `exports['./client']` entry, the absence of `css-modules.d.ts`, and that `dsh.client.inject` matches the peer dependencies | Closes the gap left by `verify-client-packages` only inspecting `packages/client/*` |
 | `PROJECT_GUIDELINE.md` / `docs/fork.md` | Update §4/§5/§6.5 and the current-state summary | |
 
-Additional constraints when the client half lives under `packages/fork` (verified):
+Additional constraints when the client half lives under `plugins` (verified):
 
 - The browser half is served by resolving `exports["./client"]` from the row's package manifest and reading `lib/client.js` (`packages/client/modules/src/index.ts`). The location is not restricted to `packages/client/*`.
-- The build-record glob is `packages/*/*/lib/client.js`, so fork client output is recorded automatically. The build is `build:lib:client` = `tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client`, so both are required: adding the package to the `tsconfig.client.json` `references` (type checking and declaration output) and calling the `clientBundle` preset from `tsdown.config.ts`.
+- The build-record glob includes `packages/*/*/lib/client.js` and `plugins/*/lib/client.js`, so fork client output is recorded. The build is `build:lib:client` = `tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client`, so both are required: adding the package to the `tsconfig.client.json` `references` (type checking and declaration output) and calling the `clientBundle` preset from `tsdown.config.ts`.
 - `scripts/client-tsconfig.spec.ts` requires the `src/css-modules.d.ts` files the client aggregate loads to match exactly those under `packages/client` and `packages/extensions`. Using CSS Modules in the fork package would break that equality, so the cards avoid CSS Modules and style with inline values or existing primitive classes.
 - `scripts/verify-client-packages.ts` statically inspects only `packages/client/*`. The fork package follows the same rules by hand (the `dsh.client` declaration, the `./client` export, the `clientBundle` preset, locale dictionaries).
 
 ### 8.2 Coverage
 
-- The target automatically includes `packages/fork/**/src` (`vitest.config.ts` includes `packages/*/*/src/**`), and **100% per file** (statements, branches, functions, lines) is the default.
+- The target includes `packages/*/*/src/**` and `plugins/*/src/**` (`vitest.config.ts`), and **100% per file** (statements, branches, functions, lines) is the default.
 - **Decision (Claude review, 2026-10-21): allow file-level exclusions tagged `TODO(fork)` in stages, shrinking only.** Requiring 100% on day one would let "the order tests are written" dominate phases 2–5, and excluding the fork wholesale would violate the "narrow, justified exceptions" rule.
 - Evidence per phase:
   1. Every file the phase adds is at 100% (the diff's coverage).
@@ -652,7 +652,7 @@ Additional constraints when the client half lives under `packages/fork` (verifie
 
 - The bilingual README is English plus Chinese (the repository i18n contract). Japanese prose lives in this design and in PROJECT_GUIDELINE.
 - `docs/config-catalog.md` embeds a `Config`'s JSDoc, so each field needs contract prose (the source DESIGN comments may be reused, condensed to the repository's prose standard).
-- Web UI copy goes through locale dictionaries (`verify-client-ui-i18n` scans `packages/*/*/src/client/**/*.tsx`, so the fork cards are included).
+- Web UI copy goes through locale dictionaries (`verify-client-ui-i18n` scans `packages/*/*/src/client/**/*.tsx` and `plugins/*/src/client/**/*.tsx`, so the fork cards are included).
 
 ### 8.4 Snapshots
 
@@ -669,7 +669,7 @@ Additional constraints when the client half lives under `packages/fork` (verifie
 
 ### 8.5 Tool catalog
 
-- The boot manifest in `scripts/gen-tool-catalog.ts` is a **real-boot** list covering `packages/*/tool-*` leaves. Each entry carries `pkg`, `dir`, `source`, `requires`, `writes`, and `mount` (a function that actually mounts the plugin and reads `ctx.tools.schemas()`). The completeness guard only globs `packages/*/tool-*`, so a name like `packages/fork/memory` **is never checked** (which means it silently stays unlisted).
+- The boot manifest in `scripts/gen-tool-catalog.ts` is a **real-boot** list covering `packages/*/tool-*` leaves. Each entry carries `pkg`, `dir`, `source`, `requires`, `writes`, and `mount` (a function that actually mounts the plugin and reads `ctx.tools.schemas()`). The completeness guard only globs `packages/*/tool-*`, so a name like `plugins/memory` **is never checked** (which means it silently stays unlisted).
 - Plan: listing the fork's four tools (`memory`, `wiki_write`, `wiki_search`, `wiki_lint`) requires one `mount` plus `requires` and `writes` per package; changing `source` alone is not enough. Roughly half a day to a day.
 - Leaving them out is acceptable if the README and this design state "the fork's tools are not in the upstream catalog" (never a silent omission).
 
@@ -708,7 +708,7 @@ Rollback just restores the old bundle list and removes `anago-core`, `anago-web`
 
 | Phase | Content | Acceptance | Estimate |
 |---|---|---|---|
-| 0 | Receiving structure: update `packages/fork/README.md`, establish the alias and reference procedure, an empty `anago-core` bundle, and re-read the five source packages | `pnpm run build`, `typecheck`, and `constraints` pass | 1 day |
+| 0 | Receiving structure: update `plugins/README.md`, establish the alias and reference procedure, an empty `anago-core` bundle, and re-read the five source packages | `pnpm run build`, `typecheck`, and `constraints` pass | 1 day |
 | 1 | `knowledge-common`, `response-language`, `anago-core` (two rows), the `web` and `headless` templates, the snapshot compatibility layer, and the upgrade guide | Web and headless carry the Japanese-response section; upstream snapshots pass without re-recording; `docs/upgrade-guide/<version>/anago-bundles/guide.md` exists | 2 days |
 | 2 | `memory` (tool, commands, injection, review) | Memory storage and injection work; 100% coverage or recorded exclusions; the review stays off by default in headless | 4 days |
 | 3 | `llm-wiki` (three tools, commands, skill, guards) | Project and global wiki reads, writes, and lint work | 5 days |
@@ -781,16 +781,16 @@ Phases 0–7 have their skeleton implemented. The three lists below separate wha
 
 Landed:
 
-- Fifteen packages under `packages/fork/`: `knowledge-common`, `memory`, `llm-wiki`, `response-language`, `subagent-cursor`, `subagent-pi`, `web-search-brave`, `web-search-exa`, `web-search-credentials`, `client-ui-settings-web-search`, `tui`, `anago-core`, `anago-web`, `anago-tui`, and the existing `fork-policy`.
+- Fifteen packages under `plugins/`: `knowledge-common`, `memory`, `llm-wiki`, `response-language`, `subagent-cursor`, `subagent-pi`, `web-search-brave`, `web-search-exa`, `web-search-credentials`, `client-ui-settings-web-search`, `tui`, `anago-core`, `anago-web`, `anago-tui`, and the existing `fork-policy`.
 - `PROFILE_TEMPLATES` gained `anago-core` (web, headless, tui), `anago-web` (web), and `anago-tui` (tui), plus a new `tui` template.
 - `anago-core` pins the default search provider to `exa`; `anago-web` disables upstream's DeepSeek search card.
 - `snapshots/session/upstream-compat.cordis.yml` plus one line in the headless driver let upstream recordings replay unchanged.
-- `docs/upgrade-guide/v0.2.1-rc.2/anago-bundles/`, `docs/fork.md`, `packages/fork/README.md`, and this document were updated.
+- `docs/upgrade-guide/v0.2.1-rc.2/anago-bundles/`, `docs/fork.md`, `plugins/README.md`, and this document were updated.
 
 Verified (run in this checkout):
 
 - `./node_modules/.bin/tsc -b tsconfig.host.json tsconfig.client.json` succeeds (the aggregate type check, tests included).
-- `./node_modules/.bin/vitest run packages/fork` passes 49 files and 1003 tests.
+- `./node_modules/.bin/vitest run plugins` passes 49 files and 1003 tests.
 - Replaying the single headless scenario `bash-tool-turn` from `snapshots/session/headless.snapshot.ts` succeeds through the compatibility layer.
 - `--dump-config` composes fresh `web`, `headless`, and `tui` profiles with the designed rows and values.
 - All 42 doc-sync gates were checked. The last aggregate run failed only on translation pairing; after fixing the cause, all 1032 pairs were verified consistent. `verify-export-jsdoc`, `verify-package-readme-model-experience`, `verify-package-readme-limitations`, `verify-subsystem-pages`, `verify-cordis-config`, `verify-default-product-isolation`, `verify-client-packages`, `verify-client-ui-i18n`, `jscpd` (0 clones), `gen-config-catalog --check`, `gen-tool-catalog --check`, `gen-cordis-catalog --check`, `gen-cli-help --check`, `gen-client-catalog --check`, `gen-doc-graphs --check`, `gen-plugin-packages --check`, and `verify-persistence-changes` pass.
@@ -823,7 +823,7 @@ Every P0 was fixed and verified in the same pass:
 | 7 | The raw/ guard let direct children through and resolved relative paths against the wrong directory | The guard compares the leaf (so only `raw/` itself is outside), classifies a direct child as existing or new, and resolves relative paths through the same working-directory service the filesystem tool uses |
 | 8 | Provider error text could carry a key echoed by an untrusted response | `redactSecret` and `boundedProviderDetail` live in `web-search-credentials`; both providers sanitize before a message is built, and the Exa wrapper re-throws a redacted, bounded failure while preserving `WEB_ABORTED` and the upstream code |
 
-Verification after the fixes: `vitest run packages/fork` passes 53 files and 1060 tests; the host and client aggregates type-check; `oxlint packages/fork` reports zero; `jscpd` reports zero clones; the README, link, wrap, summary, model-experience, limitations, translation-pairing, cordis-config, isolation, persistence, and generated-catalog checks pass.
+Verification after the fixes: `vitest run plugins` passes 53 files and 1060 tests; the host and client aggregates type-check; `oxlint plugins` reports zero; `jscpd` reports zero clones; the README, link, wrap, summary, model-experience, limitations, translation-pairing, cordis-config, isolation, persistence, and generated-catalog checks pass.
 
 Still open from that review (P1/P2, not fixed in this pass):
 

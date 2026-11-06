@@ -703,7 +703,7 @@ Source: [`packages/llm/llm-retry/src/types.ts:11`](../packages/llm/llm-retry/src
 'memory/review-request': MemoryReviewRequestEventData
 ```
 
-Source: [`packages/fork/memory/src/review.ts:111`](../packages/fork/memory/src/review.ts)
+Source: [`plugins/memory/src/review.ts:111`](../plugins/memory/src/review.ts)
 
 ### `model/*`
 
@@ -4285,13 +4285,13 @@ Sources: [`packages/llm/llm-retry/src/types.ts:43`](../packages/llm/llm-retry/sr
 
 <a id="persistence-type-memoryreviewrequesteventdata"></a>
 
-<a id="persistence-type-packagesforkmemorysrcreview-inputtsmemoryreviewrequesteventdata"></a>
+<a id="persistence-type-pluginsmemorysrcreview-inputtsmemoryreviewrequesteventdata"></a>
 
 ### `MemoryReviewRequestEventData`
 
 SHA-256: `c9881e6dde417f4a37b83c3633472cec4badca25d3e869443a432421978b244e`
 
-Sources: [`packages/fork/memory/src/review-input.ts:40`](../packages/fork/memory/src/review-input.ts)
+Sources: [`plugins/memory/src/review-input.ts:40`](../plugins/memory/src/review-input.ts)
 
 | Property | Presence | Type |
 |---|---|---|
@@ -4305,13 +4305,13 @@ Sources: [`packages/fork/memory/src/review-input.ts:40`](../packages/fork/memory
 
 <a id="persistence-type-memorysnapshotsource"></a>
 
-<a id="persistence-type-packagesforkmemorysrcsnapshottsmemorysnapshotsource"></a>
+<a id="persistence-type-pluginsmemorysrcsnapshottsmemorysnapshotsource"></a>
 
 ### `MemorySnapshotSource`
 
 SHA-256: `fc375fc8f10e035e1d9f57b28003e6a5ba36ca7e3bd1b7deda863e30e9783caa`
 
-Sources: [`packages/fork/memory/src/snapshot.ts:53`](../packages/fork/memory/src/snapshot.ts)
+Sources: [`plugins/memory/src/snapshot.ts:53`](../plugins/memory/src/snapshot.ts)
 
 | Property | Presence | Type |
 |---|---|---|
@@ -5022,7 +5022,7 @@ Sources: [`packages/session/session-title-llm/src/index.ts:43`](../packages/sess
 
 SHA-256: `07e1a58c58b593f507b8e7f25723bb0aa42baae6e00f5ecfddf28cb1e64d3235`
 
-Sources: [`packages/fork/memory/src/review-input.ts:42`](../packages/fork/memory/src/review-input.ts) · [`packages/session/session-title/src/types.ts:20`](../packages/session/session-title/src/types.ts) · [`packages/subagent/tool-subagent/src/model-selection.ts:18`](../packages/subagent/tool-subagent/src/model-selection.ts)
+Sources: [`packages/session/session-title/src/types.ts:20`](../packages/session/session-title/src/types.ts) · [`packages/subagent/tool-subagent/src/model-selection.ts:18`](../packages/subagent/tool-subagent/src/model-selection.ts) · [`plugins/memory/src/review-input.ts:42`](../plugins/memory/src/review-input.ts)
 
 | Property | Presence | Type |
 |---|---|---|
@@ -5714,7 +5714,7 @@ Array of [`UserMessage`](#persistence-type-sha256-01cf64d9a388806247ae8eb7e6f349
 
 <a id="persistence-type-sha256-1921e50bda0d5600513245783f0fbb35e837424339c750d6787d1b66d7eabf97"></a>
 
-<a id="persistence-type-packagesforkllm-wikisrcnoticetswikinoticesource"></a>
+<a id="persistence-type-pluginsllm-wikisrcnoticetswikinoticesource"></a>
 
 <a id="persistence-type-wikinoticesource"></a>
 
@@ -5722,7 +5722,7 @@ Array of [`UserMessage`](#persistence-type-sha256-01cf64d9a388806247ae8eb7e6f349
 
 SHA-256: `1921e50bda0d5600513245783f0fbb35e837424339c750d6787d1b66d7eabf97`
 
-Sources: [`packages/fork/llm-wiki/src/notice.ts:31`](../packages/fork/llm-wiki/src/notice.ts)
+Sources: [`plugins/llm-wiki/src/notice.ts:31`](../plugins/llm-wiki/src/notice.ts)
 
 | Property | Presence | Type |
 |---|---|---|
