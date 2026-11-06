@@ -192,9 +192,17 @@ it('displays disconnect, close and exit states and offers explicit reconnection 
   expect(h.view.getByRole('status').textContent).toBe(en.unavailable)
 })
 
+/** Build a real style declaration carrying terminal colors for `getComputedStyle` stubs. */
+function styleDeclaration(colors: { backgroundColor: string; color: string }): CSSStyleDeclaration {
+  const style = document.createElement('div').style
+  style.backgroundColor = colors.backgroundColor
+  style.color = colors.color
+  return style
+}
+
 it('updates screen, cursor and selection colors without replacing the terminal or clearing output', () => {
   const colors = { backgroundColor: 'rgb(255, 255, 255)', color: 'rgb(23, 25, 29)' }
-  vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({ ...colors, getPropertyValue: () => '' }) as CSSStyleDeclaration)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation(() => styleDeclaration(colors))
   const h = mount({ ...idle, info, phase: 'connected', writable: true })
   const terminal = fake.terminals[0]!
   expect(terminal.options.theme).toMatchObject({
@@ -263,7 +271,7 @@ it('reads the current theme on xterm render and releases the cursor listener on 
   const readStyle = window.getComputedStyle.bind(window)
   vi.spyOn(window, 'getComputedStyle').mockImplementation(element => element === cursor
     ? readStyle(element)
-    : ({ ...colors, getPropertyValue: () => '' }) as CSSStyleDeclaration)
+    : styleDeclaration(colors))
   const h = mount({ ...idle, info, phase: 'connected', writable: true })
   const terminal = fake.terminals[0]!
   const screen = terminal.textarea!.parentElement!
