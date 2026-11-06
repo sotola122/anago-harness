@@ -216,6 +216,33 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@anago-harness/response-language -->
 
+<!-- BEGIN GENERATED config-catalog:@anago-harness/ui-settings-usage -->
+<a id="anago-harnessui-settings-usage"></a>
+
+## `@anago-harness/ui-settings-usage`
+
+- `inject`: `credentials` · `typert`
+- `source`: [`packages/fork/ui-settings-usage/src/index.ts:32`](../packages/fork/ui-settings-usage/src/index.ts)
+
+```ts config-catalog
+/** Plugin config; a change applies when the Host next loads the row. */
+export interface Config {
+  /** Time limit in milliseconds for each provider request, response body included. */
+  timeoutMs: number
+  /** GitHub Copilot quota reading. */
+  copilot: CopilotConfig
+}
+
+/** GitHub Copilot quota reading. */
+export interface CopilotConfig {
+  /** Whether the section reads Copilot quota; false reports the row as unsupported without any request. */
+  enabled: boolean
+  /** Quota URL replacing the one derived from the signed-in grant: https, or http on a loopback host. */
+  endpoint?: string
+}
+```
+<!-- END GENERATED config-catalog:@anago-harness/ui-settings-usage -->
+
 <!-- BEGIN GENERATED config-catalog:@anago-harness/web-search-brave -->
 <a id="anago-harnessweb-search-brave"></a>
 

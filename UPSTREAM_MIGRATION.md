@@ -143,6 +143,7 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/client/ui-theme/src/client/FontFamilyRow.tsx`, `FontSettingsGroup.tsx`, `index.ts`, `packages/client/ui-theme/tests/font-family-row.client.spec.tsx`, `font-settings-group.client.spec.tsx` | the `settings.theme.font-family` chain slot `client-ui-fonts-anago` fills with its font picker: `FontFamilyControlOwnerProps`, the `children` declaration on the `font-size` entry, and the row's `renderSlotChain` call with the text field as its fallback. `slot-catalog.ts` is generated, so run `pnpm run gen-client-catalog` |
 | `packages/client/ui-theme/src/client/locales.ts` | each locale's `fontFamily.<role>.description` names only the role's use, because the picker's Custom field carries the hint for typing a list |
 | `packages/client/ui-theme/README.md` pair | the `settings.theme.font-family` sentence under Fonts; re-record the pair with `pnpm run verify-translation-pairing --write <pair>` |
+| `tsconfig.base.json`, `tsconfig.host.json`, `tsconfig.client.json`, `scripts/product-package-policy.ts`, `scripts/verify-package-readme-model-experience.ts`, `vitest.config.ts` | the `packages/fork/ui-settings-usage` rows: the three `@anago-harness/ui-settings-usage` aliases above the generated region, the Host and Client leaf references, the optional-package classification, the model-experience exemption, and the coverage exclusion of `src/client/index.ts`, which imports a Remote contribution generated only in `lib/` |
 
 ### Fork-owned
 
