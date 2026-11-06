@@ -1,6 +1,6 @@
 # Upstream sync
 
-This procedure merges `upstream` (`https://github.com/deepseek-ai/deepseek-harness`, default branch `master`) into this fork, and is done when `origin/master` contains that merge commit, `git diff --check` exits 0, versions match [Version](#version), and [verification](#verification) shows only the known reds (failures this tree already has). Fork code lives under `packages/fork/*`; an upstream file carries only a listed hook — keep the fork's row and take upstream around it.
+This procedure merges `upstream` (`https://github.com/deepseek-ai/deepseek-harness`, default branch `master`) into this fork, and is done when `origin/master` contains that merge commit, `git diff --check` exits 0, versions match [Version](#version), and [verification](#verification) shows only the known reds (failures this tree already has). Fork code lives under `plugins/*`; an upstream file carries only a listed hook — keep the fork's row and take upstream around it.
 
 ## Anago version and release branches
 
@@ -48,9 +48,9 @@ Done when either `git rev-parse -q --verify MERGE_HEAD` fails and `git log -1 --
 
 Done when `git diff --check` exits 0, `git diff --name-only --diff-filter=U` is empty, every conflicted hook still has its Keep cell, every conflicted re-apply has the fork behavior on the new upstream version, every generated conflict was deleted and regenerated (list those paths), and every resurrected file in [Workflows kept deleted](#workflows-kept-deleted) is gone.
 
-5. Align versions as in [Version](#version). `packages/preset/orchestrator-policy` is outside `packages/fork/`; include it.
+5. Align versions as in [Version](#version). `packages/preset/orchestrator-policy` is outside `plugins/`; include it.
 
-Done when every `packages/fork/*/package.json` and `packages/preset/orchestrator-policy/package.json` `version` equals the root `package.json` `version`, and after `pnpm install` the lockfile importers `packages/fork/<name>:` and `packages/preset/orchestrator-policy:` still resolve with `link:`.
+Done when every `plugins/*/package.json` and `packages/preset/orchestrator-policy/package.json` `version` equals the root `package.json` `version`, and after `pnpm install` the lockfile importers `plugins/<name>:` and `packages/preset/orchestrator-policy:` still resolve with `link:`.
 
 6. Regenerate as in [Generated](#generated). Run the command for a file that conflicted or went stale, not every generator every time. After `pnpm run gen-tsconfig-paths`, the hand-written `@anago-harness/*` aliases above `BEGIN generated package aliases` are still present.
 
@@ -96,10 +96,10 @@ A hook is a fork edit in an upstream file. Keep the Keep cell; take upstream aro
 | `packages/boot/app-boot/package.json`, `packages/boot/app-boot/tsconfig.json` | the `@anago-harness/fork-policy` dependency and project reference |
 | `apps/cli/package.json` | `@anago-harness/anago-core` and `@anago-harness/anago-web`. `scripts/verify-default-product-isolation.ts` requires a default bundle to be a dependency of `apps/cli` |
 | `tsconfig.base.json` | the hand-written `@anago-harness/*` aliases above `BEGIN generated package aliases`. The region itself is generated |
-| `tsconfig.host.json` | every `packages/fork/` project reference and `packages/preset/orchestrator-policy`. The three client packages are not here |
+| `tsconfig.host.json` | every `plugins/` project reference and `packages/preset/orchestrator-policy`. The three client packages are not here |
 | `tsconfig.client.json` | `client-ui-settings-web-search`, `client-ui-fonts-anago`, `client-ui-session-share` |
-| `scripts/product-package-policy.ts`, `scripts/verify-package-readme-model-experience.ts`, `scripts/check-workspace-constraints.ts`, `scripts/gen-tool-catalog.ts`, `scripts/doc-standard.spec.ts`, `scripts/verify-subsystem-pages.ts`, `scripts/verify-default-product-isolation.ts`, `scripts/verify-repository-references.ts`, `scripts/gen-cordis-catalog.ts`, `scripts/project-doc-site.spec.ts` | the fork entry in each: optional `copilot-oauth`, `xai-oauth`, `ui-message-feedback`, `ui-settings-account`, `ui-settings-web-search`, `ui-deepseek-model-label-1017`; `packages/fork/` model-experience exemptions; the regex excluding `fork/` from release; explicit `memory` and `llm-wiki` registrations (`packages/*/tool-*` does not see them); doc-standard exemptions for `fork-policy`, `knowledge-common`, `web-search-credentials`; the `fork` subsystem exemption; the check that a default bundle is a runtime dependency of `apps/cli`; `PROJECT_GUIDELINE.md` in `excludedFiles`; links for `PurposeGuidance`, `PurposeRouteTable`, `SessionOwnership`, `Disposable`; the `# Anago Harness` heading expectation |
-| `vitest.config.ts` | `packages/fork/fork-policy/tests/egress-guard.spec.ts` in `processBoundTests` |
+| `scripts/product-package-policy.ts`, `scripts/verify-package-readme-model-experience.ts`, `scripts/check-workspace-constraints.ts`, `scripts/gen-tool-catalog.ts`, `scripts/doc-standard.spec.ts`, `scripts/verify-subsystem-pages.ts`, `scripts/verify-default-product-isolation.ts`, `scripts/verify-repository-references.ts`, `scripts/gen-cordis-catalog.ts`, `scripts/project-doc-site.spec.ts` | the fork entry in each: optional `copilot-oauth`, `xai-oauth`, `ui-message-feedback`, `ui-settings-account`, `ui-settings-web-search`, `ui-deepseek-model-label-1017`; `plugins/` model-experience exemptions; `plugins/` sits outside the release-member regex; explicit `memory` and `llm-wiki` registrations (`packages/*/tool-*` does not see them); doc-standard exemptions for `fork-policy`, `knowledge-common`, `web-search-credentials`; the `fork` subsystem exemption; the check that a default bundle is a runtime dependency of `apps/cli`; `PROJECT_GUIDELINE.md` in `excludedFiles`; links for `PurposeGuidance`, `PurposeRouteTable`, `SessionOwnership`, `Disposable`; the `# Anago Harness` heading expectation |
+| `vitest.config.ts` | `plugins/fork-policy/tests/egress-guard.spec.ts` in `processBoundTests` |
 | `vitest.expected.config.ts` | the `DSH_EXPECTED_MAX_WORKERS` read |
 | `README.md`, `README.zh.md`, `README.i18n.yaml`, `docs/user/index.md` and its pair, `website/docs.ts`, `website/.vitepress/config.ts`, `packages/README.md` and its pair | Anago Harness name, clone URL `https://github.com/sotola122/anago-harness.git`, headings, site `label`, `title`, `description`, and the `fork/` group row. Take upstream for the rest of a README body. Align a Chinese pair and `pnpm run verify-translation-pairing --write` only that reviewed pair |
 | `pnpm-workspace.yaml`, `packages/llm/llm-pi-ai/package.json`, `patches/@earendil-works__pi-ai@1.4.0.patch` | the pin, the exclude entries, and the patch. Step 7 when the version changes |
@@ -143,14 +143,14 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/client/ui-theme/src/client/FontFamilyRow.tsx`, `FontSettingsGroup.tsx`, `index.ts`, `packages/client/ui-theme/tests/font-family-row.client.spec.tsx`, `font-settings-group.client.spec.tsx` | the `settings.theme.font-family` chain slot `client-ui-fonts-anago` fills with its font picker: `FontFamilyControlOwnerProps`, the `children` declaration on the `font-size` entry, and the row's `renderSlotChain` call with the text field as its fallback. `slot-catalog.ts` is generated, so run `pnpm run gen-client-catalog` |
 | `packages/client/ui-theme/src/client/locales.ts` | each locale's `fontFamily.<role>.description` names only the role's use, because the picker's Custom field carries the hint for typing a list |
 | `packages/client/ui-theme/README.md` pair | the `settings.theme.font-family` sentence under Fonts; re-record the pair with `pnpm run verify-translation-pairing --write <pair>` |
-| `tsconfig.base.json`, `tsconfig.host.json`, `tsconfig.client.json`, `scripts/product-package-policy.ts`, `scripts/verify-package-readme-model-experience.ts`, `vitest.config.ts` | the `packages/fork/ui-settings-usage` rows: the three `@anago-harness/ui-settings-usage` aliases above the generated region, the Host and Client leaf references, the optional-package classification, the model-experience exemption, and the coverage exclusion of `src/client/index.ts`, which imports a Remote contribution generated only in `lib/` |
+| `tsconfig.base.json`, `tsconfig.host.json`, `tsconfig.client.json`, `scripts/product-package-policy.ts`, `scripts/verify-package-readme-model-experience.ts`, `vitest.config.ts` | the `plugins/ui-settings-usage` rows: the three `@anago-harness/ui-settings-usage` aliases above the generated region, the Host and Client leaf references, the optional-package classification, the model-experience exemption, and the coverage exclusion of `src/client/index.ts`, which imports a Remote contribution generated only in `lib/` |
 
 ### Fork-owned
 
 A path this tree added and upstream does not have stays. If upstream adds the same path, stop and rename; do not delete the fork path to take upstream. Also keep any added path not listed here.
 
-- `packages/fork/**` (README pair and `.i18n.yaml` included) and `packages/preset/orchestrator-policy/**` (outside `packages/fork/`; version alignment and conflicts include it)
-- `packages/fork/web-search-exa/src/exa.ts` and `src/types.ts`: upstream 0.2.2 deleted `packages/web/web-search-exa`, so the fork carries that provider source itself and must not depend on `@deepseek-ai/dsh-web-search-exa` again. A sync that resurrects the upstream package keeps it deleted.
+- `plugins/**` (README pair and `.i18n.yaml` included) and `packages/preset/orchestrator-policy/**` (outside `plugins/`; version alignment and conflicts include it)
+- `plugins/web-search-exa/src/exa.ts` and `src/types.ts`: upstream 0.2.2 deleted `packages/web/web-search-exa`, so the fork carries that provider source itself and must not depend on `@deepseek-ai/dsh-web-search-exa` again. A sync that resurrects the upstream package keeps it deleted.
 - `ci/fork/**`, `scripts/fork/**`, `.github/workflows/fork-egress.yml`, `docs/fork.md` and its pair and `.i18n.yaml`
 - `ANAGO_TODO.md`, `ANAGO_PLUGINS_DESIGN.md`, `PROJECT_GUIDELINE.md`, `UPSTREAM_MIGRATION.md`, `.anago/`
 - `snapshots/session/anago-memory/`, `anago-wiki/`, `anago-search/`, `snapshots/session/upstream-compat.cordis.yml`
@@ -179,9 +179,9 @@ A generator that does not write Chinese says so in the `.zh.md` header. After re
 
 ### Version
 
-Checked 2026-10-31. The root `package.json` `version` is authoritative: `0.2.2-alpha.2`. Every `packages/fork/*/package.json` and `packages/preset/orchestrator-policy/package.json` is `0.2.1-rc.2` (16 files on that date; the set follows the tree). `scripts/verify-package-meta.ts` does not read `version`, and no gate checks version equality. After the merge, set every one of those `version` fields to the root version. Do not align `vendor/`, fixtures, `native/`, `website/`, `benchmarks/`, or `python/sdk-runtime`.
+Checked 2026-10-31. The root `package.json` `version` is authoritative: `0.2.2-alpha.2`. Every `plugins/*/package.json` and `packages/preset/orchestrator-policy/package.json` is `0.2.1-rc.2` (16 files on that date; the set follows the tree). `scripts/verify-package-meta.ts` does not read `version`, and no gate checks version equality. After the merge, set every one of those `version` fields to the root version. Do not align `vendor/`, fixtures, `native/`, `website/`, `benchmarks/`, or `python/sdk-runtime`.
 
-`pnpm-lock.yaml` importers do not store the package.json version string. `packages/fork/*` resolves through `workspace:*` and `link:`. After `pnpm install`, the importers `packages/fork/<name>:` and `packages/preset/orchestrator-policy:` remain, and their dependencies stay `link:`.
+`pnpm-lock.yaml` importers do not store the package.json version string. `plugins/*` resolves through `workspace:*` and `link:`. After `pnpm install`, the importers `plugins/<name>:` and `packages/preset/orchestrator-policy:` remain, and their dependencies stay `link:`.
 
 ### Verification
 
@@ -195,7 +195,7 @@ Checked 2026-10-31. The root `package.json` `version` is authoritative: `0.2.2-a
 | `pnpm run test:expected` | chase a failure that is not one of the 13 known headless reds. The rest of the suite was not measured |
 | `pnpm run lint` | exits 0 |
 | `node ci/fork/scan-egress.mjs` | exits 0 when there is no new host. Currently a known red. `--write-baseline` only for a reviewed host, not as part of this sync |
-| `pnpm exec vitest run packages/fork/fork-policy/tests/egress-guard.spec.ts` | exits 0. Local side of `.github/workflows/fork-egress.yml` |
+| `pnpm exec vitest run plugins/fork-policy/tests/egress-guard.spec.ts` | exits 0. Local side of `.github/workflows/fork-egress.yml` |
 
 Smoke uses a throwaway `DSH_HOME`. Shipped templates do not select oauth bundles (`profile.ts` adds only `anago-core` and `anago-web`). An oauth command registers only when its bundle is selected: `@anago-harness/xai-oauth` gives `/xai-status`, `@anago-harness/copilot-oauth` gives `/copilot-status`, and `@anago-harness/openai-codex-oauth` gives `/codex-status`.
 
@@ -260,4 +260,4 @@ NEW  other	packages/util/plugin-detail/src/files.ts	unpkg.com
 
 - Leave `.dsh/memory/` untracked; `MEMORY.md` is workspace notes.
 - `.gitattributes` has no `merge=ours`. Resolve a binary by the same rule as text.
-- `~/.dsh/profiles/web-anago/package.json` `link:`s `@anago-harness/xai-oauth`, `@anago-harness/copilot-oauth`, and `@anago-harness/openai-codex-oauth` into this checkout's `packages/fork/`. Moving those paths breaks that profile. Reach that profile through the live host or a transient verification service, never by restarting the service itself.
+- `~/.dsh/profiles/web-anago/package.json` must `link:` `@anago-harness/*` at this checkout's `plugins/<pkg>`, not `packages/fork/<pkg>`. A profile that still uses the old path needs those `link:` replacements and a profile `pnpm install` before its service restarts. Reach that profile through the live host or a transient verification service, never by restarting the service itself.

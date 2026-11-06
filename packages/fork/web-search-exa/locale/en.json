@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Exa web search",
-    "description": "Exa search provider that resolves its key through the credentials service."
-  }
-}

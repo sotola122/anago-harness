@@ -540,8 +540,11 @@ export class WorkspaceAnalyzer {
       for (const reference of aggregate.projectReferences) {
         const configPath = projectConfigPath(reference.path)
         const packageRoot = dirname(configPath)
-        if (!isWithin(realPath(packageRoot), join(this.options.root, 'packages'))
-          && !(includeVendor && isWithin(realPath(packageRoot), join(this.options.root, 'vendor')))) continue
+        const packageDir = realPath(packageRoot)
+        const inWorkspace = isWithin(packageDir, join(this.options.root, 'packages'))
+          || isWithin(packageDir, join(this.options.root, 'plugins'))
+          || (includeVendor && isWithin(packageDir, join(this.options.root, 'vendor')))
+        if (!inWorkspace) continue
         const manifestPath = join(packageRoot, 'package.json')
         if (!existsSync(manifestPath)) continue
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>

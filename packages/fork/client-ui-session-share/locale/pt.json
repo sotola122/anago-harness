@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Compartilhamento de sessão",
-    "description": "Marca como somente leitura neste navegador uma sessão que outro processo do DSH está gravando e remove a marca quando esse processo a libera."
-  }
-}

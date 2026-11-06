@@ -136,6 +136,7 @@ const pwshCoverageExclusions = spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProf
 
 const testIncludes = [
   'packages/*/*/tests/**/*.spec.{ts,tsx}',
+  'plugins/*/tests/**/*.spec.{ts,tsx}',
   'apps/*/tests/**/*.spec.{ts,tsx}',
   'scripts/**/*.spec.ts',
   'website/tests/**/*.spec.ts',
@@ -177,7 +178,7 @@ const processBoundTests = [
   'packages/context/time-context/tests/time-context.spec.ts',
   'packages/llm/llm-pi-ai/tests/adapter.spec.ts',
   'packages/boot/app-boot/tests/app-boot.spec.ts',
-  'packages/fork/fork-policy/tests/egress-guard.spec.ts',
+  'plugins/fork-policy/tests/egress-guard.spec.ts',
   'packages/workflow/workflow-ptc/tests/workflow-ptc.spec.ts',
   'packages/ptc-runtime/ptc-runtime-node/tests/imports.spec.ts',
 ]
@@ -258,11 +259,12 @@ export default defineConfig({
       // Coverage measures OUR runtime source. Types-only files carry no
       // executable code; vendor/ and application/config fixtures are out of scope.
       // .tsx: client components are gated like everything else (jsdom lane).
-      include: ['packages/*/*/src/**/*.{ts,tsx}'],
+      include: ['packages/*/*/src/**/*.{ts,tsx}', 'plugins/*/src/**/*.{ts,tsx}'],
       // Types-only files have no runtime coverage. Importing self-executing bins/workers would boot
       // them inside the unit process, so real subprocess/Worker tests cover their thin entry glue.
       exclude: [
         'packages/*/*/src/types.ts',
+        'plugins/*/src/types.ts',
         'packages/*/*/src/bin.ts',
         'packages/*/*/src/worker.ts',
         // The built Node entry invokes the independently covered process bootstrap through fd 7.
@@ -375,7 +377,7 @@ export default defineConfig({
         'packages/experimental/client-ui-forge/src/client/index.ts',
         // The usage section entry imports its generated Remote contribution, which exists only in lib;
         // source tests cover mountUsage.
-        'packages/fork/ui-settings-usage/src/client/index.ts',
+        'plugins/ui-settings-usage/src/client/index.ts',
         // Slash/command/input round: per-file gaps deferred with the same
         // client-lane debt. TODO(gui): cover and remove with the lane above.
         'packages/client/ui-commands/src/index.ts',

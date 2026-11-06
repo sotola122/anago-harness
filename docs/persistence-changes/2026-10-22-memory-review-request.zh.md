@@ -40,7 +40,7 @@ changes:
 <a id="verification"></a>
 ## 验证
 
-`tsx scripts/persistence-changes.ts --check` 报告已确认的历史。memory 测试断言该事件在流开始前存在且携带确切请求，`vitest run packages/fork/memory/tests` 通过 11 个文件、239 个测试。
+`tsx scripts/persistence-changes.ts --check` 报告已确认的历史。memory 测试断言该事件在流开始前存在且携带确切请求，`vitest run plugins/memory/tests` 通过 11 个文件、239 个测试。
 
 <a id="dev-note"></a>
 ## 开发备注

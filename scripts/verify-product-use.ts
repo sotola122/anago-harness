@@ -74,7 +74,7 @@ export function verifyProductUse(
   if (converted.errors.length > 0) throw new Error(converted.errors.map(error => ts.flattenDiagnosticMessageText(error.messageText, '\n')).join('\n'))
   const host: ts.ModuleResolutionHost = { ...ts.sys, getCurrentDirectory: () => root }
   const resolutionCache = ts.createModuleResolutionCache(root, path => path, converted.options)
-  for (const path of globSync(['apps/*/package.json', 'packages/*/*/package.json', 'vendor/*/package.json'], { cwd: root }).map(path => path.replaceAll('\\', '/')).sort()) {
+  for (const path of globSync(['apps/*/package.json', 'packages/*/*/package.json', 'vendor/*/package.json', 'plugins/*/package.json'], { cwd: root }).map(path => path.replaceAll('\\', '/')).sort()) {
     const manifest = JSON.parse(readFileSync(resolve(root, path), 'utf8')) as {
       name: string
       exports?: Record<string, unknown>
@@ -230,7 +230,8 @@ export function verifyProductUse(
   } finally { dom.window.close() }
   for (const [path, entry] of Object.entries(policy)) {
     const pkg = directories.get(resolve(root, path))
-    if (!/^packages\/[^/]+\/[^/]+$/.test(path) || path.startsWith('packages/experimental/') || pkg === undefined) {
+    const eligible = /^packages\/[^/]+\/[^/]+$/.test(path) || /^plugins\/[^/]+$/.test(path)
+    if (!eligible || path.startsWith('packages/experimental/') || pkg === undefined) {
       failures.push(`${path}: stale package policy; remove the missing or ineligible directory`)
       continue
     }

@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Memória do agente",
-    "description": "Memória persistente do agente: armazenamentos global e do espaço de trabalho, a ferramenta memory e instantâneos injetados."
-  }
-}

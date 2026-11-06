@@ -12,7 +12,7 @@ Review has the same gap in the other direction. One `subagent` call starts one c
 
 [User-authorized subagent model routes](../../implemented/feature/2026-08-24-user-authorized-subagent-model-routes.md) correctly freezes `allowedModels` at Session composition, because a settings edit must not silently change a running Session's model-visible authority. That rule does not give the deployment a purpose table it can edit for the next delegation. Failure handling is also open: when a child fails to start, ends in error, or returns an unusable result, the parent decides whether to try again, and the runtime cannot tell that a later call is the same task.
 
-anago-core still inserts Cursor and Pi subagent rows in [its patch](../../../../packages/fork/anago-core/cordis.patch.yml) (`subagent-cursor`, `tool-subagent-cursor`, `subagent-pi`, `tool-subagent-pi`). Those rows are a separate product path with `providerOwnedRoute`, not a purpose label. Leaving them in place while adding purpose routing mixes two tool-catalog changes.
+anago-core still inserts Cursor and Pi subagent rows in [its patch](../../../../plugins/anago-core/cordis.patch.yml) (`subagent-cursor`, `tool-subagent-cursor`, `subagent-pi`, `tool-subagent-pi`). Those rows are a separate product path with `providerOwnedRoute`, not a purpose label. Leaving them in place while adding purpose routing mixes two tool-catalog changes.
 
 ## Proposal
 
@@ -113,7 +113,7 @@ export interface ChildRouteResolution {
 
 Existing paths are the same result with `children.length === 1`, so execute starts children in one loop.
 
-The shipping table is an id override of `subagent-model-selection-settings` in [anago-web's patch](../../../../packages/fork/anago-web/cordis.patch.yml). These primary routes are the proposed deployment values. Plugin code does not own them.
+The shipping table is an id override of `subagent-model-selection-settings` in [anago-web's patch](../../../../plugins/anago-web/cordis.patch.yml). These primary routes are the proposed deployment values. Plugin code does not own them.
 
 ```yaml
 - id: subagent-model-selection-settings
@@ -338,7 +338,7 @@ Runtime start rules:
 
 Ship the retirement before the routing change, so the routing snapshot diff is only the category change.
 
-1. Delete `subagent-cursor`, `tool-subagent-cursor`, `subagent-pi`, and `tool-subagent-pi` from [anago-core's patch](../../../../packages/fork/anago-core/cordis.patch.yml), and drop the matching dependencies from anago-core `package.json`.
+1. Delete `subagent-cursor`, `tool-subagent-cursor`, `subagent-pi`, and `tool-subagent-pi` from [anago-core's patch](../../../../plugins/anago-core/cordis.patch.yml), and drop the matching dependencies from anago-core `package.json`.
 2. Once `@anago-harness/subagent-cursor` and `@anago-harness/subagent-pi` have no product user, `scripts/product-package-policy.ts` rejects them. Delete the packages in that same change if nothing else uses them. Do not add a classification to keep them.
 3. Delete `providerOwnedRoute` and `providerOwnedAgentOptions` if cursor and pi are their only users. Check fixtures, including `packages/subagent/subagent-dsh-sdk/tests/fixtures/loader/dsh-sdk.patch.yml`. After deletion, the routing execute has no `providerOwnedRoute` branch. If the field remains, keep the load-time exclusion above.
 4. Update TUI docs and comments that name `subagent_cursor` or `subagent_pi` to the current description. Keep the cross-process Session lease that lets an idle Agent return write ownership so another process can open the same Session.

@@ -113,12 +113,14 @@ function sessionEventMapDecls(sf: ts.SourceFile): { decl: ts.InterfaceDeclaratio
 }
 
 /**
- * The npm package name owning a `packages/<group>/<pkg>/…` source file, read
+ * The npm package name owning a `packages/<group>/<pkg>/…` or `plugins/<pkg>/…` source file, read
  * from that package's manifest — or null when the manifest is missing or
  * unparseable (the caller treats null as "ownership unverifiable").
  */
 function packageNameFor(rel: string, scanRoot: string): string | null {
-  const dir = rel.split('/').slice(0, 3).join('/')
+  const parts = rel.split('/')
+  // plugins/<pkg>/src is two segments; packages/<group>/<pkg>/src is three.
+  const dir = parts.slice(0, parts[0] === 'plugins' ? 2 : 3).join('/')
   try {
     const manifest = JSON.parse(readFileSync(resolve(scanRoot, dir, 'package.json'), 'utf8')) as { name?: string }
     return typeof manifest.name === 'string' ? manifest.name : null
@@ -139,7 +141,7 @@ export function collectLogEvents(scanRoot: string = root): LogEventEntry[] {
   const violations: string[] = []
   const seen = new Map<string, string>()
   let owningDecl: string | null = null
-  for (const rel of globSync('packages/*/*/src/**/*.{ts,tsx}', { cwd: scanRoot }).map(s => s.split(sep).join('/')).sort()) {
+  for (const rel of globSync(['packages/*/*/src/**/*.{ts,tsx}', 'plugins/*/src/**/*.{ts,tsx}'], { cwd: scanRoot }).map(s => s.split(sep).join('/')).sort()) {
     const abs = resolve(scanRoot, rel)
     const text = readFileSync(abs, 'utf8')
     if (!text.includes('SessionEventMap')) continue
@@ -221,7 +223,7 @@ export function collectEventEnvelopeTypes(scanRoot: string = root): EventEnvelop
   const found = new Map<EventEnvelopeTypeName, EventEnvelopeTypeEntry>()
   const violations: string[] = []
   const wanted = new Set<string>(EVENT_ENVELOPE_TYPE_NAMES)
-  for (const rel of globSync('packages/*/*/src/**/*.{ts,tsx}', { cwd: scanRoot }).map(s => s.split(sep).join('/')).sort()) {
+  for (const rel of globSync(['packages/*/*/src/**/*.{ts,tsx}', 'plugins/*/src/**/*.{ts,tsx}'], { cwd: scanRoot }).map(s => s.split(sep).join('/')).sort()) {
     const abs = resolve(scanRoot, rel)
     const text = readFileSync(abs, 'utf8')
     if (!EVENT_ENVELOPE_TYPE_NAMES.some(name => text.includes(name))) continue
@@ -267,7 +269,7 @@ export function collectEventEnvelopeTypes(scanRoot: string = root): EventEnvelop
  */
 export function collectSurfaceEventTypes(scanRoot: string = root): string[] {
   const found: { names: string[]; source: string }[] = []
-  for (const rel of globSync('packages/*/*/src/**/*.{ts,tsx}', { cwd: scanRoot }).map(s => s.split(sep).join('/')).sort()) {
+  for (const rel of globSync(['packages/*/*/src/**/*.{ts,tsx}', 'plugins/*/src/**/*.{ts,tsx}'], { cwd: scanRoot }).map(s => s.split(sep).join('/')).sort()) {
     const abs = resolve(scanRoot, rel)
     const text = readFileSync(abs, 'utf8')
     if (!text.includes('SurfaceEventType')) continue

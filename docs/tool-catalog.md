@@ -7,7 +7,7 @@ Every model-facing tool a shipped plugin contributes to `ctx.tools`: the `name`,
 
 This file is GENERATED and verified fresh by `pnpm run verify-tool-catalog` (part of `doc-sync`) — do not edit it by hand. Unlike the cordis catalog (a pure source-AST pass), this generator BOOTS each tool plugin on a real context and reads `ctx.tools.schemas()`, because a tool schema is not statically knowable (runtime-spread enums, concatenated descriptions, config-driven names, raw-JSON-Schema MCP tools). A completeness guard globs `packages/*/tool-*` and fails if any package is missing from the generator's boot manifest, so a new tool cannot be silently undocumented.
 
-Scope: shipped product tools under `packages/*/tool-*`, plus the fork's own model-facing tool packages under `packages/fork/` (`memory`, `llm-wiki`), each booted with its DEFAULT config, except where a Config field is REQUIRED with no default — there the generator must choose, and the per-package note records which branch this page shows. The registered tool NAME can be a load-time config (e.g. `tool-subagent`'s `toolName`), so a deployment may expose a package under a different or additional name — a per-package note records those shipped aliases where they exist. The `examples/` demo tools (e.g. `echo`) are excluded, matching the cordis catalog's packages-only scope.
+Scope: shipped product tools under `packages/*/tool-*`, plus the fork's own model-facing tool packages under `plugins/` (`memory`, `llm-wiki`), each booted with its DEFAULT config, except where a Config field is REQUIRED with no default — there the generator must choose, and the per-package note records which branch this page shows. The registered tool NAME can be a load-time config (e.g. `tool-subagent`'s `toolName`), so a deployment may expose a package under a different or additional name — a per-package note records those shipped aliases where they exist. The `examples/` demo tools (e.g. `echo`) are excluded, matching the cordis catalog's packages-only scope.
 
 ## Tool Package Map
 
@@ -2781,7 +2781,7 @@ When this deployment asks for approval and the session's policy refuses every pr
 }
 ```
 
-Source: [`packages/fork/memory/src/tool.ts`](../packages/fork/memory/src/tool.ts)
+Source: [`plugins/memory/src/tool.ts`](../plugins/memory/src/tool.ts)
 
 Booted with the shipped defaults (`writeApproval: none`, the turn-end review enabled, the workspace store enabled); none of them changes the schema. `writeApproval: ask` stages a batch under `$DSH_HOME/memories/pending/` only where the session cannot be prompted, and `/memory approve` applies it; otherwise the tool writes. A child agent sees the workspace store read-only, and every write becomes model-visible with the next pre-step snapshot rather than mid-turn.
 
@@ -2826,7 +2826,7 @@ Orphans, duplicate pages, staleness, and whether a page is true are not checked;
 }
 ```
 
-Source: [`packages/fork/llm-wiki/src/tool.ts`](../packages/fork/llm-wiki/src/tool.ts)
+Source: [`plugins/llm-wiki/src/tool.ts`](../plugins/llm-wiki/src/tool.ts)
 
 ### `wiki_search`
 
@@ -2870,7 +2870,7 @@ The index is in-process and refreshed from the filesystem: it is built on the fi
 }
 ```
 
-Source: [`packages/fork/llm-wiki/src/search-tool.ts`](../packages/fork/llm-wiki/src/search-tool.ts)
+Source: [`plugins/llm-wiki/src/search-tool.ts`](../plugins/llm-wiki/src/search-tool.ts)
 
 ### `wiki_write`
 
@@ -2917,6 +2917,6 @@ Approval: with writeApproval: none the tool writes directly. With writeApproval:
 }
 ```
 
-Source: [`packages/fork/llm-wiki/src/write.ts`](../packages/fork/llm-wiki/src/write.ts)
+Source: [`plugins/llm-wiki/src/write.ts`](../plugins/llm-wiki/src/write.ts)
 
 Booted with the shipped defaults: no global wiki (`global.repo: ''`), `pages/` as its page directory, and all three lint checks as the configured set. The schemas do not depend on those values; the `global` scope reports an unconfigured wiki rather than changing the schema. `writeApproval: ask` refuses `wiki_write` with `WIKI_APPROVAL_UNAVAILABLE` where the session cannot be prompted, and nothing is staged.

@@ -1,0 +1,3 @@
+[submodule "plugins"]
+	path = plugins
+	url = https://github.com/sotola122/dsh-plugins.git

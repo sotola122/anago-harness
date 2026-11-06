@@ -65,13 +65,13 @@ Cordis patch behavior (verified in `vendor/include/src/index.ts:104-123`): a non
 
 | Path | Content | Size |
 |---|---|---|
-| `packages/fork/fork-policy/` (`@anago-harness/fork-policy`) | Guard, denylist, default/lock layers, `REMOVED_PACKAGES` | ~300 lines + tests |
-| `packages/fork/fork-default-model/` | Picks a usable model automatically, in place of the DeepSeek default model | ~60 lines |
-| `packages/fork/removed-stub/<name>/` ×15 | Empty stubs for the removed packages | ~10 lines each |
-| `packages/fork/client-ui-brand/` | Sidebar and hero logo and name | ~80 lines + SVG |
-| `packages/fork/client-fonts-ja/` | Japanese fonts and CSS (for the Web UI) | ~40 lines + fonts |
-| `packages/fork/web-search-exa-credential/` | Exa search provider (key read from `ctx.credentials`) | ~70 lines + tests |
-| `packages/fork/client-ui-settings-web-search-exa/` | Exa settings card (Plugins page) | ~300 lines + tests |
+| `plugins/fork-policy/` (`@anago-harness/fork-policy`) | Guard, denylist, default/lock layers, `REMOVED_PACKAGES` | ~300 lines + tests |
+| `plugins/fork-default-model/` | Picks a usable model automatically, in place of the DeepSeek default model | ~60 lines |
+| `plugins/removed-stub/<name>/` ×15 | Empty stubs for the removed packages | ~10 lines each |
+| `plugins/client-ui-brand/` | Sidebar and hero logo and name | ~80 lines + SVG |
+| `plugins/client-fonts-ja/` | Japanese fonts and CSS (for the Web UI) | ~40 lines + fonts |
+| `plugins/web-search-exa-credential/` | Exa search provider (key read from `ctx.credentials`) | ~70 lines + tests |
+| `plugins/client-ui-settings-web-search-exa/` | Exa settings card (Plugins page) | ~300 lines + tests |
 | `apps/desktop/src/fork/` (`egress-guard-main.ts`, `branding.ts`, `fonts.ts`) | Electron-side guard, rename, dialog fonts | ~150 lines |
 | `apps/desktop/scripts/fork/` (`branding.mjs`, `installer-fork.nsh`, `strings-fork.nsh`), `apps/desktop/fork-brand/` | Builder wrapper, installer product name and font, icons | ~150 lines + images |
 | `apps/desktop/cli/fork/ash`, `ash.cmd` | CLI launcher bundled with the desktop app | ~15 lines each |
@@ -248,7 +248,7 @@ git pull --ff-only && ./scripts/fork/install-ash.sh
 - **The `ash` bin name needs no upstream edit.** The shim and `ash.mjs` are fork-only files. Only the help display name is #10 (one line).
 - **Package names**: keep upstream package names (`@deepseek-ai/*`) unchanged. Fork-only packages are named `@anago-harness/*`.
   - Reason: nothing is published, so there is no need to change namespaces. Renaming upstream packages would make every import and the lockfile a conflict source. Fork-only packages live in new directories, so their names never conflict. `@anago-harness/*` also stays clear of names upstream may add later and follows the brand guidelines.
-  - `packages/fork/<name>` falls under the existing workspace glob `packages/*/*` (`pnpm-workspace.yaml:3`, `workspaces` in `package.json`) and the tsdown targets (`tsdown.config.ts:24`), so no upstream edit is needed to register them. The empty stubs (`packages/fork/removed-stub/<name>`) are referenced by `link:` overrides and can sit outside the glob.
+  - `plugins/<name>` falls under the existing workspace glob `packages/*/*` (`pnpm-workspace.yaml:3`, `workspaces` in `package.json`) and the tsdown targets (`tsdown.config.ts:24`), so no upstream edit is needed to register them. The empty stubs (`plugins/removed-stub/<name>`) are referenced by `link:` overrides and can sit outside the glob.
 - **CI**: `fork-install.yml` runs the install script on ubuntu, macOS and Windows, then checks the `ash --help` display name and an e2e run (start `ash web`, zero connections to §3 hosts).
 - Sketches: `fork-sketches/install-ash.sketch.sh`, `fork-sketches/install-ash.sketch.ps1`, `fork-sketches/ash.sketch.mjs`, `fork-sketches/fork-install-ci.sketch.yml`
 

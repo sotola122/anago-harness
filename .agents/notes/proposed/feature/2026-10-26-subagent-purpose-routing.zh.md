@@ -12,7 +12,7 @@ Status: proposed
 
 [用户授权的 subagent 模型路由](../../implemented/feature/2026-08-24-user-authorized-subagent-model-routes.zh.md)把 `allowedModels` 冻结在 Session 组合时，这是正确的，因为设置编辑不得静默改变运行中 Session 对模型可见的授权。该规则并没有给部署一张可编辑、且下一次委派就生效的用途表。失败处理也仍是开放的：child 未能启动、以错误结束或返回不可用结果时，由父模型决定是否再试，而运行时无法判断后一次调用是不是同一任务。
 
-anago-core 仍在[其 patch](../../../../packages/fork/anago-core/cordis.patch.yml)中插入 Cursor 与 Pi 的 subagent 行（`subagent-cursor`、`tool-subagent-cursor`、`subagent-pi`、`tool-subagent-pi`）。这些行是带 `providerOwnedRoute` 的另一条产品路径，不是用途标签。在加入用途路由时把它们留在原地，会把两项工具目录变更混在一起。
+anago-core 仍在[其 patch](../../../../plugins/anago-core/cordis.patch.yml)中插入 Cursor 与 Pi 的 subagent 行（`subagent-cursor`、`tool-subagent-cursor`、`subagent-pi`、`tool-subagent-pi`）。这些行是带 `providerOwnedRoute` 的另一条产品路径，不是用途标签。在加入用途路由时把它们留在原地，会把两项工具目录变更混在一起。
 
 ## 提案
 
@@ -113,7 +113,7 @@ export interface ChildRouteResolution {
 
 既有路径是 `children.length === 1` 的同一种结果，因此 execute 用一个循环启动 child。
 
-出厂表是 [anago-web 的 patch](../../../../packages/fork/anago-web/cordis.patch.yml)里对 `subagent-model-selection-settings` 的 id 覆盖。这些主 route 是提议的部署值。插件代码不拥有它们。
+出厂表是 [anago-web 的 patch](../../../../plugins/anago-web/cordis.patch.yml)里对 `subagent-model-selection-settings` 的 id 覆盖。这些主 route 是提议的部署值。插件代码不拥有它们。
 
 ```yaml
 - id: subagent-model-selection-settings
@@ -338,7 +338,7 @@ Host 返回 `purposeRoutes: null` 时，显示空状态，不放初始化按钮�
 
 先于路由变更交付退役，使路由的快照差异只剩 category 变更。
 
-1. 从 [anago-core 的 patch](../../../../packages/fork/anago-core/cordis.patch.yml) 删除 `subagent-cursor`、`tool-subagent-cursor`、`subagent-pi` 与 `tool-subagent-pi`，并从 anago-core 的 `package.json` 去掉对应依赖。
+1. 从 [anago-core 的 patch](../../../../plugins/anago-core/cordis.patch.yml) 删除 `subagent-cursor`、`tool-subagent-cursor`、`subagent-pi` 与 `tool-subagent-pi`，并从 anago-core 的 `package.json` 去掉对应依赖。
 2. `@anago-harness/subagent-cursor` 与 `@anago-harness/subagent-pi` 不再有产品使用者后，`scripts/product-package-policy.ts` 会拒绝它们。若没有其他使用者，在同一次变更中删除这两个包。不要为了保留它们而增加分类。
 3. 若 cursor 与 pi 是 `providerOwnedRoute` 和 `providerOwnedAgentOptions` 的仅有使用者，则删除这两个字段。检查 fixture，包括 `packages/subagent/subagent-dsh-sdk/tests/fixtures/loader/dsh-sdk.patch.yml`。删除之后，路由的 execute 没有 `providerOwnedRoute` 分支。若字段保留，则保留上方的加载时互斥检查。
 4. 把点名 `subagent_cursor` 或 `subagent_pi` 的 TUI 文档和注释改成当前描述。保留跨进程 Session lease：空闲 Agent 交还写入所有权，使另一进程可以打开同一 Session。

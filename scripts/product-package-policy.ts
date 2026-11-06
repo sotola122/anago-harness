@@ -48,19 +48,19 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/client/ui-message-feedback': { category: 'optional', reason: 'The anago Web profile disables the upstream feedback surface.' },
   'packages/client/ui-settings-account': { category: 'optional', reason: 'The anago Web profile disables the DeepSeek account card and controller.' },
   'packages/client/ui-settings-web-search': { category: 'optional', reason: 'The anago Web profile replaces it with the anago search cards.' },
-  'packages/fork/copilot-oauth': {
+  'plugins/copilot-oauth': {
     category: 'optional',
     reason: 'Separately selected profile bundle that signs in to GitHub Copilot; shipped templates do not mount it.',
   },
-  'packages/fork/openai-codex-oauth': {
+  'plugins/openai-codex-oauth': {
     category: 'optional',
     reason: 'Separately selected profile bundle that signs in to OpenAI Codex; shipped templates do not mount it.',
   },
-  'packages/fork/xai-oauth': {
+  'plugins/xai-oauth': {
     category: 'optional',
     reason: 'Separately selected profile bundle that signs in to xAI; shipped templates do not mount it.',
   },
-  'packages/fork/ui-settings-usage': {
+  'plugins/ui-settings-usage': {
     category: 'optional',
     reason: 'Separately selected profile bundle that adds the provider usage Settings page; shipped templates do not mount it.',
   },

@@ -81,7 +81,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`client/`](client/README.md) | Web-GUI browser half: shell, wire, object services, slots, `ui-*` plugins |
 | [`test-support/`](test-support/README.md) | Test infrastructure (testkits, replay, Loader smokes) |
 | [`util/`](util/README.md) | Utilities and data-only package lists shared across groups (`Branded<B>`, home/path helpers, timeout, retention, bundle lists) |
-| [`fork/`](fork/README.md) | Private fork packages: the egress guard, `anago-core` host capabilities, `anago-web` browser cards |
+| [`plugins/`](https://github.com/sotola122/dsh-plugins) | Private fork packages: the egress guard, `anago-core` host capabilities, `anago-web` browser cards |
 
 -----
 
