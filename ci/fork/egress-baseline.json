@@ -50,6 +50,7 @@
  "other\tplugins/client-ui-fonts-anago/src/fonts/fonts.json\tregistry.npmjs.org",
  "other\tplugins/client-ui-settings-web-search/src/client/locales.ts\tapi.search.brave.com",
  "other\tplugins/client-ui-settings-web-search/src/client/locales.ts\tdashboard.exa.ai",
+ "other\tplugins/ui-settings-usage/src/copilot.ts\tapi.github.com",
  "other\tplugins/web-search-brave/src/provider.ts\tapi.search.brave.com",
  "other\tplugins/web-search-exa/src/exa.ts\tapi.exa.ai",
  "other\tplugins/web-search-exa/src/types.ts\tapi.exa.ai",
