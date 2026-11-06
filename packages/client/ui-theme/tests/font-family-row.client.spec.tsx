@@ -12,6 +12,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { allowAllAccess, bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { FontFamilyRow } from '../src/client/FontFamilyRow.tsx'
 import type { FontFamilyRowComponentProps } from '../src/client/FontFamilyRow.tsx'
+import type { FontFamilyControlOwnerProps } from '../src/client/index.ts'
 import { createFontRowStore } from '../src/client/settings-store.ts'
 import { normalizeFontFamily, type FontRole } from '../src/theme-settings.ts'
 
@@ -45,7 +46,7 @@ const noAttention: AttentionSnapshot = new Map()
 const useSessionStatus: FontFamilyRowComponentProps['useSessionStatus'] = selector => selector(noAttention)
 
 /** Chain seat with no elected entry: the row's own text field renders. */
-const declinedChain = vi.fn<FontFamilyRowComponentProps['renderSlotChain']>((_key, _owner, opts) => opts?.fallback)
+const declinedChain: FontFamilyRowComponentProps['renderSlotChain'] = (_key, _owner, opts) => opts?.fallback
 
 function mount(kind: FontRole = 'code', code = '', renderSlotChain = declinedChain) {
   const store = createFontRowStore().create()
@@ -123,15 +124,17 @@ describe('FontFamilyRow', () => {
   })
 
   it('lets the elected chain entry replace the field and write through the normalized commit', () => {
-    let owner: Parameters<FontFamilyRowComponentProps['renderSlotChain']>[1] | undefined
-    const elected = vi.fn<FontFamilyRowComponentProps['renderSlotChain']>((_key, next) => {
+    let electedKey: string | undefined
+    let owner: FontFamilyControlOwnerProps | undefined
+    const elected: FontFamilyRowComponentProps['renderSlotChain'] = (key, next) => {
+      electedKey = key
       owner = next
       return <div data-testid="control" />
-    })
+    }
     const b = mount('code', '"Iosevka"', elected)
     expect(screen.getByTestId('control')).toBeDefined()
     expect(screen.queryByRole('textbox')).toBeNull()
-    expect(elected.mock.lastCall?.[0]).toBe('settings.theme.font-family')
+    expect(electedKey).toBe('settings.theme.font-family')
     expect(owner).toMatchObject({ role: 'code', value: '"Iosevka"', label: 'Code font' })
     expect(owner?.commit("'Fira Code', monospace")).toBe('"Fira Code", monospace')
     expect(b.setFontFamily).toHaveBeenCalledExactlyOnceWith('"Fira Code", monospace')
