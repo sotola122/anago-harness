@@ -128,7 +128,8 @@ describe('FontFamilyRow', () => {
     let owner: FontFamilyControlOwnerProps | undefined
     const elected: FontFamilyRowComponentProps['renderSlotChain'] = (key, next) => {
       electedKey = key
-      owner = next
+      // The row only asks this chain for its own slot key, so the owner is that slot's share.
+      owner = next as FontFamilyControlOwnerProps
       return <div data-testid="control" />
     }
     const b = mount('code', '"Iosevka"', elected)
