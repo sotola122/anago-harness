@@ -68,6 +68,10 @@ A flow declares the credential record it writes, a user-facing label, and the si
 
 A surface runs one attempt per credential at a time. The interaction travels with the request rather than living in a registry, so prompts reach exactly the page that asked; a headless caller supplies an interaction that declines. `begin()` reports `{ status: 'authorized' }` when the record was committed and observed during the attempt, and `{ status: 'cancelled' }` when the human declined or the caller withdrew. `cancel(key)` withdraws the running attempt from a second call, for the request/response transport that answers a Cancel button without holding the first call's signal.
 
+### Renewing a stored credential
+
+A flow can declare `renew(signal)` when its credential can be brought up to date without the human. `ctx.authorization.renew(key, signal)` runs it and reports `current`, or reports `unavailable` when no flow offers a renewal for that key. It takes no attempt slot and fires no `authorization/settled`. The flow owns the write and decides whether anything is due; a failure reaches the caller as a thrown error and asks the human nothing, so showing a sign-in stays the caller's decision. The signal stops only the wait: a renewal that already reached the issuer finishes and commits, because the issuer may have rotated the credential.
+
 ### What can go wrong
 
 - **A credential with no flow is inert** — `begin()` on a key no flow claims throws `NO_FLOW`; a record left by an uninstalled plugin can be deleted but not re-authorized.

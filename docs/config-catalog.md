@@ -220,23 +220,37 @@ export interface Config {
 ## `@anago-harness/ui-settings-usage`
 
 - `inject`: `credentials` · `typert`
-- `source`: [`plugins/ui-settings-usage/src/index.ts:32`](../plugins/ui-settings-usage/src/index.ts)
+- `source`: [`plugins/ui-settings-usage/src/index.ts:45`](../plugins/ui-settings-usage/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config; a change applies when the Host next loads the row. */
 export interface Config {
-  /** Time limit in milliseconds for each provider request, response body included. */
+  /** Time limit in milliseconds for one provider's read, token renewal and response body included. */
   timeoutMs: number
+  /** How long in milliseconds a read answers later opens and refreshes instead of a new request; 0 reads every time. */
+  minRefreshIntervalMs: number
   /** GitHub Copilot quota reading. */
-  copilot: CopilotConfig
+  copilot: ProviderReadConfig
+  /** OpenAI Codex usage reading. */
+  openaiCodex: ProviderReadConfig
+  /** xAI credit usage reading. */
+  xai: ProviderReadConfig
+  /** OpenCode Go usage reading. */
+  opencodeGo: OpenCodeGoConfig
 }
 
-/** GitHub Copilot quota reading. */
-export interface CopilotConfig {
-  /** Whether the section reads Copilot quota; false reports the row as unsupported without any request. */
+/** Reading one provider's usage. */
+export interface ProviderReadConfig {
+  /** Whether the section reads this provider; false reports the row as unsupported without any request. */
   enabled: boolean
-  /** Quota URL replacing the one derived from the signed-in grant: https, or http on a loopback host. */
+  /** Usage URL replacing the built-in one: https, or http on a loopback host, without a query. */
   endpoint?: string
+}
+
+/** Reading OpenCode Go usage. */
+export interface OpenCodeGoConfig extends ProviderReadConfig {
+  /** Credential references holding the API key, tried in order before the record `llm-pi-ai` stores. */
+  apiKeyEnvs: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@anago-harness/ui-settings-usage -->
