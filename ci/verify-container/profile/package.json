@@ -1,0 +1,28 @@
+{
+  "name": "dsh-profile-verify",
+  "private": true,
+  "dependencies": {
+    "@anago-harness/copilot-oauth": "link:/app/plugins/copilot-oauth",
+    "@anago-harness/openai-codex-oauth": "link:/app/plugins/openai-codex-oauth",
+    "@anago-harness/xai-oauth": "link:/app/plugins/xai-oauth",
+    "@mars-sea/dsh-commandcode-provider": "0.17.1",
+    "@deepseek-ai/dsh-experimental-tool-worktree": "0.2.2-rc.1",
+    "@anago-harness/ui-settings-usage": "link:/app/plugins/ui-settings-usage"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@anago-harness/anago-core",
+        "@anago-harness/anago-web",
+        "@anago-harness/xai-oauth",
+        "@anago-harness/copilot-oauth",
+        "@anago-harness/openai-codex-oauth",
+        "@mars-sea/dsh-commandcode-provider",
+        "@deepseek-ai/dsh-experimental-tool-worktree",
+        "@anago-harness/ui-settings-usage"
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# Host-only state never enters the image.
+.git
+node_modules
+**/node_modules
+.worktrees
+.agents/worktrees
+.dsh
+.dsh-build
+tmp
+.research
+.review
+.pi-delegate
+.yomiyasu
+.anago
+website
+.env
+.env.*
+**/lib
+**/dist
+**/*.tsbuildinfo
+.artifacts/screenshots
