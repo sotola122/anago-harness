@@ -133,6 +133,7 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/client/ui-tool/src/client/tool/models/` | child provider, model, and effort in the detail |
 | `packages/client/ui-conversation/src/client/input/editor/keymap.ts` | a plain Enter on a mobile browser inserts a line break instead of submitting; the Send button and the Ctrl/Cmd chord still submit |
 | `packages/client/ui-sidebar-terminal/src/client/terminal.tsx` | the terminal's default font stack reads `--dsh-font-family-terminal-default` so the fork's font config reaches the sidebar terminal; a user-selected list still leads |
+| `packages/client/ui-conversation/tests/keymap-mobile-enter.client.spec.tsx`, `tests/input-bar.client.spec.tsx`, `README.md` pair | the mobile Enter expectations for that keymap row, including the eventless dispatch of a composition ending on a line break; re-record the pair with `pnpm run verify-translation-pairing --write <pair>` |
 | `packages/core/system-prompt/src/index.ts` | `ORCHESTRATOR_POLICY` at order 550 |
 | `packages/bundle/web-app/package.json`, `packages/bundle/web-app/presets/orchestrator.patch.yml` | the orchestrator preset mounted on the bundle |
 | `snapshots/**` expected files and session JSONL that differ | the fork behavior in that recording (route fields, injected sections). `pnpm run test:snapshot` must exit 0 |
