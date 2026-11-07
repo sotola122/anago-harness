@@ -1,5 +1,7 @@
 # Containerized verification host
 
+English | [中文](README.zh.md)
+
 Builds this checkout into an image and serves the Web host on
 `http://100.110.252.31:8083` without touching the host's Node build,
 `~/.dsh`, or the live `anago-web.service` on port 3080.
@@ -11,6 +13,8 @@ home is `/home/dsh/.dsh`.
 ## Prerequisites
 
 - rootless `podman` 5.7
+- an initialized `plugins` submodule (`git submodule update --init`), because the
+  image copies this checkout
 - host `python3` with PyYAML (only to read credential names; values are piped,
   never printed)
 - `/home/hwd/.dsh/.credentials.yaml` with `OPENCODE_GO_API_KEY` and
@@ -20,7 +24,7 @@ home is `/home/dsh/.dsh`.
 ## Build
 
 ```sh
-/data_1/git_workspace/anago-harness/.artifacts/container/run.sh
+/data_1/git_workspace/anago-harness/ci/verify-container/run.sh
 ```
 
 `run.sh` builds the image, refreshes the podman secrets, stops the old
@@ -33,8 +37,8 @@ Build only:
 ```sh
 cd /data_1/git_workspace/anago-harness
 podman build \
-  --file .artifacts/container/Containerfile \
-  --ignorefile .artifacts/container/containerignore \
+  --file ci/verify-container/Containerfile \
+  --ignorefile ci/verify-container/containerignore \
   --build-arg "DSH_CLIENT_COMMIT_HASH=$(git rev-parse HEAD)" \
   --tag anago-verify:8083 .
 ```
@@ -42,9 +46,9 @@ podman build \
 ## Run / logs / stop
 
 ```sh
-.artifacts/container/run.sh          # build, run, print URL
+ci/verify-container/run.sh           # build, run, print URL
 podman logs -f anago-verify-8083     # follow the host log
-.artifacts/container/run.sh stop     # remove the container
+ci/verify-container/run.sh stop      # remove the container
 ```
 
 ## Secrets
@@ -74,7 +78,9 @@ A sign-in inside the container (`/xai-login`, `/copilot-login`, …) writes to t
 container's own credential store. That store starts as a copy of the host
 document so the mounted grants are readable at boot, but the container never
 writes back to the host: refresh a host grant and re-run `./run.sh` to carry it
-into a fresh container.
+into a fresh container. The copy includes the host's OAuth grants, so when the
+container refreshes one and the issuer rotates its refresh token, the host's copy
+of that login goes stale, the same hazard as the Claude login above.
 
 ## Profile
 
