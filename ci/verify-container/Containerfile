@@ -1,0 +1,43 @@
+# Verification image for this checkout. Builds every artifact from this copy;
+# nothing is read from the host's node_modules, build output, or DSH home.
+FROM node:24-bookworm-slim
+
+# Install scripts (node-pty, koffi) and the Node-API system addon compile here.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential python3 \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /home/dsh/.dsh /home/dsh/.claude /home/dsh/.agents
+
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    CI=1 \
+    HOME=/home/dsh \
+    DSH_HOME=/home/dsh/.dsh
+
+RUN corepack enable
+
+WORKDIR /app
+COPY . /app
+
+# The build context carries no Git metadata; the client build still needs a commit.
+ARG DSH_CLIENT_COMMIT_HASH=0000000
+RUN --mount=type=cache,id=anago-pnpm-store,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile --store-dir=/pnpm/store
+RUN DSH_CLIENT_COMMIT_HASH=${DSH_CLIENT_COMMIT_HASH} pnpm run build:artifacts
+
+# The verification profile mirrors ~/.dsh/profiles/web-anago. Its out-of-tree
+# bundles (workspace packages, the commandcode provider, the mobile plugin)
+# are installed into the image's own profile; nothing is mounted from the host.
+RUN --mount=type=cache,id=anago-pnpm-store,target=/pnpm/store,sharing=locked \
+    mkdir -p /home/dsh/.dsh/profiles/verify \
+ && cp /app/.artifacts/container/profile/package.json \
+       /app/.artifacts/container/profile/pnpm-workspace.yaml \
+       /app/.artifacts/container/profile/cordis.yml \
+       /app/.artifacts/container/profile/cordis.patch.yml \
+       /home/dsh/.dsh/profiles/verify/ \
+ && cd /home/dsh/.dsh/profiles/verify \
+ && pnpm install --store-dir=/pnpm/store
+
+EXPOSE 8083
+ENTRYPOINT ["/app/.artifacts/container/entrypoint.sh"]
