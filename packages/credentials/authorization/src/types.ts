@@ -78,6 +78,13 @@ export interface AuthorizationOutcome {
   status: AuthorizationStatus
 }
 
+/**
+ * What `renew()` could do for one key: `current` means the flow's renewal path
+ * ran and the stored credential needs nothing more; `unavailable` means no
+ * registered flow offers such a path for this key.
+ */
+export type AuthorizationRenewal = 'current' | 'unavailable'
+
 /** A registered flow as a surface sees it: what it authorizes and whether it is busy. */
 export interface AuthorizationEntry {
   /** The credential record this flow writes. */

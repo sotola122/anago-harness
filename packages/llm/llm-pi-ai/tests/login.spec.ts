@@ -10,13 +10,14 @@ import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
 import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Credential } from '@earendil-works/pi-ai'
 
 const login = vi.hoisted(() => vi.fn())
+const getAuth = vi.hoisted(() => vi.fn())
 
 // The whole of what this module does with pi-ai is run one provider's login
 // against a collection built with the harness store, so the collection is the
 // boundary worth observing; a real login would open a browser.
 vi.mock('../src/models.ts', async importOriginal => ({
   ...await importOriginal<typeof import('../src/models.ts')>(),
-  createModels: () => ({ setProvider: () => {}, login }),
+  createModels: () => ({ setProvider: () => {}, login, getAuth }),
 }))
 
 const { credentialStoreFrom, authContextFrom, recordKeyFor } = await import('../src/auth.ts')
@@ -78,6 +79,7 @@ async function attempt(
 
 afterEach(async () => {
   login.mockReset()
+  getAuth.mockReset()
   await Promise.all(dirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
 })
 
@@ -102,6 +104,23 @@ describe('pi-ai login flows', () => {
     expect(catalogProvider('openai')?.auth.oauth?.loginLabel).toBe('Sign in with ChatGPT')
     expect(offered.find(entry => entry.key === recordKeyFor('openai'))?.methods.map(one => one.id))
       .toEqual(['api-key'])
+  })
+
+  it('renews an OAuth record through the collection auth resolution, with the caller signal', async () => {
+    const ctx = await harness()
+    const { signal } = new AbortController()
+
+    await expect(ctx.authorization.renew(CODEX, signal)).resolves.toBe('current')
+    expect(getAuth).toHaveBeenCalledExactlyOnceWith('openai-codex', { signal })
+  })
+
+  it('offers no renewal for a key-only route, or for the OAuth login it does not serve', async () => {
+    const ctx = await harness()
+    const { signal } = new AbortController()
+
+    await expect(ctx.authorization.renew(recordKeyFor('deepseek'), signal)).resolves.toBe('unavailable')
+    await expect(ctx.authorization.renew(recordKeyFor('openai'), signal)).resolves.toBe('unavailable')
+    expect(getAuth).not.toHaveBeenCalled()
   })
 
   it('runs the pi-ai auth type the chosen method names', async () => {

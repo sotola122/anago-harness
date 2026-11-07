@@ -18426,6 +18426,9 @@ importers:
       '@deepseek-ai/dsh-api-remotes':
         specifier: workspace:*
         version: link:../../packages/api/remotes
+      '@deepseek-ai/dsh-authorization':
+        specifier: workspace:*
+        version: link:../../packages/credentials/authorization
       '@deepseek-ai/dsh-client-locale':
         specifier: workspace:*
         version: link:../../packages/client/locale

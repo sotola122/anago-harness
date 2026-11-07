@@ -150,6 +150,16 @@ export function registerPiAiFlows(ctx: Context, auth: PiAiAuthInjection): void {
       key: recordKeyFor(providerId),
       label: provider.name,
       methods: [first, ...rest],
+      // The path a model request takes: pi-ai decides whether the stored grant
+      // is due and refreshes it under the store's lock, so a renewal here and a
+      // request elsewhere rotate one refresh token only once.
+      ...first.id === 'oauth' ? {
+        async renew(signal: AbortSignal) {
+          const models = createModels(auth)
+          models.setProvider(provider)
+          await models.getAuth(providerId, { signal })
+        },
+      } : {},
       async run(session) {
         // A collection of its own, holding only the provider being signed
         // into: login is not serving requests, and the credential it produces

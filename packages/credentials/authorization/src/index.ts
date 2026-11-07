@@ -32,12 +32,12 @@ import { HarnessError } from '@deepseek-ai/dsh-llm'
 
 import type {
   AuthorizationEntry, AuthorizationMethod, AuthorizationNotice, AuthorizationOutcome, AuthorizationPrompt,
-  AuthorizationSettlement,
+  AuthorizationRenewal, AuthorizationSettlement,
 } from './types.ts'
 
 export type {
   AuthorizationEntry, AuthorizationMethod, AuthorizationNotice, AuthorizationOutcome, AuthorizationPrompt,
-  AuthorizationPromptOption, AuthorizationSettlement, AuthorizationStatus,
+  AuthorizationPromptOption, AuthorizationRenewal, AuthorizationSettlement, AuthorizationStatus,
 } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -140,6 +140,17 @@ export interface AuthorizationFlow {
    * @throws when the attempt fails or the human declines.
    */
   run(session: AuthorizationSession): Promise<void>
+  /**
+   * Bring the stored credential up to date without asking the human anything,
+   * writing nothing when it needs no change. Absent when this credential has no
+   * such path. The flow owns this write as it owns the one in `run()`.
+   * @param signal - stops the caller's wait. A renewal that already reached the
+   *   issuer still finishes and commits, because the issuer may have rotated the
+   *   credential it was given.
+   * @returns once the stored credential is current.
+   * @throws when the renewal fails or the signal stops the wait.
+   */
+  renew?(signal: AbortSignal): Promise<void>
 }
 
 /**
@@ -250,6 +261,23 @@ export class AuthorizationService extends Service {
       methods: flow.methods,
       inFlight: this.running.has(flow.key),
     }
+  }
+
+  /**
+   * Bring one stored credential up to date without asking the human anything.
+   * It takes no attempt slot, because no conversation runs and the flow's write
+   * path serializes writers of the record.
+   * @param key - the credential record to renew.
+   * @param signal - stops the caller's wait; see {@link AuthorizationFlow.renew}.
+   * @returns `current` once the flow's renewal path finished, or `unavailable`
+   *   when no registered flow offers one for this key.
+   * @throws whatever the flow's renewal throws, including the signal's reason.
+   */
+  async renew(key: CredentialKey, signal: AbortSignal): Promise<AuthorizationRenewal> {
+    const flow = this.flows.get(key)
+    if (flow?.renew === undefined) return 'unavailable'
+    await flow.renew(signal)
+    return 'current'
   }
 
   /**

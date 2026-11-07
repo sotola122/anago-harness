@@ -309,6 +309,59 @@ describe('AuthorizationService.begin', () => {
   })
 })
 
+describe('AuthorizationService.renew', () => {
+  it('runs the flow renewal with the caller signal and reports the credential current', async () => {
+    const ctx = await harness()
+    const renew = vi.fn(() => Promise.resolve())
+    ctx.authorization.registerFlow({ ...committingFlow(ctx), renew })
+    const { signal } = new AbortController()
+
+    await expect(ctx.authorization.renew(KEY, signal)).resolves.toBe('current')
+    expect(renew).toHaveBeenCalledExactlyOnceWith(signal)
+  })
+
+  it('reports unavailable for a key no flow claims, and for a flow with no renewal path', async () => {
+    const ctx = await harness()
+    ctx.authorization.registerFlow(committingFlow(ctx))
+    const { signal } = new AbortController()
+
+    await expect(ctx.authorization.renew(OTHER, signal)).resolves.toBe('unavailable')
+    await expect(ctx.authorization.renew(KEY, signal)).resolves.toBe('unavailable')
+  })
+
+  it('propagates a failed renewal to its caller', async () => {
+    const ctx = await harness()
+    const failure = new Error('issuer refused')
+    ctx.authorization.registerFlow({ ...committingFlow(ctx), renew: () => Promise.reject(failure) })
+
+    await expect(ctx.authorization.renew(KEY, new AbortController().signal)).rejects.toBe(failure)
+  })
+
+  it('neither takes the attempt slot nor settles an attempt', async () => {
+    const ctx = await harness()
+    const pending = Promise.withResolvers<undefined>()
+    const settled = vi.fn()
+    ctx.on('authorization/settled', settled)
+    ctx.authorization.registerFlow({ ...committingFlow(ctx), renew: () => pending.promise })
+
+    const renewal = ctx.authorization.renew(KEY, new AbortController().signal)
+    expect(ctx.authorization.describe(KEY)?.inFlight).toBe(false)
+    pending.resolve(undefined)
+    await renewal
+    expect(settled).not.toHaveBeenCalled()
+  })
+
+  it('stops offering a renewal once the flow leaves', async () => {
+    const ctx = await harness()
+    const renew = vi.fn(() => Promise.resolve())
+    const dispose = ctx.authorization.registerFlow({ ...committingFlow(ctx), renew })
+    dispose()
+
+    await expect(ctx.authorization.renew(KEY, new AbortController().signal)).resolves.toBe('unavailable')
+    expect(renew).not.toHaveBeenCalled()
+  })
+})
+
 describe('commit confirmation', () => {
   it('refuses a re-auth that left only the record of an earlier attempt', async () => {
     const ctx = await harness()
