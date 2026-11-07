@@ -127,7 +127,7 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/goal/goal-round-driver/src/index.ts` | `hold()` for the duration of a drive |
 | `packages/client/ui-conversation/src/client/contract/composer-blocks.ts`, `slots.ts`, `skeleton/InputBar.tsx`, `locales.ts` | composer lock while another process holds the Session |
 | `packages/experimental/liveshare/src/endpoint-classification.ts` | `session/ownership` is owner-only |
-| `packages/subagent/tool-subagent/src/` | `providerOwnedRoute`, purpose routing, category skills |
+| `packages/subagent/tool-subagent/src/`, `tests/permission-mode.spec.ts`, `README.md` pair | `providerOwnedRoute`, purpose routing, category skills, and the per-run `permission_mode` argument: offered when a provider declares two or more modes, passed to every child on the direct and purpose paths, echoed as `permission mode: <mode>` |
 | `packages/subagent/tool-subagent-control/src/list-agents.ts` | a listed child's recorded provider, model, and reasoning effort |
 | `packages/client/ui-settings-subagent/src/client/` | the purpose-route settings card |
 | `packages/client/ui-tool/src/client/tool/models/` | child provider, model, and effort in the detail |

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Install this Profile Bundle when a delegated task should run as a fresh, unattended Claude Code session in the parent workspace. Each run accepts one self-contained text task and returns the final answer or a safe failure diagnostic; reasoning, tool traffic, stderr, usage, and workspace diffs stay out of the parent Session. Native Claude settings and authentication remain authoritative, while Profile configuration selects the model, environment, and `permissionMode`. The platform-pinned runtime starts on demand and never falls back to the host `claude` executable. Choose it when isolation and genuine Claude Code behavior matter more than continuation or prompts.
+Install this Profile Bundle when a delegated task should run as a fresh, unattended Claude Code session in the parent workspace. Each run accepts one self-contained text task and returns the final answer or a safe failure diagnostic; reasoning, tool traffic, stderr, usage, and workspace diffs stay out of the parent Session. Native Claude settings and authentication remain authoritative, while Profile configuration selects the model, environment, and permission modes. The platform-pinned runtime starts on demand and never falls back to the host `claude` executable. Choose it when isolation and genuine Claude Code behavior matter more than continuation or prompts.
 
 ## Table of Contents
 
@@ -43,7 +43,7 @@ The layer inserts Host rows only, so any profile can select it, including the sh
 | `model` | native Claude settings | Optional non-empty model name fixed for every run from this provider instance; omission sends no SDK override |
 | `env` | `{}` | Explicit SDK/CLI environment layered over the credential-scrubbed parent environment |
 | `permissionMode` | `dontAsk` | Native non-interactive permission policy applied when a call names no mode |
-| `allowedPermissionModes` | `[permissionMode]` | Modes a call may select through the tool's `permission_mode` argument; must be non-empty and include `permissionMode`, otherwise loading fails. The argument appears in the tool schema only when two or more modes are listed |
+| `allowedPermissionModes` | `[permissionMode]` | Modes a call may select through the tool's `permission_mode` argument; must be non-empty and include `permissionMode`, otherwise loading fails. The argument appears in the tool schema only when two or more modes are listed. Listing `bypassPermissions` lets the delegating model skip permission checks for a run |
 | `timeoutMs` | unbounded | Optional run limit; an overrun ends the run as an error and stops the process. Without it only cancellation ends a run |
 | `disposeGraceMs` | `3000` | Grace between the shared managed-range owner's termination tiers |
 
@@ -139,7 +139,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-The Claude Code child receives the standalone text task as one fresh SDK query. Its workspace is the selected child working directory; the selected provider instance fixes the query's configured model, environment, and non-interactive permission mode, while an omitted model and every other product setting come from native Claude configuration. The executable version comes from the Bundle's pinned SDK platform payload.
+The Claude Code child receives the standalone text task as one fresh SDK query. Its workspace is the selected child working directory; the selected provider instance fixes the query's configured model and environment, the call's `permission_mode` or else the instance's `permissionMode` selects the non-interactive permission mode, and an omitted model and every other product setting come from native Claude configuration. The executable version comes from the Bundle's pinned SDK platform payload.
 
 #### Token effect
 
@@ -153,11 +153,11 @@ Independent of the parent request cache. Reuse depends only on Claude Code's own
 
 #### What the model sees
 
-Through `dsh-tool-subagent`, the parent model first receives the child's name, then the final Claude Code answer or a failure notice with its stop reason and safe diagnostic. Diagnostics contain only fixed stage, category, and observed protocol or process facts. Product reasoning, intermediate messages, tool activity, stderr, usage, product identifiers, commands, paths, and raw protocol payloads are not copied into the parent Session.
+Through `dsh-tool-subagent`, the parent model first receives the child's name, then the final Claude Code answer or a failure notice with its stop reason and safe diagnostic. A failure diagnostic contains only fixed stage, category, and observed protocol or process facts; a completed notice whose run had denied tool calls adds a diagnostic naming those tools and the mode, never their inputs. Product reasoning, intermediate messages, tool activity, stderr, usage, product identifiers, commands, paths, and raw protocol payloads are not copied into the parent Session.
 
 #### Token effect
 
-Parent input grows by the start acknowledgement and completion notice, including the final answer or failure detail. Child tokens do not enter the parent context. This provider adds no parent tool schema by itself.
+Parent input grows by the start acknowledgement and completion notice, including the final answer or failure detail. Child tokens do not enter the parent context. This provider adds no parent tool schema by itself; two or more `allowedPermissionModes` add the `permission_mode` enum through `dsh-tool-subagent` and a `permission mode:` line to the start acknowledgement.
 
 #### KV Cache effect
 
@@ -178,7 +178,7 @@ These limits define when this provider is a poor fit or needs special operationa
 - **No human interaction path** — `AskUserQuestion` is disabled, permission prompts are denied, MCP elicitation is declined, and blocking dialogs fail closed instead of suspending.
 - **Assistant payload is final text only** — failed runs can also expose a separate safe diagnostic; reasoning, intermediate messages, tool traffic, usage, stderr, and workspace diffs remain outside the parent Session. Task identity and terminal results are retained in the parent log.
 - **No optional shared capabilities** — `agentPreset`, `agentOptions`, output schemas, and harness depth enforcement are rejected by the shared service for this provider.
-- **No wall-clock timeout or side-effect rollback** — the caller cancels long work, and files or external systems changed before cancellation are not restored.
+- **No side-effect rollback** — cancellation or `timeoutMs` stops the process, and files or external systems changed before it stopped are not restored.
 
 <a id="dev-note"></a>
 ### Dev Note

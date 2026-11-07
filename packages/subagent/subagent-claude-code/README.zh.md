@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-当委派任务应在父工作区中以全新、无人值守的 Claude Code 会话运行时，安装这个 Profile Bundle。每次运行接受一个自包含文本任务，并返回最终答案或安全的失败诊断；推理、工具通信、stderr、用量信息和工作区差异不会进入父 Session。Claude 原生设置与身份验证继续是权威来源，而 Profile 配置选择模型、环境和 `permissionMode`。针对平台锁定的运行时仅在需要时启动，并且绝不会回退到宿主 `claude` 可执行文件。当隔离和真实 Claude Code 行为比续接或提示更重要时，选择本包。
+当委派任务应在父工作区中以全新、无人值守的 Claude Code 会话运行时，安装这个 Profile Bundle。每次运行接受一个自包含文本任务，并返回最终答案或安全的失败诊断；推理、工具通信、stderr、用量信息和工作区差异不会进入父 Session。Claude 原生设置与身份验证继续是权威来源，而 Profile 配置选择模型、环境和权限模式。针对平台锁定的运行时仅在需要时启动，并且绝不会回退到宿主 `claude` 可执行文件。当隔离和真实 Claude Code 行为比续接或提示更重要时，选择本包。
 
 ## 目录
 
@@ -43,7 +43,7 @@ kind: "package-bundle"
 | `model` | Claude 原生设置 | 为本提供方实例的每次运行固定的可选非空模型名称；省略时不发送 SDK 覆盖 |
 | `env` | `{}` | 叠加在已清理凭据的父环境之上的显式 SDK/CLI 环境 |
 | `permissionMode` | `dontAsk` | 调用未指定模式时应用的原生非交互权限策略 |
-| `allowedPermissionModes` | `[permissionMode]` | 调用可通过工具的 `permission_mode` 参数选择的模式；必须非空且包含 `permissionMode`，否则加载失败。仅当列出两个以上模式时，该参数才会出现在工具 schema 中 |
+| `allowedPermissionModes` | `[permissionMode]` | 调用可通过工具的 `permission_mode` 参数选择的模式；必须非空且包含 `permissionMode`，否则加载失败。仅当列出两个以上模式时，该参数才会出现在工具 schema 中。列出 `bypassPermissions` 后，委派方模型可让某次运行跳过权限检查 |
 | `timeoutMs` | 无限制 | 可选的运行上限；超时后以 error 结束并停止进程。未设置时只有取消能结束运行 |
 | `disposeGraceMs` | `3000` | 共享 managed-range owner 各终止层级之间的宽限 |
 
@@ -139,7 +139,7 @@ Bundle 将 `tool-subagent-claude-code` 作为 Host 条目插入，因此 `subage
 
 #### 模型看到什么
 
-Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。它的工作区是所选子级工作目录；所选提供方实例会固定已配置的模型、环境与非交互权限模式，而省略的模型及其余产品设置来自 Claude 原生配置。可执行版本来自 Bundle 锁定的 SDK 平台载荷。
+Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。它的工作区是所选子级工作目录；所选提供方实例会固定已配置的模型与环境，非交互权限模式由调用的 `permission_mode` 选择，未指定时取实例的 `permissionMode`，而省略的模型及其余产品设置来自 Claude 原生配置。可执行版本来自 Bundle 锁定的 SDK 平台载荷。
 
 #### Token 影响
 
@@ -153,11 +153,11 @@ Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。
 
 #### 模型看到什么
 
-通过 `dsh-tool-subagent`，父模型先收到子任务名称，随后收到 Claude Code 最终答案或带停止原因与安全诊断的失败通知。诊断只包含固定的阶段、类别和已观测的协议或进程事实。产品推理、中间消息、工具活动、stderr、用量、产品标识符、命令、路径与原始协议载荷不会复制到父 Session。
+通过 `dsh-tool-subagent`，父模型先收到子任务名称，随后收到 Claude Code 最终答案或带停止原因与安全诊断的失败通知。失败诊断只包含固定的阶段、类别和已观测的协议或进程事实；若已完成的运行有被拒绝的工具调用，完成通知会附带一条诊断，指明这些工具与模式，绝不包含其输入。产品推理、中间消息、工具活动、stderr、用量、产品标识符、命令、路径与原始协议载荷不会复制到父 Session。
 
 #### Token 影响
 
-父级输入会增加启动确认与完成通知，包括最终答案或失败信息。子任务 token 不进入父级上下文。本提供方自身不添加父级工具 schema。
+父级输入会增加启动确认与完成通知，包括最终答案或失败信息。子任务 token 不进入父级上下文。本提供方自身不添加父级工具 schema；列出两个以上 `allowedPermissionModes` 时，`dsh-tool-subagent` 会增加 `permission_mode` 枚举，并在启动确认中增加一行 `permission mode:`。
 
 #### KV Cache 影响
 
@@ -178,7 +178,7 @@ Claude Code 子级会在一个全新的 SDK query 中接收独立文本任务。
 - **没有人工交互路径**——`AskUserQuestion` 被禁用，权限提示会被拒绝，MCP elicitation 会被拒绝，阻塞对话会以拒绝方式失败而不会挂起。
 - **assistant 载荷仅包含最终文本**——失败运行还可公开独立的安全诊断；推理、中间消息、工具通信、用量、stderr 与工作区差异不会进入父 Session。任务身份与终态结果保存在父日志中。
 - **没有可选的共享能力**——对于本提供方，共享服务会拒绝 `agentPreset`、`agentOptions`、输出 schema 和 harness 深度强制约束。
-- **没有按实际经过时间触发的超时或副作用回滚**——长时间运行的工作由调用方取消，且取消前已更改的文件或外部系统不会恢复原状。
+- **没有副作用回滚**——取消或 `timeoutMs` 会停止进程，且进程停止前已更改的文件或外部系统不会恢复原状。
 
 <a id="dev-note"></a>
 ### 开发备注

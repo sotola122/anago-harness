@@ -154,7 +154,7 @@ export interface ClaudeCodeRunSpec {
   readonly cwd: string
   /** Profile-selected native model; omitted to preserve Claude settings. */
   readonly model?: string
-  /** Profile-selected native non-interactive permission mode. */
+  /** Native non-interactive permission mode of this run: the call's choice, else the Profile default. */
   readonly permissionMode: ClaudeCodePermissionMode
   /** Run time limit in milliseconds; omitted means only cancellation ends the run. */
   readonly timeoutMs?: number
