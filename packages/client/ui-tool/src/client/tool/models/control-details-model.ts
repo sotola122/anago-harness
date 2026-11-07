@@ -139,43 +139,47 @@ function stringField(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
+/** Route fields one persisted receipt or reviewer row recorded; an absent or empty field stays absent. */
+function recordedRoute(record: Record<string, unknown>): ReceiptRoute {
+  const provider = stringField(record.provider)
+  const model = stringField(record.model)
+  const reasoningEffort = stringField(record.reasoningEffort)
+  const category = stringField(record.category)
+  return {
+    ...provider !== undefined ? { provider } : {},
+    ...model !== undefined ? { model } : {},
+    ...reasoningEffort !== undefined ? { reasoningEffort } : {},
+    ...category !== undefined ? { category } : {},
+  }
+}
+
 /** Structured activation route persisted on `tool/result` meta. */
 function activationRoute(meta: unknown): (ReceiptRoute & {
   name?: string
   children?: Array<ReceiptRoute & { name?: string }>
 }) | undefined {
   if (!detailRecord(meta)) return undefined
-  const category = stringField(meta.category)
+  const route = recordedRoute(meta)
   const children = Array.isArray(meta.children)
     ? meta.children.flatMap((child) => {
       if (!detailRecord(child)) return []
       // Receipts recorded before agents had names store the child Session id.
       const name = stringField(child.name) ?? stringField(child.subagentId)
-      const provider = stringField(child.provider)
-      const model = stringField(child.model)
-      const reasoningEffort = stringField(child.reasoningEffort)
-      const childCategory = stringField(child.category) ?? category
+      const childRoute = recordedRoute(child)
+      const category = childRoute.category ?? route.category
       return [{
         ...name !== undefined ? { name } : {},
-        ...provider !== undefined ? { provider } : {},
-        ...model !== undefined ? { model } : {},
-        ...reasoningEffort !== undefined ? { reasoningEffort } : {},
-        ...childCategory !== undefined ? { category: childCategory } : {},
+        ...childRoute,
+        ...category !== undefined ? { category } : {},
       }]
     })
     : undefined
   // Receipts recorded before agents had names store the child Session id.
   const name = stringField(meta.name) ?? stringField(meta.subagentId)
-  const provider = stringField(meta.provider)
-  const model = stringField(meta.model)
-  const reasoningEffort = stringField(meta.reasoningEffort)
   if (name === undefined && (children === undefined || children.length === 0)) return undefined
   return {
     ...name !== undefined ? { name } : {},
-    ...provider !== undefined ? { provider } : {},
-    ...model !== undefined ? { model } : {},
-    ...reasoningEffort !== undefined ? { reasoningEffort } : {},
-    ...category !== undefined ? { category } : {},
+    ...route,
     ...children !== undefined && children.length > 0 ? { children } : {},
   }
 }
@@ -277,16 +281,7 @@ export function subagentDetails(
     if (nonempty(description)) fields.push({ label: t('detail.field.agentDescription'), value: description })
     if (meta.name !== undefined) fields.push({ label: t('detail.field.agentName'), value: meta.name })
     if (meta.subagentId !== undefined) fields.push({ label: t('detail.field.id'), value: meta.subagentId })
-    const receiptProvider = stringField(meta.provider)
-    const receiptModel = stringField(meta.model)
-    const receiptEffort = stringField(meta.reasoningEffort)
-    const receiptCategory = stringField(meta.category)
-    fields.push(...routeFields({
-      ...receiptProvider === undefined ? {} : { provider: receiptProvider },
-      ...receiptModel === undefined ? {} : { model: receiptModel },
-      ...receiptEffort === undefined ? {} : { reasoningEffort: receiptEffort },
-      ...receiptCategory === undefined ? {} : { category: receiptCategory },
-    }, t))
+    fields.push(...routeFields(recordedRoute(meta), t))
   }
   return detailList([{
     title: t('detail.receipt.started'), fields,

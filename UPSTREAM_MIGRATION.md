@@ -130,7 +130,7 @@ Re-apply means fork behavior that lives inside an upstream package, not a short 
 | `packages/subagent/tool-subagent/src/` | `providerOwnedRoute`, purpose routing, category skills |
 | `packages/subagent/tool-subagent-control/src/list-agents.ts` | a listed child's recorded provider, model, and reasoning effort |
 | `packages/client/ui-settings-subagent/src/client/` | the purpose-route settings card |
-| `packages/client/ui-tool/src/client/tool/models/` | child provider, model, and effort in the detail |
+| `packages/client/ui-tool/src/client/tool/models/`, `packages/client/ui-tool/tests/details-models.client.spec.ts`, `packages/client/ui-conversation/src/client/locales.ts` | child provider, model, effort, and named category in the detail, read from the persisted receipt by `recordedRoute`, with the `detail.field.category` key in every locale |
 | `packages/client/ui-conversation/src/client/input/editor/keymap.ts` | a plain Enter on a mobile browser inserts a line break instead of submitting; the Send button and the Ctrl/Cmd chord still submit |
 | `packages/client/ui-sidebar-terminal/src/client/terminal.tsx` | the terminal's default font stack reads `--dsh-font-family-terminal-default` so the fork's font config reaches the sidebar terminal; a user-selected list still leads |
 | `packages/core/system-prompt/src/index.ts` | `ORCHESTRATOR_POLICY` at order 550 |
