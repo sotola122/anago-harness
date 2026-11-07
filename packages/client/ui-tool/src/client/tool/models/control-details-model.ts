@@ -296,11 +296,10 @@ export function subagentDetails(
  * @param text - Successful recorded result text.
  * @param json - Parsed whole-result JSON, or undefined for non-JSON text.
  * @param t - Conversation translator.
- * @param meta - Persisted result metadata, when the tool attached any.
  * @returns Compact details, or null when the output format is not recognized.
  */
 export function controlDetails(
-  name: string, args: Record<string, unknown>, text: string, json: unknown, t: DetailTranslate, meta?: unknown,
+  name: string, args: Record<string, unknown>, text: string, json: unknown, t: DetailTranslate,
 ): ToolDetailsModel | null {
   // Historical `send_message` and `interrupt_agent` records name their target with `agent_id`.
   const target = arg(args, 'target') || arg(args, 'agent') || arg(args, 'agent_id') || arg(args, 'sessionId') || arg(args, 'job_id')
@@ -343,11 +342,6 @@ export function controlDetails(
         summary: label,
         expandedSummary: '',
       }
-    }
-    case 'subagent': {
-      const receiptModel = fanOutReceipt(meta, arg(args, 'prompt'), t) ?? textReceipt(text, arg(args, 'prompt'), t)
-      if (receiptModel !== null) return receiptModel
-      return detailList([{ title: t('detail.agent.reply'), markdown: text, fields: [], groups: [{ label: t('detail.field.task'), items: [{ description: arg(args, 'prompt'), fields: [] }] }] }], t('detail.agent.reply'), t)
     }
     case 'list_subagent_models': {
       const items = text.split('\n').map((line) => {
