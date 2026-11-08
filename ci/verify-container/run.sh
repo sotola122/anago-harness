@@ -38,7 +38,7 @@ fi
 command -v podman >/dev/null || { echo 'run.sh: podman is required' >&2; exit 1; }
 command -v python3 >/dev/null || { echo 'run.sh: python3 is required' >&2; exit 1; }
 
-# The earlier experiment's unit owns this port until now.
+# A transient verification unit from UPSTREAM_MIGRATION.md may hold this port.
 systemctl --user stop anago-verify-8083 2>/dev/null || true
 
 need_credential() {
