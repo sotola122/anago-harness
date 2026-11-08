@@ -41,6 +41,11 @@ podman logs -f anago-verify-8083     # follow the host log
 ci/verify-container/run.sh stop      # remove the container
 ```
 
+请在交互式 shell 中运行构建，或使用保留 cgroup 的临时 systemd unit
+（`systemd-run --user --property=KillMode=none --unit=...`）。默认的
+`KillMode=control-group` 会在 `run.sh` 退出后清理该 unit 启动的全部进程，
+容器会在数秒后以状态 0 退出。
+
 ## Secret
 
 来源缺失时，`run.sh` 会在启动任何内容之前失败。值从宿主机凭据文档通过管道写入 podman secret，绝不打印；任何密钥都不会进入镜像、构建历史、`Config.Env` 或本文件。
