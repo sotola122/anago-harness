@@ -274,8 +274,9 @@ export function registerComposerKeymap(editor: LexicalEditor, handlers: Composer
         return true
       }
       // A touch keyboard's Enter starts a new line; the Send button submits.
-      // Shift+Enter already returned above, so this covers the plain gesture.
-      if (event !== null && isMobileDevice() && !event.ctrlKey && !event.metaKey) return false
+      // Shift+Enter already returned above, so this covers the plain gesture,
+      // including the eventless dispatch of a composition ending on a line break.
+      if (isMobileDevice() && event?.ctrlKey !== true && event?.metaKey !== true) return false
       event?.preventDefault()
       if (event?.repeat === true) return true // held-down Enter must not machine-gun sends
       if (!handlers.canSubmit()) return true
