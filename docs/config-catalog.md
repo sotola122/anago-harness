@@ -4069,7 +4069,7 @@ export interface Config {
    */
   env?: Record<string, string>
   /**
-   * Native non-interactive mode fixed for this Provider instance. Defaults to
+   * Native non-interactive mode applied when a call names none. Defaults to
    * `dontAsk`; `acceptEdits` accepts edits, `auto` uses the native classifier,
    * `plan` returns a plan without approving execution, and
    * `bypassPermissions` explicitly skips permission checks.

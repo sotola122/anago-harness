@@ -31,13 +31,13 @@ RUN DSH_CLIENT_COMMIT_HASH=${DSH_CLIENT_COMMIT_HASH} pnpm run build:artifacts
 # are installed into the image's own profile; nothing is mounted from the host.
 RUN --mount=type=cache,id=anago-pnpm-store,target=/pnpm/store,sharing=locked \
     mkdir -p /home/dsh/.dsh/profiles/verify \
- && cp /app/.artifacts/container/profile/package.json \
-       /app/.artifacts/container/profile/pnpm-workspace.yaml \
-       /app/.artifacts/container/profile/cordis.yml \
-       /app/.artifacts/container/profile/cordis.patch.yml \
+ && cp /app/ci/verify-container/profile/package.json \
+       /app/ci/verify-container/profile/pnpm-workspace.yaml \
+       /app/ci/verify-container/profile/cordis.yml \
+       /app/ci/verify-container/profile/cordis.patch.yml \
        /home/dsh/.dsh/profiles/verify/ \
  && cd /home/dsh/.dsh/profiles/verify \
  && pnpm install --store-dir=/pnpm/store
 
 EXPOSE 8083
-ENTRYPOINT ["/app/.artifacts/container/entrypoint.sh"]
+ENTRYPOINT ["/app/ci/verify-container/entrypoint.sh"]

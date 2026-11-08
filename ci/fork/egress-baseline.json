@@ -25,6 +25,7 @@
  "other\tapps/desktop/scripts/resolve-retained-desktop-publish-ci.ts\tapi.github.com",
  "other\tapps/desktop/scripts/windows-sign.mjs\ttimestamp.digicert.com",
  "other\tapps/plugin-market-generator/src/cli.ts\tregistry.npmjs.org",
+ "other\tci/verify-container/entrypoint.sh\t100.110.252.31",
  "other\tpackages/boot/plugin-manager/src/github-connection.ts\tgist.github.com",
  "other\tpackages/boot/plugin-manager/src/registry.ts\tregistry.npmjs.org",
  "other\tpackages/bundle/web-app/src/index.ts\tapp.example",

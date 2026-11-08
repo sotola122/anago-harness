@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ci/verify-container/README.md
+/containerized-verification-host:
+  en: 65932d4e082550d7
+  zh: e573a2acf61248b0
+/containerized-verification-host/prerequisites:
+  en: 425b17a23606f282
+  zh: 7193cc1c10f659af
+/containerized-verification-host/build:
+  en: e6b59e6e314c4d40
+  zh: e271ad4ad9f370b2
+/containerized-verification-host/run-logs-stop:
+  en: 00e04551ab7715b4
+  zh: c190c76183b00c53
+/containerized-verification-host/secrets:
+  en: a0868074c0eba40c
+  zh: 3e18418b26a37e96
+/containerized-verification-host/profile:
+  en: 23b2bdd7452a46d2
+  zh: ffcf7b1d94b2285e
+/containerized-verification-host/egress-isolation:
+  en: f699bf055cab72b4
+  zh: 22f6dd908f7544c0
+/containerized-verification-host/how-to-test:
+  en: 9ad9ae3465f8a6b1
+  zh: 1c1cbc5e3d3a5535

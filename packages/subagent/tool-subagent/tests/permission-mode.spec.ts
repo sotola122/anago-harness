@@ -2,13 +2,18 @@
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import {
   NO_START_CAPABILITIES,
   type SubagentProvider,
   type SubagentStartRequest,
 } from '@deepseek-ai/dsh-subagent'
+import { MockAdapter } from '../../../core/agent-loop/tests/mock-adapter.ts'
+import type { PurposeRoute, PurposeRouteTable } from '../src/purpose-routing.ts'
 import { callSubagent, setup, text } from './harness.ts'
+
+const effort = ReasoningEffortId('high')
 
 function modalProvider(
   modes: readonly string[] | undefined,
@@ -105,5 +110,70 @@ describe('permission_mode argument', () => {
     })
     expect(result.isError).toBe(true)
     expect(seen).toHaveLength(0)
+  })
+})
+
+describe('permission_mode argument under purpose routing', () => {
+  const reasoning = { efforts: [{ id: effort, name: effort }], defaultEffort: effort }
+  const route = (model: string) => ({ provider: 'alpha', model, reasoningEffort: effort })
+  const table = (review: PurposeRoute[]): PurposeRouteTable => ({
+    light: [route('light-model')],
+    medium: [route('medium-model')],
+    deep: [route('deep-model')],
+    review,
+    writing: [route('writing-model')],
+    default: [route('default-model')],
+  })
+
+  /** A mode-declaring provider that also takes the per-child route purpose routing resolves. */
+  async function setupRouted(review: PurposeRoute[], seen: SubagentStartRequest[]): Promise<Context> {
+    const ctx = await setup({
+      provider: 'modal',
+      maxDepth: 'provider-managed',
+      purposeRouting: true,
+      purposeRoutes: table(review),
+    })
+    ctx.llm.registerAdapter(['alpha'], new MockAdapter([], reasoning))
+    ctx.effect(() => ctx.subagents.registerProvider({
+      ...modalProvider(['dontAsk', 'plan'], 'dontAsk', (request) => { seen.push(request) }),
+      capabilities: { ...NO_START_CAPABILITIES, agentOptions: true },
+    }))
+    return ctx
+  }
+
+  it('passes the chosen mode to the provider and echoes it for a category', async () => {
+    const seen: SubagentStartRequest[] = []
+    const ctx = await setupRouted([route('review-model')], seen)
+    const result = await callSubagent(ctx, {
+      prompt: 'plan it',
+      description: 'plan task',
+      category: 'light',
+      permission_mode: 'plan',
+    })
+    expect(result.isError).toBe(false)
+    expect(seen.map(request => request.permissionMode)).toEqual(['plan'])
+    expect(text(result).split('\n').at(-1)).toBe('permission mode: plan')
+    expect(result.meta).toMatchObject({ permissionMode: 'plan', category: 'light' })
+  })
+
+  it('applies the chosen mode to every reviewer of a fan-out and echoes it once', async () => {
+    const seen: SubagentStartRequest[] = []
+    const ctx = await setupRouted([route('review-one'), route('review-two')], seen)
+    const result = await callSubagent(ctx, {
+      prompt: 'review it',
+      description: 'review task',
+      category: 'review',
+      permission_mode: 'plan',
+    })
+    expect(seen.map(request => request.permissionMode)).toEqual(['plan', 'plan'])
+    expect(text(result).match(/permission mode: plan/gu)).toHaveLength(1)
+  })
+
+  it('leaves the request mode unset and echoes the provider default when omitted', async () => {
+    const seen: SubagentStartRequest[] = []
+    const ctx = await setupRouted([route('review-model')], seen)
+    const result = await callSubagent(ctx, { prompt: 'do it', description: 'default task' })
+    expect(seen[0]).not.toHaveProperty('permissionMode')
+    expect(text(result).split('\n').at(-1)).toBe('permission mode: dontAsk')
   })
 })

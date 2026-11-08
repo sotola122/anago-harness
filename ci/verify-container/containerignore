@@ -18,4 +18,4 @@ website
 **/lib
 **/dist
 **/*.tsbuildinfo
-.artifacts/screenshots
+.artifacts

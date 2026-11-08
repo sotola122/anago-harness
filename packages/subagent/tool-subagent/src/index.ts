@@ -295,6 +295,7 @@ function routeSuffix(route: UsedRoute): string {
 function renderActivation(value: ActivationResult): ContentBlock[] {
   const children = value.children
   const notStarted = value.notStarted ?? 0
+  const modeLine = value.permissionMode === undefined ? [] : [`permission mode: ${value.permissionMode}`]
   if (children !== undefined && (children.length > 1 || notStarted > 0)) {
     const names = value.names ?? children.flatMap(child => child.name === undefined ? [] : [child.name])
     const noun = names.length === 1 ? 'subagent' : 'subagents'
@@ -306,15 +307,9 @@ function renderActivation(value: ActivationResult): ContentBlock[] {
     const lines = children.flatMap(child => child.name === undefined
       ? []
       : [`started subagent ${child.name}${routeSuffix(child)}`])
-    return [{ type: 'text', text: [text, ...lines].join('\n') }]
+    return [{ type: 'text', text: [text, ...lines, ...modeLine].join('\n') }]
   }
-  const first = `started subagent ${value.name}${routeSuffix(value)}`
-  return [{
-    type: 'text',
-    text: value.permissionMode === undefined
-      ? first
-      : `${first}\npermission mode: ${value.permissionMode}`,
-  }]
+  return [{ type: 'text', text: [`started subagent ${value.name}${routeSuffix(value)}`, ...modeLine].join('\n') }]
 }
 
 /** Replayable route facts for the Web card. Failed reviewers stay here, not in model-facing text. */
@@ -365,10 +360,12 @@ async function startResolvedChildren(input: {
   maxDepth?: number
   /** Purpose label the call named. Omission is not the table's `default` slot. */
   category?: string
+  /** Mode the call named, applied to every child it starts. Omission leaves the provider default. */
+  permissionMode?: string
 }): Promise<ActivationResult> {
   const {
     runtimeCtx, parent, signal, callId, providerName, subagentProvider, resolution,
-    categoryOmitted, parentOptions, policy, label, prompt, cwd, agentPreset, maxDepth, category,
+    categoryOmitted, parentOptions, policy, label, prompt, cwd, agentPreset, maxDepth, category, permissionMode,
   } = input
   const slot: PurposeRouteSlot | undefined = resolution.source.kind === 'purpose' ? resolution.source.slot : undefined
   const fanOut = slot !== undefined && isFanOutSlot(slot)
@@ -441,6 +438,7 @@ async function startResolvedChildren(input: {
           ...agentPreset === undefined ? {} : { agentPreset },
           ...child.options !== undefined ? { agentOptions: child.options } : {},
           ...maxDepth !== undefined ? { maxDepth } : {},
+          ...permissionMode === undefined ? {} : { permissionMode },
           signal,
           delivery: 'parent',
         })
@@ -771,6 +769,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const agentPreset = presets.resolve(args as PresetSelectionRequest)
         const modelRequest = args as DelegationModelRequest
         const parentOptions = parentAgentOptionsForDelegation(parent)
+        // Absent from the schema for single-mode providers; the service still enforces the allow-list.
+        const requestedPermissionMode = (args as { permission_mode?: string }).permission_mode
+        // Echo the mode only where the model could choose it, keeping single-mode transcripts unchanged.
+        const effectiveMode = permissionChoices === undefined
+          ? undefined
+          : requestedPermissionMode ?? subagentProvider.defaultPermissionMode
         if (purposeRouting || category !== undefined) {
           const settings = ctx.get('subagentModelSelection')
           const resolution = resolveChildRoutes({
@@ -785,7 +789,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           })
           const slot = resolution.source.kind === 'purpose' ? resolution.source.slot : undefined
           const maxDepth = ctx.subagents.resolveMaxDepth(config.maxDepth)
-          return startResolvedChildren({
+          const activation = await startResolvedChildren({
             runtimeCtx: ctx,
             parent,
             signal: exec.signal,
@@ -809,7 +813,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             ...args.cwd === undefined ? {} : { cwd: args.cwd },
             ...agentPreset === undefined ? {} : { agentPreset },
             ...maxDepth !== undefined ? { maxDepth } : {},
+            ...requestedPermissionMode === undefined ? {} : { permissionMode: requestedPermissionMode },
           })
+          return { ...activation, ...effectiveMode === undefined ? {} : { permissionMode: effectiveMode } }
         }
 
         const requiresRoutePreflight = !providerOwnedRoute
@@ -845,8 +851,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }
         exec.signal.throwIfAborted()
         const maxDepth = ctx.subagents.resolveMaxDepth(config.maxDepth)
-        // Absent from the schema for single-mode providers; the service still enforces the allow-list.
-        const requestedPermissionMode = (args as { permission_mode?: string }).permission_mode
         const request = {
           ...args.cwd === undefined ? {} : { cwd: args.cwd },
           prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
@@ -865,10 +869,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           signal: exec.signal,
           delivery: 'parent',
         })
-        // Echo the mode only where the model could choose it, keeping single-mode transcripts unchanged.
-        const effectiveMode = permissionChoices === undefined
-          ? undefined
-          : requestedPermissionMode ?? subagentProvider.defaultPermissionMode
         return {
           kind: 'activation' as const,
           name: started.name,

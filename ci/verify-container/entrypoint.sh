@@ -1,6 +1,6 @@
 #!/bin/sh
-# Container-local harness home: no host DSH state, builds, or credentials are read.
-# The profile itself (package.json, cordis.patch.yml) was composed into the image;
+# Container-local harness home: no host DSH state or build is read, and the only
+# host credentials are the podman secrets run.sh mounts. The profile itself (package.json, cordis.patch.yml) was composed into the image;
 # this script only prepares the writable home and starts the Web host.
 set -eu
 
