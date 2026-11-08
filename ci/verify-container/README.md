@@ -51,6 +51,12 @@ podman logs -f anago-verify-8083     # follow the host log
 ci/verify-container/run.sh stop      # remove the container
 ```
 
+Run the build from an interactive shell, or from a transient systemd unit that
+keeps its cgroup (`systemd-run --user --property=KillMode=none --unit=...`).
+With the default `KillMode=control-group`, the unit tears down every process it
+started once `run.sh` exits, and the container it started exits with status 0 a
+few seconds later.
+
 ## Secrets
 
 `run.sh` fails before starting anything when a source is missing. Values are
