@@ -37,6 +37,6 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: linux-x64-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
-          path: apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*
+          path: apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*.AppImage
           if-no-files-found: error
           retention-days: 14
