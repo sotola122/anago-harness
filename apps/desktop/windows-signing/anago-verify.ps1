@@ -29,11 +29,13 @@ unsigned file can be distinguished from a rejected signature.
 param(
   [Parameter(Mandatory = $true, Position = 0, ValueFromRemainingArguments = $true)]
   [string[]]$Files,
-  [string]$CertificateFile = (Join-Path $PSScriptRoot 'anago-code-signing.cer'),
+  [string]$CertificateFile,
   [switch]$Json
 )
 
 $ErrorActionPreference = 'Stop'
+# $PSScriptRoot is not bound while parameter defaults are evaluated under `-File` in Windows PowerShell 5.1.
+if ([string]::IsNullOrEmpty($CertificateFile)) { $CertificateFile = Join-Path $PSScriptRoot 'anago-code-signing.cer' }
 # PowerShell 7's PSModulePath makes Windows PowerShell 5.1 fail to autoload Security. Stay on this interpreter's modules.
 # A caller may already have disabled autoload; restore it only after the path is narrowed, then disable it again.
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
