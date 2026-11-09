@@ -1,6 +1,6 @@
 {
-  "anagoVersion": "0.1.0",
+  "anagoVersion": "0.1.1",
   "upstreamVersion": "0.2.2-rc.1",
   "upstreamCommit": "fcc0ad4621",
-  "notes": "Anago's own release version. Package version fields keep mirroring the upstream release so installed plugins stay compatible; this file names the Anago release and the upstream base it was built from. Bump it on every release and cut releases/anago-v<version>."
+  "notes": "Anago's own release version. Package version fields keep mirroring the upstream release so installed plugins stay compatible; this file names the Anago release and the upstream base it was built from. Bump it on every release, cut releases/anago-v<version>, and add changelogs/CHANGELOG-v<version>.md in the same commit."
 }
