@@ -1,6 +1,7 @@
 import { join, resolve, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  desktopArtifactOutput,
   desktopTargetBuildPaths,
   desktopTargetPlatform,
   developmentRuntimeDirectory,
@@ -17,6 +18,7 @@ describe('desktop build paths', () => {
       'root',
       'artifacts',
       'unsignedArtifacts',
+      'selfSignedArtifacts',
       'unnotarizedArtifacts',
       'runtime',
       'packageSet',
@@ -34,6 +36,18 @@ describe('desktop build paths', () => {
     expect(arm64.artifacts).toContain(join('targets', 'mac-arm64', 'artifacts'))
     expect(x64.dsh).toContain(join('targets', 'mac-x64', 'dsh'))
     expect(windows.runtime).toContain(join('targets', 'win-x64', 'runtime'))
+  })
+
+  it('marks every non-release mode in its own directory and filename', () => {
+    const paths = desktopTargetBuildPaths('win-x64')
+    expect(desktopArtifactOutput(paths, { unsigned: false, skipNotarization: false }))
+      .toEqual({ directory: paths.artifacts, suffix: '' })
+    expect(desktopArtifactOutput(paths, { unsigned: true, skipNotarization: false }))
+      .toEqual({ directory: paths.unsignedArtifacts, suffix: '-unsigned' })
+    expect(desktopArtifactOutput(paths, { unsigned: false, selfSign: true, skipNotarization: false }))
+      .toEqual({ directory: paths.selfSignedArtifacts, suffix: '-self-signed' })
+    expect(desktopArtifactOutput(paths, { unsigned: false, skipNotarization: true }))
+      .toEqual({ directory: paths.unnotarizedArtifacts, suffix: '-unnotarized' })
   })
 
   it('shares download and package caches outside target output directories', () => {

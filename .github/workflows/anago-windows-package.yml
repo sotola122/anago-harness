@@ -1,0 +1,97 @@
+name: Package Desktop · Windows · x64 (self-signed)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Materialize the signing certificate
+        env:
+          ANAGO_WINDOWS_PFX_BASE64: ${{ secrets.ANAGO_WINDOWS_PFX_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ANAGO_WINDOWS_PFX_BASE64)) { throw 'ANAGO_WINDOWS_PFX_BASE64 is required' }
+          [IO.File]::WriteAllBytes((Join-Path $env:RUNNER_TEMP 'anago-code-signing.pfx'),
+            [Convert]::FromBase64String($env:ANAGO_WINDOWS_PFX_BASE64))
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Write packaging environment
+        # The file-owned settings loader passes these two values only to the packaging command and
+        # electron-builder; apps/desktop/.env.windows is Git ignored and removed after the job.
+        env:
+          ANAGO_PFX_PASSWORD: ${{ secrets.ANAGO_PFX_PASSWORD }}
+          DSH_DESKTOP_APP_ID: ${{ vars.DSH_DESKTOP_APP_ID || 'com.deepseek.harness' }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:ANAGO_PFX_PASSWORD)) { throw 'ANAGO_PFX_PASSWORD is required' }
+          if ($env:ANAGO_PFX_PASSWORD.Contains("'") -or $env:ANAGO_PFX_PASSWORD.Contains("`n") -or $env:ANAGO_PFX_PASSWORD.Contains("`r")) {
+            throw 'ANAGO_PFX_PASSWORD cannot contain an apostrophe or a line break'
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'anago-code-signing.pfx'
+          if (-not (Test-Path -LiteralPath $pfx -PathType Leaf)) { throw 'The signing certificate was not materialized' }
+          $password = ConvertTo-SecureString -String $env:ANAGO_PFX_PASSWORD -AsPlainText -Force
+          $expected = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path 'apps/desktop/windows-signing/anago-code-signing.cer').Path)
+          if ((Get-PfxCertificate -FilePath $pfx -Password $password).Thumbprint -ne $expected.Thumbprint) {
+            throw 'The PFX does not contain the committed anago-code-signing.cer certificate'
+          }
+          @(
+            "DSH_DESKTOP_APP_ID='$env:DSH_DESKTOP_APP_ID'"
+            "DSH_DESKTOP_WINDOWS_PFX_FILE='$pfx'"
+            "DSH_DESKTOP_WINDOWS_PFX_PASSWORD='$env:ANAGO_PFX_PASSWORD'"
+          ) | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM
+      - name: Trust the bundled certificate for verification
+        # A self-signed signature reports Valid only when anago-code-signing.cer is trusted, and the
+        # build verifies its own output before it finishes.
+        run: |
+          Import-Certificate -FilePath 'apps/desktop/windows-signing/anago-code-signing.cer' -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          Import-Certificate -FilePath 'apps/desktop/windows-signing/anago-code-signing.cer' -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' | Out-Null
+      - name: Check packaging configuration and toolchain
+        run: pnpm run package:desktop:win:x64:self-sign --check
+      - name: Build installer
+        run: pnpm run package:desktop:win:x64:self-sign
+      - name: Verify signatures
+        run: |
+          $artifacts = 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts'
+          $files = @(
+            Get-ChildItem -LiteralPath $artifacts -File -Filter '*.exe' | ForEach-Object FullName
+            Get-ChildItem -LiteralPath (Join-Path $artifacts 'win-unpacked') -Recurse -File |
+              Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object FullName
+            'apps/desktop/.desktop-build/targets/win-x64/installer-ui/window-frame.dll'
+          )
+          & apps/desktop/windows-signing/anago-verify.ps1 $files
+      - name: Stage the installer and trust files
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP "anago-windows-x64-$env:GITHUB_RUN_ID"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item -Path 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts/*.exe' -Destination $stage
+          Copy-Item -Path 'apps/desktop/windows-signing/anago-code-signing.cer' -Destination $stage
+          Copy-Item -Path 'apps/desktop/windows-signing/anago-trust.txt' -Destination $stage
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: windows-x64-self-signed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/anago-windows-x64-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove the PFX and packaging environment
+        if: always()
+        run: |
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'anago-code-signing.pfx') -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath 'apps/desktop/.env.windows' -Force -ErrorAction SilentlyContinue

@@ -91,6 +91,25 @@ describe('desktop package target', () => {
       .toThrow(/cannot use --prepare-only/u)
   })
 
+  it('limits the self-signed mode to Windows without another local mode', () => {
+    expect(parseDesktopPackageInvocation(['win-x64', '--self-sign'], 'win32', 'x64')).toMatchObject({
+      selfSign: true, unsigned: false,
+    })
+    expect(parseDesktopPackageInvocation(['win-x64', '--self-sign', '--dir'], 'win32', 'x64').directory).toBe(true)
+    for (const [name, platform, arch] of [['mac-arm64', 'darwin', 'arm64'], ['mac-x64', 'darwin', 'arm64'], ['linux-x64', 'linux', 'x64']] as const) {
+      expect(() => parseDesktopPackageInvocation([name, '--self-sign'], platform, arch))
+        .toThrow(/requires the win-x64 target/u)
+    }
+    for (const flag of ['--unsigned', '--prepare-only']) {
+      expect(() => parseDesktopPackageInvocation(['win-x64', '--self-sign', flag], 'win32', 'x64'))
+        .toThrow(/cannot use --unsigned or --prepare-only/u)
+    }
+    expect(desktopElectronBuilderEnvironment({}, false, true)).toMatchObject({
+      DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_SELF_SIGN: '1',
+    })
+    expect(desktopElectronBuilderEnvironment({}, false)).not.toHaveProperty('DSH_DESKTOP_SELF_SIGN')
+  })
+
   it('removes ambient certificate inputs for unsigned builds and overrides an inherited signing mode', () => {
     const environment = {
       DSH_DESKTOP_APP_ID: 'com.example.desktop',

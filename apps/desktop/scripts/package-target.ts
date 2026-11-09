@@ -32,6 +32,8 @@ const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
 const WINDOWS_SIGNING_ENV_NAMES = [
   'DSH_DESKTOP_WINDOWS_CER_FILE',
   'DSH_DESKTOP_WINDOWS_KEY_CONTAINER',
+  'DSH_DESKTOP_WINDOWS_PFX_FILE',
+  'DSH_DESKTOP_WINDOWS_PFX_PASSWORD',
   'DSH_DESKTOP_WINDOWS_SIGNTOOL',
   'DSH_DESKTOP_WINDOWS_TOKEN_PIN',
   'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR',
@@ -104,10 +106,15 @@ export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv)
  * Select signing mode and strip unsigned-build credentials for packaging subprocesses.
  * @param environment - Target packaging environment.
  * @param unsigned - Whether to create a local artifact without release signing or notarization.
+ * @param selfSign - Whether electron-builder signs Windows artifacts with the fork's self-signed PFX.
  * @returns Packaging environment without certificate inputs for unsigned builds.
  */
-export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv, unsigned: boolean): NodeJS.ProcessEnv {
-  const selected: NodeJS.ProcessEnv = { ...environment, DSH_DESKTOP_UNSIGNED: unsigned ? '1' : '0' }
+export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv, unsigned: boolean, selfSign = false): NodeJS.ProcessEnv {
+  const selected: NodeJS.ProcessEnv = {
+    ...environment,
+    DSH_DESKTOP_UNSIGNED: unsigned ? '1' : '0',
+    ...(selfSign ? { DSH_DESKTOP_SELF_SIGN: '1' } : {}),
+  }
   // The bundled NSIS decoder cannot extract 7-Zip's automatic ARM64-filtered entries.
   if (environment.DSH_DESKTOP_TARGET_PLATFORM === 'win32') selected.ELECTRON_BUILDER_7Z_FILTER = 'BCJ'
   if (!unsigned) return selected
@@ -207,6 +214,7 @@ interface DesktopPackageInvocation {
   readonly directory: boolean
   readonly prepareOnly: boolean
   readonly unsigned: boolean
+  readonly selfSign: boolean
   readonly skipNotarization: boolean
   readonly check: boolean
   /** Build identifier to publish under, when this build does not publish the product version. */
@@ -240,6 +248,7 @@ export function parseDesktopPackageInvocation(
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
+      'self-sign': { type: 'boolean', default: false },
       'skip-notarization': { type: 'boolean', default: false },
       check: { type: 'boolean', default: false },
       'build-version': { type: 'string' },
@@ -247,7 +256,12 @@ export function parseDesktopPackageInvocation(
   })
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
+  const target = resolveDesktopPackageTarget(name, hostPlatform, hostArch)
   if (values.unsigned && values['prepare-only']) throw new Error('desktop package: --unsigned cannot use --prepare-only')
+  if (values['self-sign'] && (values.unsigned || values['prepare-only'])) {
+    throw new Error('desktop package: --self-sign cannot use --unsigned or --prepare-only')
+  }
+  if (values['self-sign'] && target.platform !== 'win32') throw new Error('desktop package: --self-sign requires the win-x64 target')
   if (values['skip-notarization'] && (name === 'win-x64' || values.unsigned || values['prepare-only'])) {
     throw new Error('desktop package: --skip-notarization requires a signed macOS build, without --prepare-only')
   }
@@ -256,10 +270,11 @@ export function parseDesktopPackageInvocation(
     throw new Error('desktop package: --build-version requires a value')
   }
   return {
-    target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
+    target,
     directory: values.dir,
     prepareOnly: values['prepare-only'],
     unsigned: values.unsigned,
+    selfSign: values['self-sign'],
     skipNotarization: values['skip-notarization'],
     check: values.check,
     requestedBuildVersion,
@@ -443,17 +458,19 @@ export async function packageTarget(
   const packConcurrency = mac?.packConcurrency ?? resolveWindowsPackageSettings(environment).packConcurrency
   const packArguments = ['--concurrency', String(packConcurrency)]
   const buildPaths = desktopTargetBuildPaths(target.name, environment)
+  // A self-signed build reuses the local build inputs, so it owns no release record either.
+  const localBuild = invocation.unsigned || invocation.selfSign
   // Linux has no upload target, so it writes no release record.
   const releaseRecordPath = target.name === 'linux-x64'
     ? undefined
     : join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
-  if (releaseRecordPath !== undefined && !invocation.prepareOnly && !invocation.unsigned && !invocation.skipNotarization) {
+  if (releaseRecordPath !== undefined && !invocation.prepareOnly && !localBuild && !invocation.skipNotarization) {
     rmSync(releaseRecordPath, { force: true })
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
   const artifactsRoot = desktopArtifactOutput(buildPaths, invocation).directory
   const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(
-    desktopElectronBuilderEnvironment(environment, invocation.unsigned)))
+    desktopElectronBuilderEnvironment(environment, invocation.unsigned, invocation.selfSign)))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     DSH_DESKTOP_MACOS_SKIP_NOTARIZATION: invocation.skipNotarization ? '1' : '0',
@@ -461,14 +478,14 @@ export async function packageTarget(
     DSH_DESKTOP_TARGET_ARCH: target.arch,
   }
   const downloadEnv = macOSDownloadEnvironment(targetEnv, mac?.downloadProxy)
-  const electronBuilderEnv = desktopElectronBuilderEnvironment(downloadEnv, invocation.unsigned)
+  const electronBuilderEnv = desktopElectronBuilderEnvironment(downloadEnv, invocation.unsigned, invocation.selfSign)
   if (target.platform === 'win32') {
     electronBuilderEnv.ELECTRON_BUILDER_COMPRESSION_LEVEL = String(resolveWindowsPackageSettings(environment).compressionLevel)
   }
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
     if (!invocation.unsigned && environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
   }
-  const signPrimaryRuntime = target.platform === 'win32' && !invocation.unsigned && !invocation.prepareOnly
+  const signPrimaryRuntime = target.platform === 'win32' && !invocation.unsigned && !invocation.selfSign && !invocation.prepareOnly
   const signedStage = async (stage: string, operation: () => Promise<void>): Promise<void> => {
     if (!signPrimaryRuntime) return operation()
     if (run === undefined) throw new Error('desktop package: signed Windows packaging requires a supervised run')
@@ -497,7 +514,7 @@ export async function packageTarget(
         { cwd: APP_ROOT, env: electronBuilderEnv, timeoutMs: 60_000 })
     })
   }
-  await execute(invocation.unsigned ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
+  await execute(localBuild ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   let preparationFailure: { error: unknown } | undefined
   const executePreparation = async (args: readonly string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<void> => {
     if (preparationFailure !== undefined) throw preparationFailure.error
@@ -506,7 +523,7 @@ export async function packageTarget(
   }
   const pack = async (): Promise<void> => {
     await executePreparation([
-      ...(invocation.unsigned
+      ...(localBuild
         ? ['exec', 'tsx', 'apps/desktop/scripts/pack-local-packages.ts']
         : ['run', 'release:pack', '--family', 'dsh']),
       '--out', buildPaths.packedDsh, ...packArguments,
@@ -578,9 +595,10 @@ export async function packageTarget(
       await signedStage('artifacts', () => execute(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv))
     }
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts',
-      ...(invocation.unsigned ? ['--unsigned'] : []), ...(invocation.skipNotarization ? ['--skip-notarization'] : [])], targetEnv)
+      ...(invocation.unsigned ? ['--unsigned'] : []), ...(invocation.selfSign ? ['--self-sign'] : []),
+      ...(invocation.skipNotarization ? ['--skip-notarization'] : [])], targetEnv)
   }
-  if (releaseRecordPath !== undefined && !invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
+  if (releaseRecordPath !== undefined && !invocation.directory && !localBuild && !invocation.skipNotarization) {
     writeReleaseRecord(target, electronBuilderEnv, releaseRecordPath)
   }
   if (journal) recordPackagingEvent(journal, { type: 'artifacts', directory: artifactsRoot })

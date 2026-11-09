@@ -36,5 +36,5 @@ export function loadDesktopPackageEnvironment(
 export function validateDesktopPackageEnvironment(
   environment: NodeJS.ProcessEnv,
   target: { platform: 'win32' | 'darwin' | 'linux', arch: string },
-  options?: { unsigned?: boolean, prepareOnly?: boolean, skipNotarization?: boolean },
+  options?: { unsigned?: boolean, prepareOnly?: boolean, skipNotarization?: boolean, selfSign?: boolean },
 ): void

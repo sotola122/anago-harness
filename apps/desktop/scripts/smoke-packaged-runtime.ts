@@ -8,11 +8,13 @@ import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 
 const paths = resolveDesktopTargetBuildPaths()
-const { values } = parseArgs({ options: { unsigned: { type: 'boolean', default: false }, 'skip-notarization': { type: 'boolean', default: false } }, allowPositionals: false })
+const { values } = parseArgs({ options: { unsigned: { type: 'boolean', default: false }, 'self-sign': { type: 'boolean', default: false }, 'skip-notarization': { type: 'boolean', default: false } }, allowPositionals: false })
 const target = resolveDesktopBuildTarget()
 const windows = target === 'win-x64'
 const linux = target === 'linux-x64'
-const artifacts = desktopArtifactOutput(paths, { unsigned: values.unsigned, skipNotarization: values['skip-notarization'] }).directory
+const artifacts = desktopArtifactOutput(paths, {
+  unsigned: values.unsigned, selfSign: values['self-sign'], skipNotarization: values['skip-notarization'],
+}).directory
 const application = windows ? join(artifacts, 'win-unpacked')
   : linux ? join(artifacts, 'linux-unpacked')
     : join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app', 'Contents')

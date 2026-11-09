@@ -27,6 +27,7 @@ import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mj
 import { desktopArtifactOutput, desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
+import { createWindowsSelfSigner, resolveWindowsSelfSignEnvironment } from './windows-self-sign.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
 import {
@@ -34,6 +35,9 @@ import {
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
+
+/** RFC 3161 timestamp authority for self-signed Windows builds. */
+const SELF_SIGN_TIMESTAMP_SERVER = 'http://timestamp.digicert.com'
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -59,6 +63,13 @@ export function createElectronBuilderConfig(
     throw new Error('desktop package: DSH_DESKTOP_UNSIGNED must be 0 or 1')
   }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
+  if (env.DSH_DESKTOP_SELF_SIGN !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_SELF_SIGN)) {
+    throw new Error('desktop package: DSH_DESKTOP_SELF_SIGN must be 0 or 1')
+  }
+  const selfSign = env.DSH_DESKTOP_SELF_SIGN === '1'
+  if (selfSign && (unsigned || resolvedPlatform !== 'win32')) {
+    throw new Error('desktop package: DSH_DESKTOP_SELF_SIGN requires the Windows target without an unsigned build')
+  }
   const skipNotarization = env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION === '1'
   if (env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION)) {
     throw new Error('desktop package: DSH_DESKTOP_MACOS_SKIP_NOTARIZATION must be 0 or 1')
@@ -66,14 +77,14 @@ export function createElectronBuilderConfig(
   if (skipNotarization && (unsigned || resolvedPlatform !== 'darwin')) throw new Error('Skipping notarization requires a signed macOS build')
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = resolvedPlatform === 'win32'
-  // Linux has no update deployment, and an unsigned build ships no mandatory-update policy.
+  // Linux has no update deployment, and neither unsigned nor self-signed builds ship a mandatory-update policy.
   // Windows keeps validating its installer policy either way.
-  const policy = unsigned || resolvedPlatform === 'linux' ? undefined : resolveDesktopPolicyEnvironment(env)
+  const policy = unsigned || selfSign || resolvedPlatform === 'linux' ? undefined : resolveDesktopPolicyEnvironment(env)
   if (resolvedPlatform === 'win32') installWindowsDirectoryInstaller()
   const macOSSigning = packagesMacOS && !unsigned ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS && !unsigned && !skipNotarization) resolveMacOSNotarizationEnvironment(env)
   const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch), env)
-  const output = desktopArtifactOutput(buildPaths, { unsigned, skipNotarization })
+  const output = desktopArtifactOutput(buildPaths, { unsigned, selfSign, skipNotarization })
   let primaryRuntimeDestination
   let dshDestination
   let windowsCode = []
@@ -82,7 +93,7 @@ export function createElectronBuilderConfig(
     // LaunchServices opens the Computer Use helper as an application, so every file of its bundles stays on disk.
     // Both architectures ship: they form one notarized payload whose manifest staging verifies as a whole.
     '**/node_modules/@deepseek-ai/dsh-experimental-cua-macos/native/bin/**/*']
-  const windowsSigner = packagesWindows && !unsigned
+  const windowsSigner = packagesWindows && !unsigned && !selfSign
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -98,11 +109,17 @@ export function createElectronBuilderConfig(
         },
       })
     : undefined
-  if (windowsSigner !== undefined) {
-    installWindowsNsisBootstrapSigner({ sign: windowsSigner })
+  const selfSignConfiguration = packagesWindows && selfSign ? resolveWindowsSelfSignEnvironment(env) : undefined
+  // electron-builder signs the application, uninstaller and installer itself; this hook covers the installer UI
+  // and the runtime trees its signtool never sees.
+  const windowsCodeSigner = windowsSigner ?? (selfSignConfiguration === undefined ? undefined : createWindowsSelfSigner({
+    environment: env, pfxFile: selfSignConfiguration.pfxFile, password: selfSignConfiguration.password,
+  }))
+  if (windowsCodeSigner !== undefined) {
+    installWindowsNsisBootstrapSigner({ sign: windowsCodeSigner })
   }
   // Linux has no upload target, so its AppImage carries no update feed.
-  const update = unsigned || resolvedPlatform === 'linux' ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const update = unsigned || selfSign || resolvedPlatform === 'linux' ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
@@ -136,8 +153,8 @@ export function createElectronBuilderConfig(
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
       await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales()), 'utf8')
-      if (windowsSigner !== undefined) {
-        await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
+      if (windowsCodeSigner !== undefined) {
+        await windowsCodeSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
       // A falsy result tells electron-builder to omit its production node_modules collection.
       return true
@@ -196,6 +213,7 @@ export function createElectronBuilderConfig(
       const existing = context.packager.config.asarUnpack ?? []
       context.packager.config.asarUnpack = [...(typeof existing === 'string' ? [existing] : existing), ...patterns]
       if (packagesWindows) windowsCode = await prepareWindowsAsarUnpack(context, buildPaths.dsh)
+      // Only the token path signs runtime copies before packing, so only it preserves those bytes afterwards.
       if (windowsSigner !== undefined) {
         primaryRuntimeDestination = join(context.appOutDir, 'resources', 'runtime', 'primary-runtime')
         dshDestination = join(context.appOutDir, 'resources', 'app.asar.unpacked', 'dsh')
@@ -215,17 +233,22 @@ export function createElectronBuilderConfig(
       // release, and a rewritten one for installed-update qualification.
       await verifyDesktopRuntime(buildPaths.dsh,
         preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
-      // Unsigned Windows builds skip electron-builder's afterSign hook.
-      if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
+      // Unsigned builds skip electron-builder's afterSign hook, and the self-signed walk rewrites the unpacked
+      // copies, so both verify the prepared PE files before any signature changes them.
+      if (packagesWindows && (unsigned || selfSign)) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
     },
     afterSign: async context => {
-      if (windowsSigner !== undefined) {
+      if (windowsCodeSigner !== undefined) {
+        const certificateFile = selfSignConfiguration?.certificateFile ?? env.DSH_DESKTOP_WINDOWS_CER_FILE
         await signWindowsCode(context.appOutDir, {
-          thumbprint: new X509Certificate(await readFile(env.DSH_DESKTOP_WINDOWS_CER_FILE)).fingerprint.replaceAll(':', ''),
-          sign: windowsSigner,
+          thumbprint: new X509Certificate(await readFile(certificateFile)).fingerprint.replaceAll(':', ''),
+          sign: windowsCodeSigner,
           record: event => recordPackagingEvent(env.DSH_DESKTOP_PACKAGING_RUN_DIR, event),
         })
-        await verifyWindowsAsarUnpack(buildPaths.dsh, context.packager.getResourcesDir(context.appOutDir), windowsCode)
+        // Preserved runtime copies keep their prepared bytes; copies signed in place do not.
+        if (windowsSigner !== undefined) {
+          await verifyWindowsAsarUnpack(buildPaths.dsh, context.packager.getResourcesDir(context.appOutDir), windowsCode)
+        }
       }
       if (context.electronPlatformName !== 'darwin' || unsigned) return
       const appPath = join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
@@ -250,11 +273,21 @@ export function createElectronBuilderConfig(
     win: {
       icon: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
       forceCodeSigning: !unsigned,
-      signtoolOptions: {
-        sign: windowsSigner,
-        publisherName: windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),
-        signingHashAlgorithms: ['sha256'],
-      },
+      // The self-signed mode hands electron-builder the PFX so its own signtool signs the application,
+      // uninstaller and installer; the eToken path passes the hardware-backed hook instead.
+      signtoolOptions: selfSignConfiguration === undefined
+        ? {
+            sign: windowsSigner,
+            publisherName: windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),
+            signingHashAlgorithms: ['sha256'],
+          }
+        : {
+            certificateFile: selfSignConfiguration.pfxFile,
+            certificatePassword: selfSignConfiguration.password,
+            rfc3161TimeStampServer: SELF_SIGN_TIMESTAMP_SERVER,
+            publisherName: resolveWindowsUpdatePublisher(selfSignConfiguration.certificateFile),
+            signingHashAlgorithms: ['sha256'],
+          },
       target: ['nsis'],
     },
     linux: {

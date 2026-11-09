@@ -256,6 +256,25 @@ describe('Desktop local packaging configuration', () => {
     }).not.toThrow()
   })
 
+  it('validates only the PFX pair for a self-signed Windows build', async () => {
+    await withDirectory(async (directory) => {
+      const pfx = join(directory, 'anago-code-signing.pfx')
+      await writeFile(pfx, 'fixture-pfx')
+      const settings = { DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID,
+        DSH_DESKTOP_WINDOWS_PFX_FILE: pfx, DSH_DESKTOP_WINDOWS_PFX_PASSWORD: 'fixture-password' }
+      // No update policy, release origin, or eToken field is required.
+      expect(() => { validateDesktopPackageEnvironment(settings, WINDOWS, { selfSign: true }) }).not.toThrow()
+      expect(() => {
+        validateDesktopPackageEnvironment({ ...settings, DSH_DESKTOP_WINDOWS_PFX_FILE: join(directory, 'missing.pfx') },
+          WINDOWS, { selfSign: true })
+      }).toThrow(/DSH_DESKTOP_WINDOWS_PFX_FILE/u)
+      expect(() => {
+        validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID,
+          DSH_DESKTOP_WINDOWS_PFX_FILE: pfx }, WINDOWS, { selfSign: true })
+      }).toThrow(/DSH_DESKTOP_WINDOWS_PFX_PASSWORD/u)
+    })
+  })
+
   it('accepts unsigned macOS configuration without Apple or update policy settings while keeping release validation', () => {
     const local = localMacOSPackageEnvironment({})
     expect(() => { validateDesktopPackageEnvironment(local, MACOS, { unsigned: true }) }).not.toThrow()

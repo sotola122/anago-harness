@@ -39,7 +39,7 @@ function assertSupportedTarget(target) {
  * Return the mutable preparation and artifact directories owned by one release target.
  * @param {'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64'} target - Supported Desktop target name.
  * @param {NodeJS.ProcessEnv} environment - Packaging environment with an optional absolute cache directory.
- * @returns {{ root: string, artifacts: string, unsignedArtifacts: string, unnotarizedArtifacts: string, runtime: string, packageSet: string, dsh: string, dshPnpm: string, electron: string, packedDsh: string, packedVendor: string, packedLandlock: string, downloads: string, pnpmStore: string }} Target paths plus shared download and package caches.
+ * @returns {{ root: string, artifacts: string, unsignedArtifacts: string, selfSignedArtifacts: string, unnotarizedArtifacts: string, runtime: string, packageSet: string, dsh: string, dshPnpm: string, electron: string, packedDsh: string, packedVendor: string, packedLandlock: string, downloads: string, pnpmStore: string }} Target paths plus shared download and package caches.
  */
 export function desktopTargetBuildPaths(target, environment = process.env) {
   assertSupportedTarget(target)
@@ -53,6 +53,7 @@ export function desktopTargetBuildPaths(target, environment = process.env) {
     root,
     artifacts: join(root, 'artifacts'),
     unsignedArtifacts: join(root, 'unsigned-artifacts'),
+    selfSignedArtifacts: join(root, 'self-signed-artifacts'),
     unnotarizedArtifacts: join(root, 'unnotarized-artifacts'),
     runtime: join(root, 'runtime'),
     packageSet: join(root, 'package-set'),
@@ -118,12 +119,13 @@ export function developmentRuntimeDirectory(
 
 /**
  * Select the output directory and filename suffix for one packaging mode.
- * @param {{ artifacts: string, unsignedArtifacts: string, unnotarizedArtifacts: string }} paths Target artifact directories.
- * @param {{ unsigned: boolean, skipNotarization: boolean }} mode Validated packaging mode.
+ * @param {{ artifacts: string, unsignedArtifacts: string, selfSignedArtifacts: string, unnotarizedArtifacts: string }} paths Target artifact directories.
+ * @param {{ unsigned: boolean, selfSign?: boolean, skipNotarization: boolean }} mode Validated packaging mode.
  * @returns {{ directory: string, suffix: string }} Matching artifact destination and filename marker.
  */
 export function desktopArtifactOutput(paths, mode) {
   if (mode.unsigned) return { directory: paths.unsignedArtifacts, suffix: '-unsigned' }
+  if (mode.selfSign === true) return { directory: paths.selfSignedArtifacts, suffix: '-self-signed' }
   if (mode.skipNotarization) return { directory: paths.unnotarizedArtifacts, suffix: '-unnotarized' }
   return { directory: paths.artifacts, suffix: '' }
 }
