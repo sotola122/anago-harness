@@ -108,13 +108,20 @@ jobs:
           ) | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM
       - name: Check packaging configuration and toolchain
         run: pnpm run package:desktop:win:x64:self-sign --check
-      - name: Build installer
+      - name: Build the self-signed installer
+        id: self-signed
+        continue-on-error: true
         run: pnpm run package:desktop:win:x64:self-sign
+      - name: Build the unsigned installer when signing fails
+        # The owner needs a Windows binary now; a signing failure must not hide the packaged application.
+        if: steps.self-signed.outcome == 'failure'
+        run: pnpm run package:desktop:win:x64:unsigned
       - name: Verify signatures
         if: always()
         continue-on-error: true
         run: |
           $artifacts = 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts'
+          if (-not (Test-Path -LiteralPath $artifacts)) { Write-Host 'no self-signed artifacts'; exit 0 }
           $files = @(
             Get-ChildItem -LiteralPath $artifacts -File -Filter '*.exe' | ForEach-Object FullName
             Get-ChildItem -LiteralPath (Join-Path $artifacts 'win-unpacked') -Recurse -File |
@@ -127,7 +134,10 @@ jobs:
         run: |
           $stage = Join-Path $env:RUNNER_TEMP "anago-windows-x64-$env:GITHUB_RUN_ID"
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          Copy-Item -Path 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts/*.exe' -Destination $stage -ErrorAction SilentlyContinue
+          foreach ($name in 'self-signed-artifacts', 'unsigned-artifacts') {
+            $from = "apps/desktop/.desktop-build/targets/win-x64/$name/*.exe"
+            Copy-Item -Path $from -Destination $stage -ErrorAction SilentlyContinue
+          }
           Copy-Item -Path 'apps/desktop/windows-signing/anago-code-signing.cer' -Destination $stage
           Copy-Item -Path 'apps/desktop/windows-signing/anago-trust.txt' -Destination $stage
       - uses: actions/upload-artifact@v7.0.1
