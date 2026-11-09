@@ -61,6 +61,26 @@ jobs:
           $probe = Invoke-WebRequest -Uri "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" -UseBasicParsing -TimeoutSec 20
           if ($probe.StatusCode -ne 200) { throw "The local Electron mirror answered $($probe.StatusCode)" }
           'ELECTRON_MIRROR=http://127.0.0.1:8099/' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Pre-seed the primary runtime archives
+        # The build's own downloader dies on truncated release responses from this network. Cache the Node and
+        # Python archives the lock file names, after checking each digest, so packaging needs no network.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $lock = Get-Content 'scripts/primary-runtime/lock.json' -Raw | ConvertFrom-Json
+          $target = $lock.targets.'win-x64'
+          $cache = 'apps/desktop/.desktop-build/downloads'
+          New-Item -ItemType Directory -Path $cache -Force | Out-Null
+          $nodeFile = Join-Path $env:RUNNER_TEMP $target.nodeArchive
+          curl.exe -fsSL --retry 5 --retry-all-errors -o $nodeFile "https://nodejs.org/dist/v$($lock.nodeVersion)/$($target.nodeArchive)"
+          $actual = (Get-FileHash -LiteralPath $nodeFile -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $target.nodeSha256) { throw "Node runtime digest mismatch: $actual" }
+          Copy-Item -LiteralPath $nodeFile -Destination (Join-Path $cache $target.nodeSha256)
+          gh release download $lock.pythonRelease -R astral-sh/python-build-standalone -p $target.pythonTarget -D $env:RUNNER_TEMP --clobber
+          $pythonFile = Join-Path $env:RUNNER_TEMP $target.pythonTarget
+          $actual = (Get-FileHash -LiteralPath $pythonFile -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $target.pythonSha256) { throw "Python runtime digest mismatch: $actual" }
+          Copy-Item -LiteralPath $pythonFile -Destination (Join-Path $cache $target.pythonSha256)
       - name: Write packaging environment
         # The file-owned settings loader passes these two values only to the packaging command and
         # electron-builder; apps/desktop/.env.windows is Git ignored and removed after the job.

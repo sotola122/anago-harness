@@ -46,6 +46,26 @@ jobs:
           sleep 3
           curl -fsS -m 20 "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" > /dev/null
           echo 'ELECTRON_MIRROR=http://127.0.0.1:8099/' >> "$GITHUB_ENV"
+      - name: Pre-seed the primary runtime archives
+        # The build's own downloader dies on truncated release responses from this network. Cache the Node and
+        # Python archives the lock file names, after checking each digest, so packaging needs no network.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node_version="$(node -p "require('./scripts/primary-runtime/lock.json').nodeVersion")"
+          node_archive="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeArchive")"
+          node_sha="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeSha256")"
+          python_release="$(node -p "require('./scripts/primary-runtime/lock.json').pythonRelease")"
+          python_target="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonTarget")"
+          python_sha="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonSha256")"
+          cache=apps/desktop/.desktop-build/downloads
+          mkdir -p "$cache"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/$node_archive" "https://nodejs.org/dist/v$node_version/$node_archive"
+          printf '%s  %s\n' "$node_sha" "$RUNNER_TEMP/$node_archive" | sha256sum -c -
+          cp "$RUNNER_TEMP/$node_archive" "$cache/$node_sha"
+          gh release download "$python_release" -R astral-sh/python-build-standalone -p "$python_target" -D "$RUNNER_TEMP" --clobber
+          printf '%s  %s\n' "$python_sha" "$RUNNER_TEMP/$python_target" | sha256sum -c -
+          cp "$RUNNER_TEMP/$python_target" "$cache/$python_sha"
       - name: Write packaging environment
         # Linux packaging reads .env.linux; an unsigned AppImage needs only the application identifier.
         env:
