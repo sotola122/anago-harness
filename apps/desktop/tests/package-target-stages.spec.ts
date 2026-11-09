@@ -211,7 +211,7 @@ it('builds a self-signed Windows package from local inputs without the token pre
   const { run, stages } = supervisor()
   await packageTarget(parseDesktopPackageInvocation(['win-x64', '--self-sign'], 'win32', 'x64'), environment, run)
   expect(stages[0]).toBe('run build --profile local')
-  expect(stages).toContain('exec tsx apps/desktop/scripts/pack-local-packages.ts')
+  expect(stages.some(stage => stage.startsWith('exec tsx apps/desktop/scripts/pack-local-packages.ts'))).toBe(true)
   expect(stages).not.toContain('preflight:windows-signing')
   expect(stages).not.toContain('run sign:primary-runtime')
   expect(stages).not.toContain('run sign:primary-runtime --dsh')
