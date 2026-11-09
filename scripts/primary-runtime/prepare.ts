@@ -29,7 +29,9 @@ async function fetchArchive(url: string, timeout: number): Promise<Buffer> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     let retryable = true
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(timeout) })
+      // The undici parser asserts on some truncated compressed responses on this network; identity keeps the
+      // body comparable with the locked digest and lets a failed attempt be retried.
+      const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'accept-encoding': 'identity' } })
       if (response.ok) return Buffer.from(await response.arrayBuffer())
       retryable = response.status >= 500 || response.status === 429
       lastError = new Error(`primary runtime download: ${String(response.status)} ${url}`)
