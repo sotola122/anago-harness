@@ -339,6 +339,9 @@ function Get-AnagoSignatureReport {
 
 Import-AnagoAuthenticodeModules -Stopped 'Verification did not start.'
 $PSModuleAutoloadingPreference = 'None'
+# Windows PowerShell 5.1 does not load SignedCms with the session; both scripts decode the timestamp token with it.
+try { Add-Type -AssemblyName System.Security -ErrorAction Stop }
+catch { throw "System.Security could not be loaded, so the RFC 3161 token cannot be verified. Verification did not start. $($_.Exception.Message)" }
 if ($Json) {
   foreach ($file in $Files) {
     Get-AnagoSignatureReport -Path (Resolve-Path -LiteralPath $file).Path | ConvertTo-Json -Compress
