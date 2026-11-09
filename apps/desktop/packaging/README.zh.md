@@ -18,6 +18,7 @@ description: "在本地或 Windows／macOS Actions 中生成 Desktop 安装包�
 - [Windows Actions 打包](#windows-actions)
 - [macOS 自托管打包](#macos-actions)
 - [未签名 Windows 测试安装包](#unsigned-windows-test-installer)
+- [自签名 Windows 安装包](#self-signed-windows-installer)
 - [无发布签名的本地 macOS DMG](#local-macos-dmg-without-release-signing)
 - [macOS 发布签名与诊断](#macos-release-signing)
 - [目录构建与准备](#directory-and-preparation)
@@ -77,7 +78,7 @@ macOS 和 Windows 未签名安装包使用与本地 Web 构建相同的本地化
 
 不选择机器 preset 时，打包、上传以及手动 macOS 签名检查（本地 macOS 未签名构建除外）使用 `apps/desktop/.env.windows`、`.env.macos` 或 `.env.linux`，由目标平台选择。复制对应的 [Windows 模板](../.env.windows.example)、[macOS 模板](../.env.macos.example) 或 [Linux 模板](../.env.linux.example)，填写本机配置；Git 忽略这些本地文件，安装产物也不包含它们。发布字段只从选定的配置文件读取，不回退到系统或 shell 中的同名变量；`PATH`、代理和构建工具环境仍保留。发布版本是命令参数而非发布字段，上传从打包写下的完成记录中读取它。文件使用 UTF-8，支持 BOM；相对证书、SignTool、Apple API Key 和钥匙串路径以 `apps/desktop` 为基准，变量值不做 shell 展开，包含 `#` 或空格的密码需要引号。Windows CI 读取相同的机器 preset。
 
-每条打包命令在构建与下载前检查应用 ID 以及该模式需要的更新与签名配置，随后探测本次运行要用的外部工具：归档读取工具，以及 Windows 目标的安装器编译器。macOS 检查身份、Team ID、一套完整公证凭据、`CSC_LINK` 指定的可读本地 p12 文件、显式配置的 `CSC_KEY_PASSWORD`，以及引用的 API Key 和钥匙串文件；Windows 检查公开代码签名证书、SignTool 文件、容器名称和 PIN 格式。仅准备 Windows 资源以及两个平台上的显式未签名打包均不要求签名凭据。配置检查不验证 PIN 是否正确、Token 是否登录、钥匙串是否解锁或 Apple 是否接受凭据；实际签名与公证负责这些检查。未选择机器 preset 时，`--build-version auto` 会访问目标 bucket，`--check` 下同样如此。单独运行相同检查：
+每条打包命令在构建与下载前检查应用 ID 以及该模式需要的更新与签名配置，随后探测本次运行要用的外部工具：归档读取工具，以及 Windows 目标的安装器编译器。macOS 检查身份、Team ID、一套完整公证凭据、`CSC_LINK` 指定的可读本地 p12 文件、显式配置的 `CSC_KEY_PASSWORD`，以及引用的 API Key 和钥匙串文件；Windows 发布构建检查公开代码签名证书、SignTool 文件、容器名称和 PIN 格式，自签名 Windows 构建改为检查 PFX 文件及其密码。仅准备 Windows 资源以及两个平台上的显式未签名打包均不要求签名凭据。配置检查不验证 PIN 是否正确、Token 是否登录、钥匙串是否解锁或 Apple 是否接受凭据；实际签名与公证负责这些检查。未选择机器 preset 时，`--build-version auto` 会访问目标 bucket，`--check` 下同样如此。单独运行相同检查：
 
 ```sh
 pnpm --dir apps/desktop run check:package
@@ -114,7 +115,7 @@ runner 的受监督启动和恢复见 [Windows runner 机器准备](../windows-s
 
 在 Actions 选择工作流、源码分支、preset、签名模式和版本，再点击 Run workflow。输入变更合并前，用 `gh workflow run windows-package.yml --ref <branch> -f source_ref=<branch> -f preset=test -f signing=unsigned -f version_mode=build-number` 测试已推送分支；合并后验证网页表单。它不监听 push 或 PR。日志和成功生成的 EXE 保留 14 天。依赖打包流程前检查日志和安装包；安装是独立操作。检出前，Node 删除 runner 专用源码目录，不跟随依赖 junction；工作流校验目标位置并拒绝链接祖先目录。不得指向日常开发目录。运行共享一个并发组，不取消正在进行的构建；最多保留一个待运行任务，新触发会替换它。仅在成功完成干净检出后上传诊断。机器配置位于 checkout 之外，不作为产物上传。
 
-所有 Windows 打包模式（含 test 和 unsigned）都要求仓库变量 `DESKTOP_PUBLISH_RUNNERS`；触发前配置[原机器路由](../publishing/ci/README.zh.md#machine-setup)。
+该工作流的 `signed` 与 `unsigned` 两种签名模式都要求仓库变量 `DESKTOP_PUBLISH_RUNNERS`；触发前配置[原机器路由](../publishing/ci/README.zh.md#machine-setup)。下文的[自签名工作流](../../../.github/workflows/anago-windows-package.yml)使用 GitHub 托管 runner，既不需要该变量，也不需要机器 preset。
 
 在 Actions 打开完成的运行，下载独立 `upload-artifact` job 生成的 Artifacts。安装包名称使用原构建的 `package_run_attempt`，诊断名称使用当前 `run_attempt`。打包成功但归档失败时，修复[归档前置条件](../publishing/ci/README.zh.md#recovery-and-records)后仅重跑 `upload-artifact`，复用保留的安装包。`windows-x64-signed-<version>-<run_id>-<package_run_attempt>.zip` 与 `windows-x64-unsigned-<version>-<run_id>-<package_run_attempt>.zip` 包含对应 EXE；`windows-package-logs-<run_id>-<run_attempt>` 包含打包诊断。安装包 ZIP 用 DOS 字段的本地时间和 Unix 字段的绝对时间记录各留存副本的修改时间，不保证是原始构建时间。上传步骤名为 `Retain installers for the selected mode` 和 `Retain packaging diagnostics`；步骤耗时与带时间戳的日志显示上传用时。这些产物不等于发布 Release 或下载站内容。
 
@@ -163,6 +164,22 @@ pnpm run package:desktop:win:x64:unsigned
 该命令读取 `.env.windows`，要求设置 `DSH_DESKTOP_APP_ID` 和[强制更新策略配置](../README.zh.md#mandatory-update-policy)，包括真实的 HTTPS 服务 origin。本机验收和 CI 使用 Node 24；其他工具为根 `packageManager` 固定版本的 pnpm、Git、PowerShell 7（`pwsh`）、tar、Python、Visual C++ Build Tools 和 Windows SDK。Python 不在 `PATH` 中时设置 `PYTHON`。命令将安装包写入 `.desktop-build/targets/win-x64/unsigned-artifacts/`，省略普通自动更新配置，清除签名凭据，且不生成发布完成记录。无需 EV 或上传凭据。签名打包和上传仍遵循正式发布要求。
 
 先运行 `pnpm install --frozen-lockfile`，再运行 `pnpm run package:desktop:win:x64:unsigned --check` 校验配置和工具，最后执行上面的完整命令。打包自行执行完整构建和隔离的运行时 smoke，不调用在线模型。阶段日志保留在 `.desktop-build/packaging-runs/`；仅构建成功不代表安装包验证通过。依赖安装和运行时准备需要访问 npm、GitHub release 资源和 nodejs.org；网络需要时使用现有 registry 和代理配置。缓存与工具位置属于构建机器配置，不在跟踪文件中固定个人路径。
+
+<a id="self-signed-windows-installer"></a>
+
+## 自签名 Windows 安装包
+
+在 Windows x64 上，`--self-sign` 复用未签名安装包的本地输入，并改用本 fork 自己的证书签名，而不是发布用 eToken：
+
+```sh
+pnpm run package:desktop:win:x64:self-sign
+```
+
+该命令读取 `.env.windows`，要求设置 `DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_WINDOWS_PFX_FILE`（保存私钥的 PFX，位于 checkout 之外）和 `DSH_DESKTOP_WINDOWS_PFX_PASSWORD`。它不需要机器 preset、仓库变量、更新 origin、eToken、签名缓存或上传凭据，也不生成发布完成记录。electron-builder 自带的 signtool 以 SHA-256 摘要和 RFC 3161 时间戳签名应用、卸载器和 NSIS 安装包；[anago-sign.ps1](../windows-signing/anago-sign.ps1) 签名安装器 UI 库以及每个运行时可执行文件和库，[anago-verify.ps1](../windows-signing/anago-verify.ps1) 报告结果。该选项只接受 `win-x64`，拒绝 `--unsigned` 和 `--prepare-only`，eToken 路径保持不变。
+
+产物写入 `.desktop-build/targets/win-x64/self-signed-artifacts/`，名称为 `deepseek-harness-<version>-win-x64-self-signed.exe`，因此自签名文件不会被误认为发布产物，也不会与发布目录混用。构建会校验自身签名，这要求当前用户的“受信任的根证书颁发机构”存储中存在公开证书 [anago-code-signing.cer](../windows-signing/anago-code-signing.cer)；工作流会安装该证书，本地运行时同样使用 `Import-Certificate -FilePath apps/desktop/windows-signing/anago-code-signing.cer -CertStoreLocation Cert:\CurrentUser\Root`。
+
+`Package Desktop · Windows · x64 (self-signed)` [工作流](../../../.github/workflows/anago-windows-package.yml) 在 `windows-latest` 上运行该命令，从仓库 secret `ANAGO_WINDOWS_PFX_BASE64` 和 `ANAGO_PFX_PASSWORD` 生成 PFX，校验每个打包的可执行文件，并把安装包与证书、[anago-trust.txt](../windows-signing/anago-trust.txt) 一起作为一个 artifact 上传。用户按该文件说明安装证书并解除下载锁定；在此之前 Windows 会报告未知发布者。
 
 <a id="local-macos-dmg-without-release-signing"></a>
 
