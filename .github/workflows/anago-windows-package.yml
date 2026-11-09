@@ -106,7 +106,7 @@ jobs:
             "DSH_DESKTOP_WINDOWS_PFX_FILE='$pfx'"
             "DSH_DESKTOP_WINDOWS_PFX_PASSWORD='$env:ANAGO_PFX_PASSWORD'"
             "DSH_DESKTOP_AUTO_UPDATE_ENV='production'"
-            "DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN='https://github.com/sotola122/anago-harness/releases/latest/download'"
+            "DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN='https://github.com'"
           ) | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM
       - name: Check packaging configuration and toolchain
         run: pnpm run package:desktop:win:x64:self-sign --check
