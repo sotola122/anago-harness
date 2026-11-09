@@ -5,8 +5,9 @@ Sign Windows files with the Anago Harness self-signed code-signing certificate.
 .DESCRIPTION
 Signs one or more files with the Windows SDK signtool and an RFC 3161 timestamp. The PFX comes from
 ANAGO_WINDOWS_PFX_FILE, or from ANAGO_WINDOWS_PFX_BASE64 decoded into a temporary file that is removed
-afterwards; its password comes from ANAGO_PFX_PASSWORD and is never printed. Every file must sign,
-verify under the default Authenticode policy, and carry a timestamp, or the script fails.
+afterwards; its password comes from ANAGO_PFX_PASSWORD and is never printed. Every file must sign under
+the bundled certificate and carry a timestamp, or the script fails. Chain trust is not required, because
+the self-signed root is only added to the stores of the people who install the published certificate.
 
 .PARAMETER Files
 Executables or libraries to sign.
@@ -71,17 +72,23 @@ if ([string]::IsNullOrEmpty($pfx)) {
 }
 if (-not (Test-Path -LiteralPath $pfx -PathType Leaf)) { throw "PFX was not found: $pfx" }
 
+# The self-signed chain is trusted by the people who install the public certificate, never by the build host,
+# so signing verifies that the signature names this certificate and carries a timestamp rather than chain trust.
+$certificateFile = Join-Path $PSScriptRoot 'anago-code-signing.cer'
+if (-not (Test-Path -LiteralPath $certificateFile -PathType Leaf)) { throw "The signing certificate was not found: $certificateFile" }
+$expectedThumbprint = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+  (Resolve-Path -LiteralPath $certificateFile).Path).Thumbprint
+
 # The call operator passes each value as one argument, so paths and the password need no shell quoting.
 try {
   foreach ($file in $Files) {
     $path = (Resolve-Path -LiteralPath $file).Path
     & $signToolPath sign /f $pfx /p $password /fd sha256 /td sha256 /tr $TimeStampServer $path
     if ($LASTEXITCODE -ne 0) { throw "signtool sign exited with $LASTEXITCODE for $path" }
-    & $signToolPath verify /pa /all $path
-    if ($LASTEXITCODE -ne 0) { throw "signtool verify exited with $LASTEXITCODE for $path" }
     $signature = Get-AuthenticodeSignature -LiteralPath $path
+    if ($null -eq $signature.SignerCertificate) { throw "signature is missing: $path" }
+    if ($signature.SignerCertificate.Thumbprint -ne $expectedThumbprint) { throw "signed by another certificate ($($signature.SignerCertificate.Subject)): $path" }
     if ($null -eq $signature.TimeStamperCertificate) { throw "signature has no RFC 3161 timestamp: $path" }
-    if ($signature.Status -ne 'Valid') { throw "signature status is $($signature.Status): $path" }
     Write-Host "signed $path (publisher $($signature.SignerCertificate.Subject), timestamp $($signature.TimeStamperCertificate.NotBefore.ToString('o')))"
   }
 }

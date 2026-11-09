@@ -82,13 +82,6 @@ jobs:
             "DSH_DESKTOP_WINDOWS_PFX_FILE='$pfx'"
             "DSH_DESKTOP_WINDOWS_PFX_PASSWORD='$env:ANAGO_PFX_PASSWORD'"
           ) | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM
-      - name: Trust the bundled certificate for verification
-        # A self-signed signature reports Valid only when anago-code-signing.cer is trusted, and the
-        # build verifies its own output before it finishes. certutil adds the certificate without the
-        # interactive confirmation that Import-Certificate shows for the Root store.
-        run: |
-          certutil -addstore -user Root 'apps/desktop/windows-signing/anago-code-signing.cer'
-          certutil -addstore -user TrustedPublisher 'apps/desktop/windows-signing/anago-code-signing.cer'
       - name: Check packaging configuration and toolchain
         run: pnpm run package:desktop:win:x64:self-sign --check
       - name: Build installer

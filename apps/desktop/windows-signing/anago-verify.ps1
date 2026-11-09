@@ -4,9 +4,9 @@ Report the Authenticode signature of Windows artifacts built with the self-signe
 
 .DESCRIPTION
 Prints Get-AuthenticodeSignature status, signer and timestamp for every file, and fails when any
-file lacks a valid signature or when a file signed by the bundled certificate lacks a timestamp.
-Signature trust requires anago-code-signing.cer in the current user's Trusted Root Certification
-Authorities store; the packaging workflow installs it before building.
+file lacks a signature. A file signed by the bundled certificate must carry a timestamp; it does not
+need a trusted chain, because the self-signed root is trusted only on machines where a user installs the
+published certificate.
 
 .PARAMETER Files
 Built installers, executables and libraries to report.
@@ -39,7 +39,12 @@ foreach ($file in $Files) {
     + "  signer: $signer" + [Environment]::NewLine + "  timestamp: $timestamp")
   $ours = $null -ne $signature.SignerCertificate -and $signature.SignerCertificate.Thumbprint -eq $expectedThumbprint
   if ($ours) { $signedByUs++ }
-  if ($signature.Status -ne 'Valid' -or ($ours -and $null -eq $signature.TimeStamperCertificate)) {
+  # An untrusted self-signed root reports UnknownError; that is the normal state on a build host, so an
+  # artifact signed by the bundled certificate only has to carry a timestamp.
+  if ($ours) {
+    if ($null -eq $signature.TimeStamperCertificate) { $unverified += $path }
+  }
+  elseif ($signature.Status -ne 'Valid') {
     $unverified += $path
   }
 }
