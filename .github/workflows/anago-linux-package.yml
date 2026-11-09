@@ -53,10 +53,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           node_version="$(node -p "require('./scripts/primary-runtime/lock.json').nodeVersion")"
-          node_archive="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeArchive")"
+          node_suffix="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeArchive")"
+          node_archive="node-v$node_version-$node_suffix"
           node_sha="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeSha256")"
           python_release="$(node -p "require('./scripts/primary-runtime/lock.json').pythonRelease")"
-          python_target="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonTarget")"
+          python_version="$(node -p "require('./scripts/primary-runtime/lock.json').pythonVersion")"
+          python_suffix="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonTarget")"
+          python_target="cpython-$python_version+$python_release-$python_suffix-install_only_stripped.tar.gz"
           python_sha="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonSha256")"
           cache=apps/desktop/.desktop-build/downloads
           mkdir -p "$cache"

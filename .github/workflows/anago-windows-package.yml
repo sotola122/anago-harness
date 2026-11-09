@@ -71,13 +71,15 @@ jobs:
           $target = $lock.targets.'win-x64'
           $cache = 'apps/desktop/.desktop-build/downloads'
           New-Item -ItemType Directory -Path $cache -Force | Out-Null
-          $nodeFile = Join-Path $env:RUNNER_TEMP $target.nodeArchive
-          curl.exe -fsSL --retry 5 --retry-all-errors -o $nodeFile "https://nodejs.org/dist/v$($lock.nodeVersion)/$($target.nodeArchive)"
+          $nodeName = "node-v$($lock.nodeVersion)-$($target.nodeArchive)"
+          $nodeFile = Join-Path $env:RUNNER_TEMP $nodeName
+          curl.exe -fsSL --retry 5 --retry-all-errors -o $nodeFile "https://nodejs.org/dist/v$($lock.nodeVersion)/$nodeName"
           $actual = (Get-FileHash -LiteralPath $nodeFile -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne $target.nodeSha256) { throw "Node runtime digest mismatch: $actual" }
           Copy-Item -LiteralPath $nodeFile -Destination (Join-Path $cache $target.nodeSha256)
-          gh release download $lock.pythonRelease -R astral-sh/python-build-standalone -p $target.pythonTarget -D $env:RUNNER_TEMP --clobber
-          $pythonFile = Join-Path $env:RUNNER_TEMP $target.pythonTarget
+          $pythonName = "cpython-$($lock.pythonVersion)+$($lock.pythonRelease)-$($target.pythonTarget)-install_only_stripped.tar.gz"
+          gh release download $lock.pythonRelease -R astral-sh/python-build-standalone -p $pythonName -D $env:RUNNER_TEMP --clobber
+          $pythonFile = Join-Path $env:RUNNER_TEMP $pythonName
           $actual = (Get-FileHash -LiteralPath $pythonFile -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne $target.pythonSha256) { throw "Python runtime digest mismatch: $actual" }
           Copy-Item -LiteralPath $pythonFile -Destination (Join-Path $cache $target.pythonSha256)
