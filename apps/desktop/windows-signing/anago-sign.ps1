@@ -55,7 +55,8 @@ function Import-AnagoInterpreterModule {
   param([Parameter(Mandatory = $true)][string]$Name, [Parameter(Mandatory = $true)][string]$Stopped)
   $manifest = Join-Path $PSHOME "Modules\$Name\$Name.psd1"
   if (-not [System.IO.File]::Exists($manifest)) { throw "$Name was not found at $manifest. $Stopped" }
-  try { $null = Import-Module -LiteralPath $manifest -ErrorAction Stop }
+  # Windows PowerShell 5.1's Import-Module has no -LiteralPath; -Name accepts the manifest path.
+  try { $null = Import-Module -Name $manifest -ErrorAction Stop }
   catch { throw "$Name could not be loaded from $manifest. $Stopped $($_.Exception.Message)" }
 }
 
