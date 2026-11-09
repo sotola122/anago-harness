@@ -11,6 +11,7 @@ import { runGate } from '../../../scripts/run-gates.ts'
 import { COVERAGE_TEST_TIMEOUT_ENV, coverageTestTimeoutOptions } from '../../../scripts/coverage-partitions.ts'
 import { removeFixtureSafely } from '../../../scripts/test-fixture-cleanup.ts'
 import { packedIdentity, PUBLISH_ORDER_FILE } from '../../../scripts/release/tarball.ts'
+import { releaseFamily } from '../../../scripts/release/families.ts'
 
 const require = createRequire(import.meta.url)
 const pnpmEntry = join(dirname(require.resolve('pnpm')), 'bin/pnpm.cjs')
@@ -29,12 +30,16 @@ function fixture(profile: 'local' | 'official' = 'local'): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-local-desktop-pack-'))
   roots.push(root)
   write(root, 'package.json', JSON.stringify({ name: 'desktop-pack-fixture', version: '1.2.3', private: true }))
-  write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+  write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n  - plugins/*\n')
   write(root, 'packages/client/probe/package.json', JSON.stringify({
     name: '@deepseek-ai/dsh-probe', version: '1.2.3', files: ['lib', 'src'],
   }))
   write(root, 'packages/client/probe/lib/index.js', 'export const probe = true\n')
   write(root, 'packages/client/probe/lib/client.js', 'export const client = true\n')
+  write(root, 'plugins/fork-plugin/package.json', JSON.stringify({
+    name: '@anago-harness/probe', version: '1.2.3', private: true, files: ['lib'],
+  }))
+  write(root, 'plugins/fork-plugin/lib/index.js', 'export const plugin = true\n')
   write(root, 'apps/web/dist/index.html', '<title>DSH Local Build</title>\n')
   writeClientBuildRecord(root, resolveClientBuildEnvironment(metadata, profile))
   return root
@@ -72,15 +77,24 @@ afterEach(async () => {
   for (const root of roots.splice(0)) removeFixtureSafely(root)
 }, testTimeout)
 
-it('packs local client artifacts without a release publication record', async () => {
+it('packs local client artifacts and fork workspace plugins without a release publication record', async () => {
   const root = fixture()
   const result = await pack(root)
   expect(result.code, result.output).toBe(0)
-  expect(readdirSync(join(root, 'packed'))).toEqual(['deepseek-ai-dsh-probe-1.2.3.tgz'])
+  expect(readdirSync(join(root, 'packed')).sort()).toEqual([
+    'anago-harness-probe-1.2.3.tgz',
+    'deepseek-ai-dsh-probe-1.2.3.tgz',
+  ])
   expect(packedIdentity(join(root, 'packed/deepseek-ai-dsh-probe-1.2.3.tgz')))
     .toEqual({ name: '@deepseek-ai/dsh-probe', version: '1.2.3' })
+  expect(packedIdentity(join(root, 'packed/anago-harness-probe-1.2.3.tgz')))
+    .toEqual({ name: '@anago-harness/probe', version: '1.2.3' })
   expect(existsSync(join(root, 'packed', PUBLISH_ORDER_FILE))).toBe(false)
 }, testTimeout)
+
+it('leaves fork workspace plugins out of the dsh release family', () => {
+  expect(releaseFamily('dsh').members(fixture()).map(member => member.name)).toEqual(['@deepseek-ai/dsh-probe'])
+})
 
 it.each(['official', 'stale', 'missing'] as const)('rejects %s client artifacts before replacing local packages', async (kind) => {
   const root = fixture(kind === 'official' ? 'official' : 'local')
