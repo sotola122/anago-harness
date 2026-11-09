@@ -240,11 +240,14 @@ export function createElectronBuilderConfig(
     afterSign: async context => {
       if (windowsCodeSigner !== undefined) {
         const certificateFile = selfSignConfiguration?.certificateFile ?? env.DSH_DESKTOP_WINDOWS_CER_FILE
-        await signWindowsCode(context.appOutDir, {
+        const signing = {
           thumbprint: new X509Certificate(await readFile(certificateFile)).fingerprint.replaceAll(':', ''),
           sign: windowsCodeSigner,
           record: event => recordPackagingEvent(env.DSH_DESKTOP_PACKAGING_RUN_DIR, event),
-        })
+        }
+        // Self-signed builds stay untrusted on the build host. eToken verification still requires Valid.
+        if (selfSignConfiguration === undefined) await signWindowsCode(context.appOutDir, signing)
+        else await (await import('./windows-runtime-signature.mjs')).signWindowsSelfSignedCode(context.appOutDir, signing)
         // Preserved runtime copies keep their prepared bytes; copies signed in place do not.
         if (windowsSigner !== undefined) {
           await verifyWindowsAsarUnpack(buildPaths.dsh, context.packager.getResourcesDir(context.appOutDir), windowsCode)

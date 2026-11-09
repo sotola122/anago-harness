@@ -3,20 +3,29 @@
 Sign Windows files with the Anago Harness self-signed code-signing certificate.
 
 .DESCRIPTION
-Signs one or more files with the Windows SDK signtool and an RFC 3161 timestamp. The PFX comes from
+Loads Microsoft.PowerShell.Security from this interpreter's $PSHOME before SignTool runs, then signs
+one or more files with the Windows SDK signtool and an RFC 3161 timestamp. The PFX comes from
 ANAGO_WINDOWS_PFX_FILE, or from ANAGO_WINDOWS_PFX_BASE64 decoded into a temporary file that is removed
-afterwards; its password comes from ANAGO_PFX_PASSWORD and is never printed. Every file must sign under
-the bundled certificate and carry a timestamp, or the script fails. Chain trust is not required, because
-the self-signed root is only added to the stores of the people who install the published certificate.
+afterwards; its password comes from ANAGO_PFX_PASSWORD and is never printed. After SignTool exits 0,
+anago-verify.ps1 must accept the file. Chain trust is not required, because the self-signed root is
+only added to the stores of the people who install the published certificate. -PreflightOnly checks
+the module load and does not read the PFX, the password, or SignTool.
 
 .PARAMETER Files
-Executables or libraries to sign.
+Executables or libraries to sign. Required unless -PreflightOnly is set.
 
 .PARAMETER TimeStampServer
 RFC 3161 timestamp server.
 
 .PARAMETER SignTool
 signtool.exe to use. The newest Windows SDK signtool is selected when this is omitted.
+
+.PARAMETER PreflightOnly
+Load Microsoft.PowerShell.Security from $PSHOME and exit before any signing. A Windows runner can
+prove the module-autoload fix with this switch and no signing credentials.
+
+.EXAMPLE
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\anago-sign.ps1 -PreflightOnly
 
 .EXAMPLE
 $env:ANAGO_WINDOWS_PFX_BASE64 = Get-Content -Raw signing.pfx.b64
@@ -25,13 +34,43 @@ $env:ANAGO_PFX_PASSWORD = 'secret'
 #>
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true, Position = 0, ValueFromRemainingArguments = $true)]
+  [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
   [string[]]$Files,
   [string]$TimeStampServer = 'http://timestamp.digicert.com',
-  [string]$SignTool
+  [string]$SignTool,
+  [switch]$PreflightOnly
 )
 
 $ErrorActionPreference = 'Stop'
+# PowerShell 7's PSModulePath makes Windows PowerShell 5.1 fail to autoload Security. Stay on this interpreter's modules.
+$env:PSModulePath = Join-Path $PSHOME 'Modules'
+$PSModuleAutoloadingPreference = 'All'
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+try { [Console]::OutputEncoding = $OutputEncoding }
+catch {
+  # windowsHide starts this process with no console; SetConsoleOutputCP throws IOException. $OutputEncoding still covers redirected output.
+}
+
+function Import-AnagoInterpreterModule {
+  param([Parameter(Mandatory = $true)][string]$Name, [Parameter(Mandatory = $true)][string]$Stopped)
+  $manifest = Join-Path $PSHOME "Modules\$Name\$Name.psd1"
+  if (-not [System.IO.File]::Exists($manifest)) { throw "$Name was not found at $manifest. $Stopped" }
+  try { $null = Import-Module -LiteralPath $manifest -ErrorAction Stop }
+  catch { throw "$Name could not be loaded from $manifest. $Stopped $($_.Exception.Message)" }
+}
+
+function Import-AnagoAuthenticodeModules {
+  param([Parameter(Mandatory = $true)][string]$Stopped)
+  Import-AnagoInterpreterModule -Name 'Microsoft.PowerShell.Security' -Stopped $Stopped
+  Import-AnagoInterpreterModule -Name 'Microsoft.PowerShell.Utility' -Stopped $Stopped
+  Import-AnagoInterpreterModule -Name 'Microsoft.PowerShell.Management' -Stopped $Stopped
+  $loaded = Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue
+  $modulePath = if ($null -eq $loaded -or $null -eq $loaded.Module) { '' } else { [string]$loaded.Module.Path }
+  if ($null -eq $loaded -or [string]::IsNullOrEmpty($modulePath) -or -not $modulePath.StartsWith($PSHOME, [StringComparison]::OrdinalIgnoreCase)) {
+    $shown = if ($null -eq $loaded) { 'missing' } elseif ([string]::IsNullOrEmpty($modulePath)) { $loaded.Source } else { $modulePath }
+    throw "Get-AuthenticodeSignature is not loaded from $PSHOME (loaded from $shown). $Stopped"
+  }
+}
 
 function Resolve-SignToolPath {
   param([string]$Requested)
@@ -55,6 +94,16 @@ function Resolve-SignToolPath {
   throw 'signtool.exe was not found; install the Windows SDK or set ANAGO_SIGNTOOL'
 }
 
+# Fail here, before the PFX or SignTool, when the Security module cannot be loaded.
+Import-AnagoAuthenticodeModules -Stopped 'Signing did not start.'
+$PSModuleAutoloadingPreference = 'None'
+if ($PreflightOnly) {
+  if ($null -ne $Files -and $Files.Count -gt 0) { throw '-PreflightOnly does not sign files. Signing did not start.' }
+  Write-Output "Get-AuthenticodeSignature loaded from $((Get-Command Get-AuthenticodeSignature).Module.Path)"
+  return
+}
+if ($null -eq $Files -or $Files.Count -eq 0) { throw 'Files is required unless -PreflightOnly is set' }
+
 $signToolPath = if ($env:ANAGO_SIGNTOOL) { $env:ANAGO_SIGNTOOL } else { $SignTool }
 $signToolPath = Resolve-SignToolPath -Requested $signToolPath
 
@@ -72,12 +121,9 @@ if ([string]::IsNullOrEmpty($pfx)) {
 }
 if (-not (Test-Path -LiteralPath $pfx -PathType Leaf)) { throw "PFX was not found: $pfx" }
 
-# The self-signed chain is trusted by the people who install the public certificate, never by the build host,
-# so signing verifies that the signature names this certificate and carries a timestamp rather than chain trust.
 $certificateFile = Join-Path $PSScriptRoot 'anago-code-signing.cer'
 if (-not (Test-Path -LiteralPath $certificateFile -PathType Leaf)) { throw "The signing certificate was not found: $certificateFile" }
-$expectedThumbprint = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
-  (Resolve-Path -LiteralPath $certificateFile).Path).Thumbprint
+$verifyScript = Join-Path $PSScriptRoot 'anago-verify.ps1'
 
 # The call operator passes each value as one argument, so paths and the password need no shell quoting.
 try {
@@ -85,11 +131,8 @@ try {
     $path = (Resolve-Path -LiteralPath $file).Path
     & $signToolPath sign /f $pfx /p $password /fd sha256 /td sha256 /tr $TimeStampServer $path
     if ($LASTEXITCODE -ne 0) { throw "signtool sign exited with $LASTEXITCODE for $path" }
-    $signature = Get-AuthenticodeSignature -LiteralPath $path
-    if ($null -eq $signature.SignerCertificate) { throw "signature is missing: $path" }
-    if ($signature.SignerCertificate.Thumbprint -ne $expectedThumbprint) { throw "signed by another certificate ($($signature.SignerCertificate.Subject)): $path" }
-    if ($null -eq $signature.TimeStamperCertificate) { throw "signature has no RFC 3161 timestamp: $path" }
-    Write-Host "signed $path (publisher $($signature.SignerCertificate.Subject), timestamp $($signature.TimeStamperCertificate.NotBefore.ToString('o')))"
+    & $verifyScript -Files $path -CertificateFile $certificateFile
+    Write-Output "signed $path"
   }
 }
 finally {

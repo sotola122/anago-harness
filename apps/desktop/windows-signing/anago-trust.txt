@@ -94,11 +94,11 @@ Verify the publisher
 
   Get-AuthenticodeSignature .\deepseek-harness-<version>-win-x64-self-signed.exe | Format-List Status, StatusMessage, SignerCertificate, TimeStamperCertificate
 
-Expected: Status is Valid, SignerCertificate.Subject is CN=Anago Harness,
-O=Anago, C=JP, and TimeStamperCertificate is present. A Status of
-UnknownError or NotTrusted means the certificate is not installed in the
-Trusted Root Certification Authorities store of the account that runs the
-query.
+Expected after the certificate is installed: Status is Valid,
+SignerCertificate.Subject is CN=Anago Harness, O=Anago, C=JP, and
+TimeStamperCertificate is present. Before installation, that same signature
+reports UnknownError. NotTrusted, HashMismatch, and NotSigned are different
+results; do not treat them as an untrusted self-signed signature.
 
 The same report for the installed application:
 

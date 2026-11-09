@@ -60,3 +60,44 @@ export function signWindowsCode(root: string, options: WindowsCodeSigningOptions
  * @returns Resolves after all PE signatures are valid.
  */
 export function verifyWindowsCode(root: string, inspect?: typeof inspectWindowsRuntimeSignature): Promise<void>
+
+/** Pinned self-signed report. UnknownError is not acceptance by itself. */
+export interface WindowsSelfSignedSignature {
+  status: string
+  thumbprint: string | null
+  timestampValid: boolean
+  genTime: string | null
+}
+
+/**
+ * Read a self-signed Authenticode report, including the RFC 3161 token result.
+ * @param path File to inspect.
+ * @returns Status, signer thumbprint, and token result. Does not require a trusted root.
+ */
+export function inspectWindowsSelfSignedSignature(path: string): Promise<WindowsSelfSignedSignature>
+
+/**
+ * Sign unsigned files with the self-signed hook. A Valid signature is accepted as an upstream binary.
+ * UnknownError passes only for the pinned certificate and a verified RFC 3161 token.
+ * Does not change the eToken requirement that signWindowsCode accept only Valid.
+ * @param root Owned final runtime directory.
+ * @param options Self-sign hook and pinned certificate thumbprint.
+ * @returns Resolves after every discovered PE passes pinned verification.
+ */
+export function signWindowsSelfSignedCode(root: string, options: {
+  thumbprint: string
+  sign: (configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>
+  record: (event: object) => void
+  inspect?: typeof inspectWindowsSelfSignedSignature
+}): Promise<void>
+
+/**
+ * Reject any PE that is not a chain-trusted signature or a pinned self-signed signature with a verified RFC 3161 token.
+ * @param root Materialized artifact directory.
+ * @param options Pinned certificate thumbprint and optional inspector.
+ * @returns Resolves after every discovered PE passes pinned verification.
+ */
+export function verifyWindowsSelfSignedCode(root: string, options: {
+  thumbprint: string
+  inspect?: typeof inspectWindowsSelfSignedSignature
+}): Promise<void>

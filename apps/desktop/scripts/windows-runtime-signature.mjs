@@ -2,6 +2,7 @@
 import { execFile } from 'node:child_process'
 import { lstat, open, readdir, readFile, realpath } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
@@ -195,5 +196,118 @@ export async function verifyWindowsCode(root, inspect = inspectWindowsRuntimeSig
   for (const [index, path] of files.entries()) {
     const signature = signatures[index]
     if (signature.status !== 'Valid') throw new Error(`Windows code: refusing ${signature.status} signature: ${path}`)
+  }
+}
+
+const VERIFY_SCRIPT = fileURLToPath(new URL('../windows-signing/anago-verify.ps1', import.meta.url))
+const GEN_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u
+
+function powershellText(value) {
+  if (value === undefined || value === null) return ''
+  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value)
+  if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) return buffer.toString('utf16le', 2)
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) return buffer.toString('utf8', 3)
+  const text = buffer.toString('utf8')
+  return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text
+}
+
+function parseSelfSignReport(stdout, stderr, path) {
+  if (powershellText(stderr).trim() !== '') throw new Error(`Windows self-sign: invalid signature inspection: ${path}`)
+  let value
+  try { value = JSON.parse(powershellText(stdout)) }
+  catch { throw new Error(`Windows self-sign: invalid signature inspection: ${path}`) }
+  if (value === null || typeof value !== 'object' || typeof value.status !== 'string'
+    || !(value.thumbprint === null || typeof value.thumbprint === 'string')
+    || typeof value.timestampValid !== 'boolean'
+    || !(value.genTime === null || typeof value.genTime === 'string')) {
+    throw new Error(`Windows self-sign: invalid signature inspection: ${path}`)
+  }
+  return {
+    status: value.status, thumbprint: value.thumbprint, timestampValid: value.timestampValid, genTime: value.genTime,
+  }
+}
+
+/**
+ * Read a self-signed Authenticode report, including the RFC 3161 token result from anago-verify.ps1.
+ * UnknownError is not acceptance by itself; the pinned thumbprint and token result still have to pass.
+ * @param {string} path File to inspect.
+ * @returns {Promise<{status: string, thumbprint: string | null, timestampValid: boolean, genTime: string | null}>} Status, signer thumbprint, and token result.
+ */
+export async function inspectWindowsSelfSignedSignature(path) {
+  const { stdout, stderr } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', VERIFY_SCRIPT, '-Json', '-Files', path], {
+    env: scrubWindowsSigningEnvironment(process.env),
+    windowsHide: true, timeout: 60_000, maxBuffer: 64 * 1024,
+  })
+  return parseSelfSignReport(stdout, stderr, path)
+}
+
+function assertPinnedSelfSignedSignature(report, thumbprint, path) {
+  if (report === null || typeof report !== 'object' || typeof report.status !== 'string' || report.status === '') {
+    throw new Error(`Windows self-sign: invalid signature inspection: ${path}`)
+  }
+  // Electron and other upstream binaries are Valid under their own publisher and carry no pinned token.
+  if (report.status === 'Valid') return
+  if (report.status !== 'UnknownError') {
+    throw new Error(`Windows self-sign: refusing ${report.status} signature: ${path}`)
+  }
+  if (typeof thumbprint !== 'string' || typeof report.thumbprint !== 'string'
+    || report.thumbprint.toUpperCase() !== thumbprint.toUpperCase()) {
+    throw new Error(`Windows self-sign: wrong signer: ${path}`)
+  }
+  if (report.timestampValid !== true || typeof report.genTime !== 'string' || !GEN_TIME.test(report.genTime)) {
+    throw new Error(`Windows self-sign: missing or invalid RFC 3161 timestamp: ${path}`)
+  }
+}
+
+function recordSelfSign(record, type, path, signature) {
+  record({
+    type, path, status: signature.status, timestamped: signature.timestampValid === true,
+    thumbprint: signature.thumbprint, genTime: signature.genTime ?? null,
+  })
+}
+
+/**
+ * Sign unsigned files with the self-signed hook. A Valid signature is accepted as an upstream binary.
+ * UnknownError passes only for the pinned certificate and a verified RFC 3161 token.
+ * Does not change the eToken requirement that {@link signWindowsCode} accept only Valid.
+ * @param {string} root Owned final runtime directory.
+ * @param {{ thumbprint: string, sign: (configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>, record: (event: object) => void, inspect?: typeof inspectWindowsSelfSignedSignature }} options Self-sign hook and pinned certificate thumbprint.
+ * @returns {Promise<void>} Resolves after every discovered PE passes pinned verification.
+ */
+export async function signWindowsSelfSignedCode(root, options) {
+  const inspect = options.inspect ?? inspectWindowsSelfSignedSignature
+  const files = await windowsRuntimeCode(root)
+  if (files.length === 0) throw new Error('Windows code: no Windows code found')
+  const unsigned = []
+  const signatures = await inspectWindowsCode(files, inspect)
+  for (const [index, path] of files.entries()) {
+    const signature = signatures[index]
+    recordSelfSign(options.record, 'windows-code-signature', path, signature)
+    if (signature.status === 'NotSigned') unsigned.push(path)
+    else assertPinnedSelfSignedSignature(signature, options.thumbprint, path)
+  }
+  options.record({ type: 'windows-code-signing-plan', files: files.length, unsigned: unsigned.length })
+  for (const path of unsigned) {
+    await options.sign({ path, hash: 'sha256', isNest: false })
+    const verified = await inspect(path)
+    assertPinnedSelfSignedSignature(verified, options.thumbprint, path)
+    recordSelfSign(options.record, 'windows-code-signature-verified', path, verified)
+  }
+}
+
+/**
+ * Reject any PE that is not a chain-trusted signature or a pinned self-signed signature with a verified RFC 3161 token.
+ * @param {string} root Materialized artifact directory.
+ * @param {{ thumbprint: string, inspect?: typeof inspectWindowsSelfSignedSignature }} options Pinned certificate thumbprint and optional inspector.
+ * @returns {Promise<void>} Resolves after every discovered PE passes pinned verification.
+ */
+export async function verifyWindowsSelfSignedCode(root, options) {
+  const inspect = options.inspect ?? inspectWindowsSelfSignedSignature
+  const files = await windowsRuntimeCode(root)
+  if (files.length === 0) throw new Error('Windows code: no Windows code found')
+  const signatures = await inspectWindowsCode(files, inspect)
+  for (const [index, path] of files.entries()) {
+    assertPinnedSelfSignedSignature(signatures[index], options.thumbprint, path)
   }
 }

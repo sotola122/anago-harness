@@ -1,9 +1,11 @@
 /** Validate the assembled application, including native Office conversion outside ASAR. */
+import { X509Certificate } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopArtifactOutput, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
-import { verifyWindowsCode } from './windows-runtime-signature.mjs'
+import { verifyWindowsCode, verifyWindowsSelfSignedCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 
@@ -24,5 +26,12 @@ const executable = windows ? join(application, 'DeepSeek Harness.exe')
     : join(application, 'MacOS', 'DeepSeek Harness')
 const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
   resolveDesktopPackageTarget(target))
-if (windows && !values.unsigned) await verifyWindowsCode(application)
+if (windows && !values.unsigned) {
+  if (values['self-sign']) {
+    const { ANAGO_SIGNING_CERTIFICATE } = await import('./windows-self-sign.mjs')
+    const thumbprint = new X509Certificate(await readFile(ANAGO_SIGNING_CERTIFICATE)).fingerprint.replaceAll(':', '')
+    await verifyWindowsSelfSignedCode(application, { thumbprint })
+  }
+  else await verifyWindowsCode(application)
+}
 await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor)

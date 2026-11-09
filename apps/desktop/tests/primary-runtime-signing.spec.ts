@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { signWindowsPrimaryRuntime, signWindowsDesktopRuntime } from '../scripts/sign-primary-runtime.ts'
-import { inspectWindowsRuntimeSignature, preserveWindowsRuntimeSignature, windowsRuntimeCode, verifyWindowsCode, signWindowsCode } from '../scripts/windows-runtime-signature.mjs'
+import { inspectWindowsRuntimeSignature, preserveWindowsRuntimeSignature, windowsRuntimeCode, verifyWindowsCode, signWindowsCode, verifyWindowsSelfSignedCode, signWindowsSelfSignedCode } from '../scripts/windows-runtime-signature.mjs'
 import { runtimeFixture } from './runtime-fixture.ts'
 import { verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { createPackagingRun } from '../scripts/packaging-run.mjs'
@@ -338,5 +338,97 @@ it('bounds public-key inspection to four files and drains a failed batch before 
   expect(maximum).toBe(4)
   expect(active).toBe(0)
   expect(calls).toHaveLength(4)
+  expect(sign).not.toHaveBeenCalled()
+})
+
+const genTime = '2026-11-09T11:17:16.1234567Z'
+const pinned = { status: 'UnknownError', thumbprint, timestampValid: true, genTime }
+
+it.each(['NotSigned', 'NotTrusted'])('rejects self-signed %s by name', async (status) => {
+  const root = await fixture(['app.exe'])
+  await expect(verifyWindowsSelfSignedCode(root, {
+    thumbprint,
+    inspect: async () => ({ status, thumbprint: status === 'NotSigned' ? null : thumbprint, timestampValid: false, genTime: null }),
+  })).rejects.toThrow(`refusing ${status} signature`)
+})
+
+it('rejects tampered self-signed bytes by HashMismatch and does not sign them', async () => {
+  const root = await fixture(['app.exe'])
+  const path = join(root, 'app.exe')
+  const original = await readFile(path)
+  await writeFile(path, Buffer.concat([original, Buffer.from([7])]))
+  const sign = vi.fn()
+  await expect(verifyWindowsSelfSignedCode(root, {
+    thumbprint,
+    inspect: async (file: string) => {
+      const bytes = await readFile(file)
+      return bytes.equals(original) ? pinned : { status: 'HashMismatch', thumbprint, timestampValid: true, genTime }
+    },
+  })).rejects.toThrow('refusing HashMismatch signature')
+  await expect(signWindowsSelfSignedCode(root, {
+    thumbprint, sign, record: () => {},
+    inspect: async () => ({ status: 'HashMismatch', thumbprint, timestampValid: true, genTime }),
+  })).rejects.toThrow('refusing HashMismatch signature')
+  expect(sign).not.toHaveBeenCalled()
+})
+
+it('accepts a chain-trusted foreign signature without a timestamp token and does not sign it', async () => {
+  const root = await fixture(['vendor.dll', 'app.exe'])
+  const foreign = { status: 'Valid', thumbprint: 'B'.repeat(40), timestampValid: false, genTime: null }
+  await expect(verifyWindowsSelfSignedCode(root, { thumbprint, inspect: async () => foreign })).resolves.toBeUndefined()
+  const signed = new Set<string>()
+  const sign = vi.fn(async ({ path }: { path: string }) => { signed.add(path) })
+  await signWindowsSelfSignedCode(root, {
+    thumbprint, sign, record: () => {},
+    inspect: async path => path.endsWith('vendor.dll')
+      ? foreign
+      : signed.has(path) ? pinned : { status: 'NotSigned', thumbprint: null, timestampValid: false, genTime: null },
+  })
+  expect(sign.mock.calls.map(([input]) => input.path)).toEqual([join(root, 'app.exe')])
+})
+
+it('rejects an untrusted signature from another signer', async () => {
+  const root = await fixture(['app.exe'])
+  await expect(verifyWindowsSelfSignedCode(root, {
+    thumbprint,
+    inspect: async () => ({ status: 'UnknownError', thumbprint: 'B'.repeat(40), timestampValid: true, genTime }),
+  })).rejects.toThrow('wrong signer')
+})
+
+it.each([
+  ['missing', { status: 'UnknownError', thumbprint, timestampValid: false, genTime: null }],
+  ['not a token time', { status: 'UnknownError', thumbprint, timestampValid: true, genTime: '11/9/2026 12:00:00 AM' }],
+])('rejects a %s RFC 3161 timestamp on an untrusted signature', async (_name, report) => {
+  const root = await fixture(['app.exe'])
+  await expect(verifyWindowsSelfSignedCode(root, { thumbprint, inspect: async () => report }))
+    .rejects.toThrow('missing or invalid RFC 3161 timestamp')
+})
+
+it('accepts a pinned untrusted self-signed signature and still signs an unsigned file', async () => {
+  const root = await fixture(['app.exe'])
+  await expect(verifyWindowsSelfSignedCode(root, { thumbprint, inspect: async () => pinned })).resolves.toBeUndefined()
+  await expect(verifyWindowsSelfSignedCode(root, {
+    thumbprint, inspect: async () => ({ ...pinned, status: 'Valid' }),
+  })).resolves.toBeUndefined()
+  const sign = vi.fn()
+  await expect(signWindowsSelfSignedCode(root, { thumbprint, sign, record: () => {}, inspect: async () => pinned }))
+    .resolves.toBeUndefined()
+  expect(sign).not.toHaveBeenCalled()
+  let signed = false
+  const signer = vi.fn(async () => { signed = true })
+  await signWindowsSelfSignedCode(root, {
+    thumbprint, sign: signer, record: () => {},
+    inspect: async () => signed ? pinned : { status: 'NotSigned', thumbprint: null, timestampValid: false, genTime: null },
+  })
+  expect(signer).toHaveBeenCalledOnce()
+})
+
+it('keeps eToken verification from accepting an untrusted chain', async () => {
+  const root = await fixture(['app.exe'])
+  const untrusted = { status: 'UnknownError', timestamped: true, thumbprint }
+  const sign = vi.fn()
+  await expect(verifyWindowsCode(root, async () => untrusted)).rejects.toThrow('Windows code: refusing UnknownError signature')
+  await expect(signWindowsCode(root, { thumbprint, sign, record: () => {}, inspect: async () => untrusted }))
+    .rejects.toThrow('Windows code: refusing UnknownError signature')
   expect(sign).not.toHaveBeenCalled()
 })

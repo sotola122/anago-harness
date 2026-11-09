@@ -32,8 +32,16 @@ function resolveFile(value, name) {
   return path
 }
 
+function powershellText(value) {
+  if (value === undefined || value === null) return ''
+  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value)
+  if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) return buffer.toString('utf16le', 2)
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) return buffer.toString('utf8', 3)
+  return buffer.toString('utf8')
+}
+
 function redactedOutput(value, secrets) {
-  let output = Buffer.isBuffer(value) ? value.toString('utf8') : typeof value === 'string' ? value : ''
+  let output = powershellText(value)
   for (const secret of secrets) {
     if (secret !== '') output = output.replaceAll(secret, '<redacted>')
   }
@@ -46,17 +54,26 @@ function redactedOutput(value, secrets) {
  * @param {unknown} error Signing script failure.
  * @param {string} path Artifact that failed signing.
  * @param {readonly string[]} secrets Values that must not appear in the diagnostic.
+ * @param {'sign' | 'preflight'} [phase] Whether the failure happened before SignTool ran.
  * @returns {Error} Sanitized signing failure without the original error as its cause.
  */
-export function createWindowsSelfSigningError(error, path, secrets) {
+export function createWindowsSelfSigningError(error, path, secrets, phase = 'sign') {
   const record = error !== null && typeof error === 'object' ? error : undefined
   const code = record !== undefined && 'code' in record
     && (typeof record.code === 'number' || typeof record.code === 'string')
     ? ` (exit ${String(record.code)})`
     : ''
   const stderr = record !== undefined && 'stderr' in record ? redactedOutput(record.stderr, secrets) : ''
-  return new Error(`Windows self-signing failed for ${path}${code}${stderr === '' ? '' : `: ${stderr}`}. `
-    + 'Signing stopped. Check the self-signed PFX, its password, the SDK signtool, and that the public certificate is trusted before retrying.')
+  const detail = stderr === '' ? '' : `: ${stderr}`
+  if (phase === 'preflight') {
+    return new Error(`Windows self-signing preflight failed for ${path}${code}${detail}. `
+      + 'Microsoft.PowerShell.Security could not be loaded from $PSHOME. Signing did not start.')
+  }
+  if (/refusing |wrong signer|RFC 3161|Signing did not start/iu.test(stderr)) {
+    return new Error(`Windows self-signing verification failed for ${path}${code}${detail}. Signing stopped.`)
+  }
+  return new Error(`Windows self-signing failed for ${path}${code}${detail}. `
+    + 'Signing stopped. Check the self-signed PFX, its password, and the SDK signtool before retrying.')
 }
 
 /**
@@ -87,28 +104,41 @@ export function resolveWindowsSelfSignEnvironment(environment) {
 
 /**
  * Create the hook that signs one executable with the self-signed PFX through the SDK signtool.
+ * The first call loads Microsoft.PowerShell.Security from the interpreter before any file is signed. The password is not passed to that preflight.
  *
  * @param {{ environment: NodeJS.ProcessEnv, pfxFile: string, password: string }} options Packaging environment and validated PFX inputs.
  * @returns {(configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>} Serialized signing hook for the files electron-builder and the runtime PE walk do not sign themselves.
  */
+function powershellArgs(scriptArgs) {
+  return ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', SIGN_SCRIPT, ...scriptArgs]
+}
+
 export function createWindowsSelfSigner(options) {
   const secrets = [options.password]
   let pending = Promise.resolve()
+  let modulesReady = false
   return (configuration) => {
     pending = pending.then(async () => {
       if (configuration.hash !== 'sha256') {
         throw new Error(`Windows self-signing requires SHA-256, received ${configuration.hash}`)
       }
       if (configuration.isNest) throw new Error('Windows self-signing does not support appended signatures')
+      const scrubbed = scrubWindowsSigningEnvironment(options.environment)
+      if (!modulesReady) {
+        try {
+          await execFileAsync('powershell.exe', powershellArgs(['-PreflightOnly']), {
+            env: scrubbed, windowsHide: true, timeout: SIGN_TIMEOUT_MS, maxBuffer: 64 * 1024,
+          })
+        }
+        catch (error) {
+          throw createWindowsSelfSigningError(error, configuration.path, secrets, 'preflight')
+        }
+        modulesReady = true
+      }
       try {
-        await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-          '-File', SIGN_SCRIPT, '-Files', configuration.path], {
-          env: {
-            ...scrubWindowsSigningEnvironment(options.environment),
-            ANAGO_WINDOWS_PFX_FILE: options.pfxFile,
-            ANAGO_PFX_PASSWORD: options.password,
-          },
-          windowsHide: true, timeout: SIGN_TIMEOUT_MS, maxBuffer: 64 * 1024, encoding: 'utf8',
+        await execFileAsync('powershell.exe', powershellArgs(['-Files', configuration.path]), {
+          env: { ...scrubbed, ANAGO_WINDOWS_PFX_FILE: options.pfxFile, ANAGO_PFX_PASSWORD: options.password },
+          windowsHide: true, timeout: SIGN_TIMEOUT_MS, maxBuffer: 64 * 1024,
         })
       }
       catch (error) {
