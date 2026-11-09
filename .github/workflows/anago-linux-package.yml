@@ -1,0 +1,42 @@
+name: Package Desktop · Linux · x64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Write packaging environment
+        # Linux packaging reads .env.linux; an unsigned AppImage needs only the application identifier.
+        env:
+          DSH_DESKTOP_APP_ID: ${{ vars.DSH_DESKTOP_APP_ID || 'com.deepseek.harness' }}
+        run: printf 'DSH_DESKTOP_APP_ID=%s\n' "$DSH_DESKTOP_APP_ID" > apps/desktop/.env.linux
+      - name: Check packaging configuration and toolchain
+        run: pnpm run package:desktop:linux:x64:unsigned --check
+      - name: Build AppImage
+        run: pnpm run package:desktop:linux:x64:unsigned
+      - name: Retain AppImage
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: linux-x64-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*
+          if-no-files-found: error
+          retention-days: 14
