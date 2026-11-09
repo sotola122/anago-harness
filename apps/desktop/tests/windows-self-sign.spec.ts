@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createWindowsSelfSignedPackagerSigner, createWindowsSelfSigner, createWindowsSelfSigningError } from '../scripts/windows-self-sign.mjs'
+import { authenticodeArchiveExclusions } from '../scripts/verify-runtime-archive.ts'
 
 const hooks = vi.hoisted(() => ({
   fail: null as null | { code?: number; stderr?: string },
@@ -284,6 +285,30 @@ it('gives electron-builder the self-signed hook and not the PFX password', async
     expect(config.win.signtoolOptions).not.toHaveProperty('certificateFile')
     expect(config.win.signtoolOptions).not.toHaveProperty('certificatePassword')
     expect(JSON.stringify(config.win)).not.toContain(password)
+  }
+  finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('records a completed rewrite so the archive check can skip only that unpacked file', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-self-sign-rewrite-'))
+  const unpacked = join(directory, 'resources', 'app.asar.unpacked', 'dsh')
+  const signed = join(unpacked, 'node_modules', 'foo', 'native.node')
+  try {
+    const sign = createWindowsSelfSigner({
+      environment: {
+        PATH: 'C:\\Windows', DSH_DESKTOP_WINDOWS_PFX_PASSWORD: password, DSH_DESKTOP_PACKAGING_RUN_DIR: directory,
+      },
+      pfxFile: 'C:\\secrets\\anago.pfx', password,
+    })
+    await sign({ path: signed, hash: 'sha256', isNest: false })
+    await sign({ path: join(directory, 'DeepSeek Harness.exe'), hash: 'sha256', isNest: false })
+    const recorded = authenticodeArchiveExclusions(await readFile(join(directory, 'events.jsonl'), 'utf8'), unpacked)
+    expect(recorded).toEqual({
+      exclusions: [{ path: 'node_modules/foo/native.node', reason: 'authenticode-appended' }],
+      rewriteRecords: 2,
+    })
   }
   finally {
     await rm(directory, { recursive: true, force: true })

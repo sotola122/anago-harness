@@ -7,6 +7,7 @@ import { desktopArtifactOutput, resolveDesktopBuildTarget, resolveDesktopTargetB
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { verifyWindowsCode, verifyWindowsSelfSignedCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
+import { authenticodeArchiveExclusions, type ArchiveHashExclusion } from './verify-runtime-archive.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 
 const paths = resolveDesktopTargetBuildPaths()
@@ -34,4 +35,20 @@ if (windows && !values.unsigned) {
   }
   else await verifyWindowsCode(application)
 }
-await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor)
+// Unsigned and eToken routes compare every hash. Self-sign skips only files the hook recorded as rewritten.
+const hashExclusions: ArchiveHashExclusion[] = []
+if (values['self-sign']) {
+  const runDirectory = process.env.DSH_DESKTOP_PACKAGING_RUN_DIR
+  if (runDirectory === undefined || runDirectory === '') {
+    throw new Error('desktop runtime: self-sign archive check requires DSH_DESKTOP_PACKAGING_RUN_DIR')
+  }
+  const events = await readFile(join(runDirectory, 'events.jsonl'), 'utf8').catch((error: unknown) => {
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      && (typeof error.code === 'string' || typeof error.code === 'number') ? String(error.code) : 'error'
+    throw new Error(`desktop runtime: self-sign rewrite record is unreadable: ${runDirectory} (${code})`, { cause: error })
+  })
+  const recorded = authenticodeArchiveExclusions(events, join(resources, 'app.asar.unpacked', 'dsh'))
+  hashExclusions.push(...recorded.exclusions)
+  process.stdout.write(`desktop runtime: self-sign archive check excludes ${hashExclusions.length} authenticode-appended file(s) from ${recorded.rewriteRecords} rewrite record(s)\n`)
+}
+await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor, hashExclusions)

@@ -5,6 +5,7 @@ import { X509Certificate } from 'node:crypto'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { recordPackagingEvent } from './packaging-run.mjs'
 import { inspectWindowsExecutableFormat, repairDanglingAuthenticodeDirectory, scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 
 const execFileAsync = promisify(execFile)
@@ -109,6 +110,7 @@ export function resolveWindowsSelfSignEnvironment(environment) {
 /**
  * Create the hook that signs one executable with the self-signed PFX through the SDK signtool.
  * The first call loads Microsoft.PowerShell.Security from the interpreter before any file is signed. The password is not passed to that preflight.
+ * Each successful signature appends a rewrite record when the packaging run directory is set, so the packaged smoke can skip only those hashes.
  *
  * @param {{ environment: NodeJS.ProcessEnv, pfxFile: string, password: string }} options Packaging environment and validated PFX inputs.
  * @returns {(configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>} Serialized signing hook. The packager hook delegates electron-builder files here; beforeBuild and the runtime walk call it directly.
@@ -147,6 +149,19 @@ export function createWindowsSelfSigner(options) {
       }
       catch (error) {
         throw createWindowsSelfSigningError(error, configuration.path, secrets)
+      }
+      // Authenticode changes the bytes the preparation inventory hashed. Record only a completed rewrite.
+      const runDirectory = options.environment.DSH_DESKTOP_PACKAGING_RUN_DIR
+      if (typeof runDirectory === 'string' && runDirectory !== '') {
+        try {
+          recordPackagingEvent(runDirectory, {
+            type: 'windows-self-sign-rewritten', path: configuration.path, reason: 'authenticode-appended',
+          })
+        }
+        catch (error) {
+          const message = error instanceof Error ? error.message : 'unreadable'
+          throw new Error(`Windows self-sign: signed ${configuration.path} but the rewrite record was not written. Retry from a clean package tree. ${message}`)
+        }
       }
     })
     return pending
