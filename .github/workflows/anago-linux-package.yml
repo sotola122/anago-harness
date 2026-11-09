@@ -42,7 +42,7 @@ jobs:
           mkdir -p "$mirror"
           gh release download "v$electron" -R electron/electron -p "electron-v$electron-linux-x64.zip" -p 'SHASUMS256.txt' -D "$mirror" --clobber
           printf '%s  %s\n' '3ae7d5bdad61c664486c6ab61361dd084d064c8c08af8d13a687096e18ce555a' "$mirror/electron-v$electron-linux-x64.zip" | sha256sum -c -
-          python3 -m http.server 8099 --bind 127.0.0.1 --directory "$RUNNER_TEMP/mirror" >/dev/null 2>&1 &
+          node .github/scripts/local-mirror.cjs "$RUNNER_TEMP/mirror" 8099 >/dev/null 2>&1 &
           sleep 3
           curl -fsS -m 20 "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" > /dev/null
           echo 'ELECTRON_MIRROR=http://127.0.0.1:8099/' >> "$GITHUB_ENV"

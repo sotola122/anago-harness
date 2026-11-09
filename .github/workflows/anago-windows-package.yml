@@ -56,7 +56,7 @@ jobs:
           $file = Join-Path $mirror "electron-v$electron-win32-x64.zip"
           $actual = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne 'eee30dc8fa1f5ea95490e59f44e46ea68dd24c6e93d22facf70fe5c2d4c2665c') { throw "Electron archive digest mismatch: $actual" }
-          Start-Process -FilePath 'python' -ArgumentList @('-m', 'http.server', '8099', '--bind', '127.0.0.1', '--directory', (Join-Path $env:RUNNER_TEMP 'mirror')) -WindowStyle Hidden
+          Start-Process -FilePath 'node' -ArgumentList @('.github/scripts/local-mirror.cjs', (Join-Path $env:RUNNER_TEMP 'mirror'), '8099') -WindowStyle Hidden
           Start-Sleep -Seconds 3
           $probe = Invoke-WebRequest -Uri "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" -UseBasicParsing -TimeoutSec 20
           if ($probe.StatusCode -ne 200) { throw "The local Electron mirror answered $($probe.StatusCode)" }
