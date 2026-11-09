@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          electron="$(node -p "require('./apps/desktop/package.json').dependencies.electron.replace(/^[^0-9]*/, '')")"
+          electron="$(node -p "const p=require('./apps/desktop/package.json');((p.dependencies&&p.dependencies.electron)||(p.devDependencies&&p.devDependencies.electron)||'').replace(/^[^0-9]*/, '')")"
           test "$electron" = '44.7.0' || { echo "electron moved to $electron; update the digest in this step"; exit 1; }
           mkdir -p "$RUNNER_TEMP/electron"
           gh release download "v$electron" -R electron/electron -p "electron-v$electron-linux-x64.zip" -D "$RUNNER_TEMP/electron" --clobber

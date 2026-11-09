@@ -45,7 +45,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $electron = (Get-Content -LiteralPath 'apps/desktop/package.json' -Raw | ConvertFrom-Json).dependencies.electron -replace '^[^0-9]*', ''
+          $pkg = Get-Content -LiteralPath 'apps/desktop/package.json' -Raw | ConvertFrom-Json
+          $declared = if ($pkg.dependencies.electron) { $pkg.dependencies.electron } else { $pkg.devDependencies.electron }
+          $electron = $declared -replace '^[^0-9]*', ''
           if ($electron -ne '44.7.0') { throw "electron moved to $electron; update the digest in this step" }
           $dir = Join-Path $env:RUNNER_TEMP 'electron'
           New-Item -ItemType Directory -Path $dir -Force | Out-Null
