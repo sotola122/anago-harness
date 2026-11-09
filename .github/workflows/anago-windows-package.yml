@@ -39,9 +39,10 @@ jobs:
             [Convert]::FromBase64String($env:ANAGO_WINDOWS_PFX_BASE64))
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
-      - name: Warm the Electron cache
-        # GitHub release downloads intermittently answer 504. Fetch the archive through the authenticated
-        # API, verify it against Electron's published digest, and place it where @electron/get looks.
+      - name: Serve a local Electron mirror
+        # GitHub release downloads intermittently answer 504, and @electron/get also fetches SHASUMS256.txt
+        # from the same release. Fetch both once through the authenticated API, verify the archive against
+        # Electron's published digest, then let the build read them from a loopback mirror.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -49,17 +50,15 @@ jobs:
           $declared = if ($pkg.dependencies.electron) { $pkg.dependencies.electron } else { $pkg.devDependencies.electron }
           $electron = $declared -replace '^[^0-9]*', ''
           if ($electron -ne '44.7.0') { throw "electron moved to $electron; update the digest in this step" }
-          $dir = Join-Path $env:RUNNER_TEMP 'electron'
-          New-Item -ItemType Directory -Path $dir -Force | Out-Null
-          gh release download "v$electron" -R electron/electron -p "electron-v$electron-win32-x64.zip" -D $dir --clobber
-          $file = Join-Path $dir "electron-v$electron-win32-x64.zip"
+          $mirror = Join-Path $env:RUNNER_TEMP "mirror/v$electron"
+          New-Item -ItemType Directory -Path $mirror -Force | Out-Null
+          gh release download "v$electron" -R electron/electron -p "electron-v$electron-win32-x64.zip" -p 'SHASUMS256.txt' -D $mirror --clobber
+          $file = Join-Path $mirror "electron-v$electron-win32-x64.zip"
           $actual = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne 'eee30dc8fa1f5ea95490e59f44e46ea68dd24c6e93d22facf70fe5c2d4c2665c') { throw "Electron archive digest mismatch: $actual" }
-          $url = "https://github.com/electron/electron/releases/download/v$electron"
-          $sha = [BitConverter]::ToString([System.Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($url))).Replace('-', '').ToLower()
-          $cache = Join-Path 'apps/desktop/.desktop-build/downloads' $sha
-          New-Item -ItemType Directory -Path $cache -Force | Out-Null
-          Copy-Item -LiteralPath $file -Destination $cache
+          Start-Process -FilePath 'python' -ArgumentList @('-m', 'http.server', '8099', '--bind', '127.0.0.1', '--directory', (Join-Path $env:RUNNER_TEMP 'mirror')) -WindowStyle Hidden
+          Start-Sleep -Seconds 3
+          'ELECTRON_MIRROR=http://127.0.0.1:8099/' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Write packaging environment
         # The file-owned settings loader passes these two values only to the packaging command and
         # electron-builder; apps/desktop/.env.windows is Git ignored and removed after the job.
