@@ -7,7 +7,8 @@ import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { get } from 'node:https'
+import { get as httpGet, type IncomingMessage } from 'node:http'
+import { get as httpsGet } from 'node:https'
 import { parseArgs } from 'node:util'
 import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
@@ -17,13 +18,30 @@ import lock from './lock.json' with { type: 'json' }
 import { prunePrimaryRuntimePythonTests } from './prune-python-tests.ts'
 
 
+/** At most 20 redirects, matching fetch. A further redirect fails the attempt. */
+const REDIRECT_LIMIT = 20
+
 /**
- * Fetch a locked archive over node:https, retrying the gateway and network failures a release CDN returns
- * intermittently. Node's fetch parser aborts the process on a truncated compressed response here, so the
- * download path owns the connection: it follows redirects, checks the declared length, and reports a
- * truncation as a failed attempt instead of an uncaught assertion. A client error is final.
+ * Download failure. `status` is set for an HTTP response, including a redirect the client will not follow.
+ * Absent `status` is a transport failure and is retried.
+ * @param message - Operator-facing summary including the archive URL.
+ * @param status - HTTP status, when the server sent one.
+ * @param cause - Underlying parser or socket failure.
+ * @returns Error the retry loop can classify without reading the message.
+ */
+function downloadFailure(message: string, status?: number, cause?: unknown): Error & { status?: number } {
+  const failure = new Error(message, cause === undefined ? undefined : { cause }) as Error & { status?: number }
+  if (status !== undefined) failure.status = status
+  return failure
+}
+
+/**
+ * Fetch a locked archive, retrying the gateway and network failures a release CDN returns intermittently.
+ * Node's fetch parser aborts the process on a truncated compressed response, so this path owns the connection:
+ * at most 20 redirects, a declared-length check, and truncation as a failed attempt. A client error, including
+ * a malformed or missing redirect, is final.
  * @param url - Locked archive URL.
- * @param timeout - Per-attempt timeout in milliseconds.
+ * @param timeout - Wall-clock deadline for one attempt, including redirects and the body, in milliseconds.
  * @returns Archive bytes.
  */
 async function fetchArchive(url: string, timeout: number): Promise<Buffer> {
@@ -45,48 +63,113 @@ async function fetchArchive(url: string, timeout: number): Promise<Buffer> {
 }
 
 /**
- * Read one URL, following redirects and refusing a body shorter than its declared length.
+ * Read one URL, following at most 20 redirects and refusing a short or unfinished body.
  * @param url - Archive URL.
- * @param timeout - Timeout for the whole response in milliseconds.
+ * @param timeout - Wall-clock deadline for this attempt, including redirects and the body, in milliseconds.
  * @returns Archive bytes.
  */
 function download(url: string, timeout: number): Promise<Buffer> {
+  const controller = new AbortController()
+  // One deadline for every redirect and the body. A per-socket idle timer resets on each hop and each drip.
+  const deadline = setTimeout(() => {
+    controller.abort(downloadFailure(`primary runtime download: timeout ${url}`))
+  }, timeout)
+  return readArchive(url, controller.signal, 0).finally(() => { clearTimeout(deadline) })
+}
+
+/**
+ * Read one hop. Redirect failures reject here, including a `Location` that is not a URL, so a bad header cannot
+ * escape the response callback.
+ * @param url - Current hop.
+ * @param signal - Deadline for the whole attempt.
+ * @param redirects - Redirects already followed.
+ * @returns Archive bytes.
+ */
+function readArchive(url: string, signal: AbortSignal, redirects: number): Promise<Buffer> {
   return new Promise((resolveDownload, rejectDownload) => {
-    const request = get(url, { headers: { 'accept-encoding': 'identity' } }, (response) => {
+    if (signal.aborted) {
+      rejectDownload(signal.reason instanceof Error ? signal.reason : downloadFailure(`primary runtime download: timeout ${url}`))
+      return
+    }
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      rejectDownload(downloadFailure(`primary runtime download: unsupported redirect ${url}`))
+      return
+    }
+    let received = 0
+    let reading = false
+    let declared = Number.NaN
+    const fail = (error: unknown): void => {
+      const timedOut = signal.aborted && signal.reason instanceof Error ? signal.reason : undefined
+      if (timedOut !== undefined) { rejectDownload(timedOut); return }
+      const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined
+      // A reset before the response callback still means the archive did not arrive intact.
+      const reset = code === 'ECONNRESET' || (error instanceof Error && error.message === 'aborted')
+      if (reading || reset) {
+        const declaredText = Number.isFinite(declared) ? String(declared) : 'unfinished'
+        rejectDownload(downloadFailure(
+          `primary runtime download: truncated response (${String(received)} of ${declaredText}) ${url}`,
+          undefined,
+          error instanceof Error ? error : undefined,
+        ))
+        return
+      }
+      rejectDownload(error instanceof Error ? error : downloadFailure(`primary runtime download: ${url}`))
+    }
+    const onResponse = (response: IncomingMessage): void => {
       const status = response.statusCode ?? 0
-      const location = response.headers.location
-      if (status >= 300 && status < 400 && location !== undefined) {
+      if (status >= 300 && status < 400) {
         response.resume()
-        download(new URL(location, url).toString(), timeout).then(resolveDownload, rejectDownload)
+        const location = response.headers.location
+        if (location === undefined || location === '') {
+          rejectDownload(downloadFailure(`primary runtime download: redirect missing Location ${url}`, status))
+          return
+        }
+        if (redirects >= REDIRECT_LIMIT) {
+          rejectDownload(downloadFailure(`primary runtime download: too many redirects ${url}`, status))
+          return
+        }
+        let next: URL
+        try { next = new URL(location, parsed) }
+        catch (error) {
+          rejectDownload(downloadFailure(`primary runtime download: malformed redirect Location ${url}`, status, error))
+          return
+        }
+        if (next.protocol !== 'http:' && next.protocol !== 'https:') {
+          rejectDownload(downloadFailure(`primary runtime download: unsupported redirect ${url}`, status))
+          return
+        }
+        readArchive(next.toString(), signal, redirects + 1).then(resolveDownload, rejectDownload)
         return
       }
       if (status !== 200) {
         response.resume()
-        const failure = new Error(`primary runtime download: ${String(status)} ${url}`) as Error & { status: number }
-        failure.status = status
-        rejectDownload(failure)
+        rejectDownload(downloadFailure(`primary runtime download: ${String(status)} ${url}`, status))
         return
       }
+      reading = true
+      declared = Number(response.headers['content-length'])
       const chunks: Buffer[] = []
-      let received = 0
       response.on('data', (chunk: Buffer) => { chunks.push(chunk); received += chunk.length })
       response.on('end', () => {
-        const declared = Number(response.headers['content-length'])
-        if (Number.isFinite(declared) && declared !== received) {
-          rejectDownload(new Error(`primary runtime download: truncated response (${String(received)} of ${String(declared)}) ${url}`))
+        if (!response.complete || (Number.isFinite(declared) && declared !== received)) {
+          fail(new Error('incomplete body'))
           return
         }
         resolveDownload(Buffer.concat(chunks))
       })
-      response.on('error', rejectDownload)
-    })
-    request.setTimeout(timeout, () => { request.destroy(new Error(`primary runtime download: timeout ${url}`)) })
-    request.on('error', rejectDownload)
+      response.on('error', fail)
+    }
+    const options = { headers: { 'accept-encoding': 'identity' }, signal }
+    const request = parsed.protocol === 'https:' ? httpsGet(parsed, options, onResponse) : httpGet(parsed, options, onResponse)
+    request.on('error', fail)
   })
 }
 
 /**
  * Download or reuse an archive only when its bytes match the release lock.
+ * A digest mismatch deletes the cache file and does not publish the bytes.
+ * `DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS` is the wall-clock deadline for one attempt, including redirects and the body.
  * @param url - Locked archive URL.
  * @param sha256 - Expected hexadecimal digest for the selected algorithm.
  * @param cache - Download cache directory.
