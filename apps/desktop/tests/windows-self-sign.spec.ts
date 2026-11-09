@@ -90,4 +90,7 @@ it('imports the interpreter Security module before SignTool and checks the RFC 3
   expect(acceptValid).toBeLessThan(verifyBody.indexOf('wrong signer'))
   expect(sign).toContain('SetConsoleOutputCP throws IOException')
   expect(verify).toContain('SetConsoleOutputCP throws IOException')
+  // A verifier that does not parse must stop the preflight instead of failing after SignTool ran.
+  expect(sign.indexOf('ParseFile')).toBeGreaterThan(preflight)
+  expect(sign.indexOf('ParseFile')).toBeLessThan(sign.indexOf('& $signToolPath'))
 })

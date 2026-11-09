@@ -100,6 +100,15 @@ Import-AnagoAuthenticodeModules -Stopped 'Signing did not start.'
 $PSModuleAutoloadingPreference = 'None'
 if ($PreflightOnly) {
   if ($null -ne $Files -and $Files.Count -gt 0) { throw '-PreflightOnly does not sign files. Signing did not start.' }
+  # A parse error in the verifier would otherwise surface only after SignTool already signed a file.
+  $preflightVerifier = Join-Path $PSScriptRoot 'anago-verify.ps1'
+  $verifierErrors = $null
+  $null = [System.Management.Automation.Language.Parser]::ParseFile($preflightVerifier, [ref]$null, [ref]$verifierErrors)
+  if ($null -ne $verifierErrors -and $verifierErrors.Count -gt 0) {
+    $first = $verifierErrors[0]
+    $detail = $first.Message + ' at line ' + $first.Extent.StartLineNumber
+    throw "anago-verify.ps1 does not parse: $detail. Signing did not start."
+  }
   Write-Output "Get-AuthenticodeSignature loaded from $((Get-Command Get-AuthenticodeSignature).Module.Path)"
   return
 }

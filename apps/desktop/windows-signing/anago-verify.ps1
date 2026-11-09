@@ -347,15 +347,17 @@ if ($Json) {
 }
 
 if (-not (Test-Path -LiteralPath $CertificateFile -PathType Leaf)) { throw "The signing certificate was not found: $CertificateFile" }
-$expectedThumbprint = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
-  (Resolve-Path -LiteralPath $CertificateFile).Path).Thumbprint
+$certificatePath = (Resolve-Path -LiteralPath $CertificateFile).Path
+$expectedThumbprint = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath).Thumbprint
 $failed = New-Object System.Collections.Generic.List[string]
 foreach ($file in $Files) {
   $path = (Resolve-Path -LiteralPath $file).Path
   $report = Get-AnagoSignatureReport -Path $path
   $timestamp = if ($report.timestampValid) { $report.genTime } else { 'invalid' }
-  Write-Output ($path + [Environment]::NewLine + "  status: $($report.status)" + [Environment]::NewLine
-    + "  signer: $($report.subject)" + [Environment]::NewLine + "  timestamp: $timestamp")
+  # Argument mode ends a command at the line break, so build the report string before writing it.
+  $summary = $path + [Environment]::NewLine + "  status: $($report.status)" + [Environment]::NewLine `
+    + "  signer: $($report.subject)" + [Environment]::NewLine + "  timestamp: $timestamp"
+  Write-Output $summary
   # A chain-trusted upstream binary is Valid under another publisher. Only the untrusted self-signed root must be pinned.
   if ($report.status -eq 'Valid') { continue }
   if ($report.status -ne 'UnknownError') {
