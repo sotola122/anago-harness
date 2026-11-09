@@ -29,6 +29,20 @@ jobs:
           node-version: '24'
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+      - name: Warm the Electron cache
+        # GitHub release downloads intermittently answer 504. Fetch the archive through the authenticated
+        # API, verify it against Electron's published digest, and place it where @electron/get looks.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          electron="$(node -p "require('./apps/desktop/package.json').dependencies.electron.replace(/^[^0-9]*/, '')")"
+          test "$electron" = '44.7.0' || { echo "electron moved to $electron; update the digest in this step"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/electron"
+          gh release download "v$electron" -R electron/electron -p "electron-v$electron-linux-x64.zip" -D "$RUNNER_TEMP/electron" --clobber
+          printf '%s  %s\n' '3ae7d5bdad61c664486c6ab61361dd084d064c8c08af8d13a687096e18ce555a' "$RUNNER_TEMP/electron/electron-v$electron-linux-x64.zip" | sha256sum -c -
+          cache="apps/desktop/.desktop-build/downloads/$(printf '%s' "https://github.com/electron/electron/releases/download/v$electron" | sha256sum | cut -d' ' -f1)"
+          mkdir -p "$cache"
+          cp "$RUNNER_TEMP/electron/electron-v$electron-linux-x64.zip" "$cache/"
       - name: Write packaging environment
         # Linux packaging reads .env.linux; an unsigned AppImage needs only the application identifier.
         env:
