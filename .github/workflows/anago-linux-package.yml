@@ -43,6 +43,8 @@ jobs:
           gh release download "v$electron" -R electron/electron -p "electron-v$electron-linux-x64.zip" -p 'SHASUMS256.txt' -D "$mirror" --clobber
           printf '%s  %s\n' '3ae7d5bdad61c664486c6ab61361dd084d064c8c08af8d13a687096e18ce555a' "$mirror/electron-v$electron-linux-x64.zip" | sha256sum -c -
           python3 -m http.server 8099 --bind 127.0.0.1 --directory "$RUNNER_TEMP/mirror" >/dev/null 2>&1 &
+          sleep 3
+          curl -fsS -m 20 "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" > /dev/null
           echo 'ELECTRON_MIRROR=http://127.0.0.1:8099/' >> "$GITHUB_ENV"
       - name: Write packaging environment
         # Linux packaging reads .env.linux; an unsigned AppImage needs only the application identifier.
@@ -53,6 +55,13 @@ jobs:
         run: pnpm run package:desktop:linux:x64:unsigned --check
       - name: Build AppImage
         run: pnpm run package:desktop:linux:x64:unsigned
+      - name: Show the packaging evidence
+        if: failure()
+        run: |
+          run="$(ls -dt apps/desktop/.desktop-build/packaging-runs/*/ 2>/dev/null | head -1)"
+          if [ -z "$run" ]; then echo 'no packaging run directory'; exit 0; fi
+          tail -n 60 "$run/events.jsonl" || true
+          tail -n 40 "$run/stderr.log" 2>/dev/null || true
       - name: Retain AppImage
         uses: actions/upload-artifact@v7.0.1
         with:

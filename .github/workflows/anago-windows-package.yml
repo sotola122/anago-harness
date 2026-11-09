@@ -58,6 +58,8 @@ jobs:
           if ($actual -ne 'eee30dc8fa1f5ea95490e59f44e46ea68dd24c6e93d22facf70fe5c2d4c2665c') { throw "Electron archive digest mismatch: $actual" }
           Start-Process -FilePath 'python' -ArgumentList @('-m', 'http.server', '8099', '--bind', '127.0.0.1', '--directory', (Join-Path $env:RUNNER_TEMP 'mirror')) -WindowStyle Hidden
           Start-Sleep -Seconds 3
+          $probe = Invoke-WebRequest -Uri "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" -UseBasicParsing -TimeoutSec 20
+          if ($probe.StatusCode -ne 200) { throw "The local Electron mirror answered $($probe.StatusCode)" }
           'ELECTRON_MIRROR=http://127.0.0.1:8099/' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Write packaging environment
         # The file-owned settings loader passes these two values only to the packaging command and
@@ -109,6 +111,14 @@ jobs:
           path: ${{ runner.temp }}/anago-windows-x64-${{ github.run_id }}
           if-no-files-found: error
           retention-days: 14
+      - name: Show the packaging evidence
+        if: failure()
+        run: |
+          $run = Get-ChildItem 'apps/desktop/.desktop-build/packaging-runs' -Directory -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime | Select-Object -Last 1
+          if ($null -eq $run) { Write-Host 'no packaging run directory'; exit 0 }
+          Get-Content -LiteralPath (Join-Path $run.FullName 'events.jsonl') -Tail 60
+          Get-Content -LiteralPath (Join-Path $run.FullName 'stderr.log') -Tail 40 -ErrorAction SilentlyContinue
       - name: Remove the PFX and packaging environment
         if: always()
         run: |
