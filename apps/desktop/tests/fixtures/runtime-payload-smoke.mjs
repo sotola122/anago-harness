@@ -106,16 +106,46 @@ function checkKoffi() {
   }
 }
 
-/** Encode and decode a pixel through the packaged libvips binary. */
+/** Encode a pixel with the packaged libvips binary and decode the result. */
 async function checkSharp() {
   const sharp = requireRuntime('sharp')
   const pixel = Buffer.from([17, 103, 231])
   const png = await sharp(pixel, { raw: { width: 1, height: 1, channels: 3 } }).png().toBuffer()
-  const decoded = await sharp(png).raw().toBuffer({ resolveWithObject: true })
+  // Electron links the system GLib before sharp's bundled libvips exports its own, so an image
+  // read in the Electron process segfaults on Linux (sharp's documented Electron/Linux conflict).
+  // Decode with the primary-runtime Node; an ASAR tree is readable only by Electron and was
+  // already decoded during preparation.
+  if (process.platform === 'linux' && requireRuntime.resolve('sharp').includes('.asar')) {
+    console.error('runtime payload: sharp decode verified during preparation')
+    return
+  }
+  const decoded = process.platform === 'linux'
+    ? decodeWithPrimaryNode(png)
+    : await sharp(png).raw().toBuffer({ resolveWithObject: true })
   assert.equal(decoded.info.width, 1)
   assert.equal(decoded.info.height, 1)
   assert.equal(decoded.info.channels, 3)
   assert.deepEqual(decoded.data, pixel)
+}
+
+/**
+ * Decode PNG bytes under the payload's primary-runtime Node.
+ * @param {Buffer} png - Encoded PNG bytes.
+ * @returns {{ info: { width: number, height: number, channels: number }, data: Buffer }} Decoded pixels.
+ */
+function decodeWithPrimaryNode(png) {
+  const node = join(resourcesRuntime, 'primary-runtime', 'dependencies', 'node', 'bin', 'node')
+  const script = `
+const { createRequire } = require('node:module')
+const sharp = createRequire(process.argv[2])('sharp')
+sharp(Buffer.from(process.argv[1], 'base64')).raw().toBuffer({ resolveWithObject: true })
+  .then(({ info, data }) => process.stdout.write(JSON.stringify({ info, data: data.toString('base64') })),
+    error => { console.error(error); process.exitCode = 1 })
+`
+  const output = execFileSync(node, ['-e', script, png.toString('base64'), join(root, 'package.json')],
+    { encoding: 'utf8', timeout: 45_000, windowsHide: true })
+  const { info, data } = JSON.parse(output)
+  return { info, data: Buffer.from(data, 'base64') }
 }
 
 /** Exercise Domino parsing through the HTML converter and GFM plugin used by web_fetch. */
