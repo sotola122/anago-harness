@@ -177,9 +177,9 @@ pnpm run package:desktop:win:x64:self-sign
 
 该命令读取 `.env.windows`，要求设置 `DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_WINDOWS_PFX_FILE`（保存私钥的 PFX，位于 checkout 之外）和 `DSH_DESKTOP_WINDOWS_PFX_PASSWORD`。它不需要机器 preset、仓库变量、更新 origin、eToken、签名缓存或上传凭据，也不生成发布完成记录。electron-builder 自带的 signtool 以 SHA-256 摘要和 RFC 3161 时间戳签名应用、卸载器和 NSIS 安装包；[anago-sign.ps1](../windows-signing/anago-sign.ps1) 签名安装器 UI 库以及每个运行时可执行文件和库，[anago-verify.ps1](../windows-signing/anago-verify.ps1) 报告结果。该选项只接受 `win-x64`，拒绝 `--unsigned` 和 `--prepare-only`，eToken 路径保持不变。
 
-产物写入 `.desktop-build/targets/win-x64/self-signed-artifacts/`，名称为 `deepseek-harness-<version>-win-x64-self-signed.exe`，因此自签名文件不会被误认为发布产物，也不会与发布目录混用。构建会校验自身签名，这要求当前用户的“受信任的根证书颁发机构”存储中存在公开证书 [anago-code-signing.cer](../windows-signing/anago-code-signing.cer)；工作流会安装该证书，本地运行时同样使用 `Import-Certificate -FilePath apps/desktop/windows-signing/anago-code-signing.cer -CertStoreLocation Cert:\CurrentUser\Root`。
+产物写入 `.desktop-build/targets/win-x64/self-signed-artifacts/`，名称为 `deepseek-harness-<version>-win-x64-self-signed.exe`，因此自签名文件不会被误认为发布产物，也不会与发布目录混用。
 
-`Package Desktop · Windows · x64 (self-signed)` [工作流](../../../.github/workflows/anago-windows-package.yml) 在 `windows-latest` 上运行该命令，从仓库 secret `ANAGO_WINDOWS_PFX_BASE64` 和 `ANAGO_PFX_PASSWORD` 生成 PFX，校验每个打包的可执行文件，并把安装包与证书、[anago-trust.txt](../windows-signing/anago-trust.txt) 一起作为一个 artifact 上传。用户按该文件说明安装证书并解除下载锁定；在此之前 Windows 会报告未知发布者。
+`Package Desktop · Windows · x64 (self-signed)` [工作流](../../../.github/workflows/anago-windows-package.yml) 在 `windows-latest` 上运行该命令，从仓库 secret `ANAGO_WINDOWS_PFX_BASE64` 和 `ANAGO_PFX_PASSWORD` 生成 PFX，并仅在签名校验通过后，把安装包、[anago-code-signing.cer](../windows-signing/anago-code-signing.cer) 和 [anago-trust.txt](../windows-signing/anago-trust.txt) 作为 `windows-x64-self-signed-<run_id>-<run_attempt>` 上传。这些信任说明只适用于该已校验产物。签名或校验失败时，工作流仍会把未签名安装包作为 `windows-x64-unsigned-unqualified-<run_id>-<run_attempt>` 上传，并附带 `UNQUALIFIED.txt` 标记（不包含信任文件）。作业摘要和一条警告将其标为不合格，信任文件不适用于这些字节，并且该作业失败。
 
 <a id="local-macos-dmg-without-release-signing"></a>
 

@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   package:
+    name: Self-signed Windows x64
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'package-desktop'
     runs-on: windows-latest
     timeout-minutes: 120
@@ -114,41 +115,76 @@ jobs:
         id: self-signed
         continue-on-error: true
         run: pnpm run package:desktop:win:x64:self-sign
-      - name: Build the unsigned installer when signing fails
-        # The owner needs a Windows binary now; a signing failure must not hide the packaged application.
-        if: steps.self-signed.outcome == 'failure'
-        run: pnpm run package:desktop:win:x64:unsigned
-      - name: Verify signatures
-        if: always()
-        continue-on-error: true
+      - name: Verify self-signed signatures
+        id: verify
+        if: steps.self-signed.outcome == 'success'
         run: |
+          $ErrorActionPreference = 'Stop'
           $artifacts = 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts'
-          if (-not (Test-Path -LiteralPath $artifacts)) { Write-Host 'no self-signed artifacts'; exit 0 }
+          if (-not (Test-Path -LiteralPath $artifacts)) { throw 'self-signed build reported success but produced no artifacts' }
           $files = @(
             Get-ChildItem -LiteralPath $artifacts -File -Filter '*.exe' | ForEach-Object FullName
             Get-ChildItem -LiteralPath (Join-Path $artifacts 'win-unpacked') -Recurse -File |
               Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object FullName
             'apps/desktop/.desktop-build/targets/win-x64/installer-ui/window-frame.dll'
           )
-          & apps/desktop/windows-signing/anago-verify.ps1 $files
-      - name: Stage the installer and trust files
-        if: always()
+          if ($files.Count -eq 0) { throw 'self-signed build produced no executables to verify' }
+          & apps/desktop/windows-signing/anago-verify.ps1 @files
+      - name: Build the unsigned installer when signing or verification fails
+        # The owner needs a Windows binary now; a signing failure must not hide the packaged application.
+        id: unsigned
+        if: always() && !cancelled() && (steps.self-signed.outcome == 'failure' || steps.verify.outcome == 'failure')
+        run: pnpm run package:desktop:win:x64:unsigned
+      - name: Stage the verified self-signed installer
+        id: stage-self-signed
+        if: steps.verify.outcome == 'success'
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP "anago-windows-x64-$env:GITHUB_RUN_ID"
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP "anago-windows-x64-self-signed-$env:GITHUB_RUN_ID"
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          foreach ($name in 'self-signed-artifacts', 'unsigned-artifacts') {
-            $from = "apps/desktop/.desktop-build/targets/win-x64/$name/*.exe"
-            Copy-Item -Path $from -Destination $stage -ErrorAction SilentlyContinue
-          }
+          $copied = Copy-Item -Path 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts/*.exe' -Destination $stage -PassThru
+          if (-not $copied) { throw 'verified self-signed build produced no installer' }
           Copy-Item -Path 'apps/desktop/windows-signing/anago-code-signing.cer' -Destination $stage
           Copy-Item -Path 'apps/desktop/windows-signing/anago-trust.txt' -Destination $stage
-      - uses: actions/upload-artifact@v7.0.1
-        if: always()
+      - name: Upload the verified self-signed installer
+        if: steps.stage-self-signed.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: windows-x64-self-signed-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/anago-windows-x64-${{ github.run_id }}
-          if-no-files-found: warn
+          path: ${{ runner.temp }}/anago-windows-x64-self-signed-${{ github.run_id }}
+          if-no-files-found: error
           retention-days: 14
+      - name: Mark and stage the unsigned unqualified fallback
+        id: stage-unsigned
+        if: always() && !cancelled() && steps.unsigned.outcome == 'success'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP "anago-windows-x64-unsigned-$env:GITHUB_RUN_ID"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          $copied = Copy-Item -Path 'apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe' -Destination $stage -PassThru
+          if (-not $copied) { throw 'unsigned fallback produced no installer' }
+          @(
+            'status: unsigned'
+            'qualified: false'
+            'trust: anago-trust.txt does not apply to these bytes'
+          ) | Set-Content -LiteralPath (Join-Path $stage 'UNQUALIFIED.txt') -Encoding utf8
+          Write-Host '::warning title=Unsigned unqualified fallback::The uploaded Windows installer is unsigned and not qualified. Trust instructions do not apply.'
+          @(
+            '## Unsigned unqualified fallback'
+            ''
+            'The self-signed build or its signature verification did not pass. The uploaded installer is unsigned and not qualified. anago-trust.txt does not apply to these bytes.'
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+      - name: Upload the unsigned unqualified installer
+        if: always() && !cancelled() && steps.stage-unsigned.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: windows-x64-unsigned-unqualified-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/anago-windows-x64-unsigned-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Fail the job when self-signing was not verified
+        if: always() && !cancelled() && steps.verify.outcome != 'success'
+        run: throw 'This run produced only an unqualified unsigned installer'
       - name: Show the packaging evidence
         if: failure()
         run: |

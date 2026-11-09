@@ -107,7 +107,19 @@ describe('desktop package target', () => {
     expect(desktopElectronBuilderEnvironment({}, false, true)).toMatchObject({
       DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_SELF_SIGN: '1',
     })
-    expect(desktopElectronBuilderEnvironment({}, false)).not.toHaveProperty('DSH_DESKTOP_SELF_SIGN')
+    expect(desktopElectronBuilderEnvironment({}, false).DSH_DESKTOP_SELF_SIGN).toBe('0')
+  })
+
+  it('assigns DSH_DESKTOP_SELF_SIGN from the invocation when the parent already set it to 1', () => {
+    const inherited = { DSH_DESKTOP_SELF_SIGN: '1', DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret' }
+    expect(desktopElectronBuilderEnvironment(inherited, true).DSH_DESKTOP_SELF_SIGN).toBe('0')
+    expect(desktopElectronBuilderEnvironment(inherited, false, true)).toMatchObject({
+      DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_SELF_SIGN: '1',
+    })
+    expect(desktopElectronBuilderEnvironment(inherited, false).DSH_DESKTOP_SELF_SIGN).toBe('0')
+    expect(desktopElectronBuilderEnvironment({
+      ...inherited, DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
+    }, false).DSH_DESKTOP_SELF_SIGN).toBe('0')
   })
 
   it('removes ambient certificate inputs for unsigned builds and overrides an inherited signing mode', () => {
@@ -130,8 +142,11 @@ describe('desktop package target', () => {
       DSH_DESKTOP_MACOS_PACK_CONCURRENCY: '2',
       CSC_IDENTITY_AUTO_DISCOVERY: 'false',
       DSH_DESKTOP_UNSIGNED: '1',
+      DSH_DESKTOP_SELF_SIGN: '0',
     })
-    expect(desktopElectronBuilderEnvironment(environment, false)).toEqual({ ...environment, DSH_DESKTOP_UNSIGNED: '0' })
+    expect(desktopElectronBuilderEnvironment(environment, false)).toEqual({
+      ...environment, DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_SELF_SIGN: '0',
+    })
   })
 
   it.each([false, true])('pins the Windows archive filter for the NSIS decoder (unsigned: %s)', (unsigned) => {

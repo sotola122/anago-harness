@@ -104,6 +104,7 @@ export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv)
 
 /**
  * Select signing mode and strip unsigned-build credentials for packaging subprocesses.
+ * `DSH_DESKTOP_SELF_SIGN` is always `0` or `1` from this invocation, never an inherited value.
  * @param environment - Target packaging environment.
  * @param unsigned - Whether to create a local artifact without release signing or notarization.
  * @param selfSign - Whether electron-builder signs Windows artifacts with the fork's self-signed PFX.
@@ -113,7 +114,8 @@ export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv
   const selected: NodeJS.ProcessEnv = {
     ...environment,
     DSH_DESKTOP_UNSIGNED: unsigned ? '1' : '0',
-    ...(selfSign ? { DSH_DESKTOP_SELF_SIGN: '1' } : {}),
+    // Unsigned and every non-self-sign route, including macOS, must not keep an ambient 1.
+    DSH_DESKTOP_SELF_SIGN: !unsigned && selfSign ? '1' : '0',
   }
   // The bundled NSIS decoder cannot extract 7-Zip's automatic ARM64-filtered entries.
   if (environment.DSH_DESKTOP_TARGET_PLATFORM === 'win32') selected.ELECTRON_BUILDER_7Z_FILTER = 'BCJ'
@@ -123,6 +125,7 @@ export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv
       .filter(([name]) => !/^(?:(?:WIN_)?CSC_|APPLE_|DSH_DESKTOP_MACOS_(?:SIGNING_|TEAM_ID$))/iu.test(name))),
     CSC_IDENTITY_AUTO_DISCOVERY: 'false',
     DSH_DESKTOP_UNSIGNED: '1',
+    DSH_DESKTOP_SELF_SIGN: '0',
   }
 }
 
