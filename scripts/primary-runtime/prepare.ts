@@ -7,6 +7,7 @@ import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { get } from 'node:https'
 import { parseArgs } from 'node:util'
 import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
@@ -17,9 +18,10 @@ import { prunePrimaryRuntimePythonTests } from './prune-python-tests.ts'
 
 
 /**
- * Fetch a locked archive, retrying the gateway and network failures a release CDN returns intermittently.
- * A client error is final, so only 5xx and 429 responses and transport failures are attempted again. The
- * body read is inside the attempt, because a truncated response surfaces from the HTTP parser, not fetch.
+ * Fetch a locked archive over node:https, retrying the gateway and network failures a release CDN returns
+ * intermittently. Node's fetch parser aborts the process on a truncated compressed response here, so the
+ * download path owns the connection: it follows redirects, checks the declared length, and reports a
+ * truncation as a failed attempt instead of an uncaught assertion. A client error is final.
  * @param url - Locked archive URL.
  * @param timeout - Per-attempt timeout in milliseconds.
  * @returns Archive bytes.
@@ -29,20 +31,58 @@ async function fetchArchive(url: string, timeout: number): Promise<Buffer> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     let retryable = true
     try {
-      // The undici parser asserts on some truncated compressed responses on this network; identity keeps the
-      // body comparable with the locked digest and lets a failed attempt be retried.
-      const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'accept-encoding': 'identity' } })
-      if (response.ok) return Buffer.from(await response.arrayBuffer())
-      retryable = response.status >= 500 || response.status === 429
-      lastError = new Error(`primary runtime download: ${String(response.status)} ${url}`)
+      return await download(url, timeout)
     }
     catch (error) {
+      const status = (error as { status?: number }).status
+      retryable = status === undefined || status >= 500 || status === 429
       lastError = error
     }
     if (!retryable) break
-    if (attempt < 3) await new Promise<void>((resolve) => { setTimeout(resolve, attempt * 5_000) })
+    if (attempt < 3) await new Promise<void>((resolveWait) => { setTimeout(resolveWait, attempt * 5_000) })
   }
   throw lastError instanceof Error ? lastError : new Error(`primary runtime download: ${url}`)
+}
+
+/**
+ * Read one URL, following redirects and refusing a body shorter than its declared length.
+ * @param url - Archive URL.
+ * @param timeout - Timeout for the whole response in milliseconds.
+ * @returns Archive bytes.
+ */
+function download(url: string, timeout: number): Promise<Buffer> {
+  return new Promise((resolveDownload, rejectDownload) => {
+    const request = get(url, { headers: { 'accept-encoding': 'identity' } }, (response) => {
+      const status = response.statusCode ?? 0
+      const location = response.headers.location
+      if (status >= 300 && status < 400 && location !== undefined) {
+        response.resume()
+        download(new URL(location, url).toString(), timeout).then(resolveDownload, rejectDownload)
+        return
+      }
+      if (status !== 200) {
+        response.resume()
+        const failure = new Error(`primary runtime download: ${String(status)} ${url}`) as Error & { status: number }
+        failure.status = status
+        rejectDownload(failure)
+        return
+      }
+      const chunks: Buffer[] = []
+      let received = 0
+      response.on('data', (chunk: Buffer) => { chunks.push(chunk); received += chunk.length })
+      response.on('end', () => {
+        const declared = Number(response.headers['content-length'])
+        if (Number.isFinite(declared) && declared !== received) {
+          rejectDownload(new Error(`primary runtime download: truncated response (${String(received)} of ${String(declared)}) ${url}`))
+          return
+        }
+        resolveDownload(Buffer.concat(chunks))
+      })
+      response.on('error', rejectDownload)
+    })
+    request.setTimeout(timeout, () => { request.destroy(new Error(`primary runtime download: timeout ${url}`)) })
+    request.on('error', rejectDownload)
+  })
 }
 
 /**
