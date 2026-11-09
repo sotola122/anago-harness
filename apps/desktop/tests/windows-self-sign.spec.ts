@@ -1,8 +1,11 @@
 /** Self-sign preflight runs before SignTool and cannot retain the PFX password. */
 import { readFileSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createWindowsSelfSigner, createWindowsSelfSigningError } from '../scripts/windows-self-sign.mjs'
+import { createWindowsSelfSignedPackagerSigner, createWindowsSelfSigner, createWindowsSelfSigningError } from '../scripts/windows-self-sign.mjs'
 
 const hooks = vi.hoisted(() => ({
   fail: null as null | { code?: number; stderr?: string },
@@ -93,4 +96,196 @@ it('imports the interpreter Security module before SignTool and checks the RFC 3
   // A verifier that does not parse must stop the preflight instead of failing after SignTool ran.
   expect(sign.indexOf('ParseFile')).toBeGreaterThan(preflight)
   expect(sign.indexOf('ParseFile')).toBeLessThan(sign.indexOf('& $signToolPath'))
+})
+
+const UNINSTALLER = 'deepseek-harness-0.2.2-rc.1-win-x64-self-signed.__uninstaller.exe'
+
+function peBytes(dangling: boolean): Buffer {
+  const executable = Buffer.alloc(512)
+  const peOffset = 216
+  const optionalHeaderOffset = peOffset + 24
+  const certificateDirectoryOffset = optionalHeaderOffset + 96 + (4 * 8)
+  executable.write('MZ', 0, 'ascii')
+  executable.writeUInt32LE(peOffset, 60)
+  executable.write('PE\0\0', peOffset, 'ascii')
+  executable.writeUInt16LE(0x10B, optionalHeaderOffset)
+  if (dangling) {
+    executable.writeUInt32LE(600, certificateDirectoryOffset)
+    executable.writeUInt32LE(100, certificateDirectoryOffset + 4)
+  }
+  return executable
+}
+
+function certificateDirectory(bytes: Buffer): { offset: number; size: number } {
+  const optionalHeaderOffset = bytes.readUInt32LE(60) + 24
+  const directory = optionalHeaderOffset + 96 + (4 * 8)
+  return { offset: bytes.readUInt32LE(directory), size: bytes.readUInt32LE(directory + 4) }
+}
+
+async function withUninstaller(dangling: boolean, action: (path: string) => Promise<void>): Promise<void> {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-self-sign-uninstaller-'))
+  const path = join(directory, UNINSTALLER)
+  await writeFile(path, peBytes(dangling))
+  try {
+    await action(path)
+  }
+  finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+
+function recordedSigner(sign: (configuration: { path: string; hash: string; isNest: boolean }) => Promise<void>, attempts = 3) {
+  const events: Array<Record<string, unknown>> = []
+  const lines: string[] = []
+  const write = process.stdout.write.bind(process.stdout)
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    lines.push(String(chunk))
+    return true
+  }) as typeof process.stdout.write
+  const hook = createWindowsSelfSignedPackagerSigner({
+    sign,
+    secrets: [password],
+    uninstallerAttempts: attempts,
+    sleep: async () => {},
+    record: (event) => { events.push(event as Record<string, unknown>) },
+  })
+  return {
+    hook,
+    events,
+    lines,
+    restore: () => { process.stdout.write = write },
+  }
+}
+
+it('repairs the extracted uninstaller certificate table and records a signed stub', async () => {
+  await withUninstaller(true, async (path) => {
+    const seen: number[] = []
+    const captured = recordedSigner(async (configuration) => {
+      seen.push(certificateDirectory(await readFile(configuration.path)).offset)
+    })
+    try {
+      await captured.hook({ path, hash: 'sha256', isNest: false })
+      expect(seen).toEqual([0])
+      expect(captured.events).toEqual([expect.objectContaining({
+        type: 'nsis-uninstaller', outcome: 'signed', reason: 'ok', repaired: true, dangling: true, attempts: 1, size: 512,
+      })])
+      expect(captured.lines.join('')).toContain('"outcome":"signed"')
+      expect(captured.lines.join('')).not.toContain(password)
+    }
+    finally {
+      captured.restore()
+    }
+  })
+})
+
+it('retries until the uninstaller is a parseable PE, then signs it', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-self-sign-uninstaller-'))
+  const path = join(directory, UNINSTALLER)
+  const signed: string[] = []
+  let sleeps = 0
+  const events: Array<Record<string, unknown>> = []
+  const hook = createWindowsSelfSignedPackagerSigner({
+    sign: async (configuration) => { signed.push(configuration.path) },
+    uninstallerAttempts: 3,
+    sleep: async () => { sleeps += 1; await writeFile(path, peBytes(false)) },
+    record: (event) => { events.push(event as Record<string, unknown>) },
+  })
+  try {
+    await hook({ path, hash: 'sha256', isNest: false })
+    expect(sleeps).toBe(1)
+    expect(signed).toEqual([path])
+    expect(events).toEqual([expect.objectContaining({ outcome: 'signed', attempts: 2, repaired: false, dangling: false })])
+  }
+  finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('skips an uninstaller that never becomes a PE and does not hang', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-self-sign-uninstaller-'))
+  const path = join(directory, UNINSTALLER)
+  const signed: string[] = []
+  let sleeps = 0
+  const events: Array<Record<string, unknown>> = []
+  const hook = createWindowsSelfSignedPackagerSigner({
+    sign: async () => { signed.push('signed') },
+    secrets: [password],
+    uninstallerAttempts: 3,
+    sleep: async () => { sleeps += 1 },
+    record: (event) => { events.push(event as Record<string, unknown>) },
+  })
+  try {
+    await hook({ path, hash: 'sha256', isNest: false })
+    expect(sleeps).toBe(2)
+    expect(signed).toEqual([])
+    expect(events).toEqual([expect.objectContaining({
+      outcome: 'skipped', reason: 'not-a-pe', detail: 'missing', attempts: 3, size: 0, repaired: false,
+    })])
+  }
+  finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('records a SignTool bad-format rejection and still returns so the installer can be signed', async () => {
+  await withUninstaller(false, async (path) => {
+    const captured = recordedSigner(async () => {
+      throw new Error(`SignedCode::Sign returned error: 0x800700C1 ${password}`)
+    })
+    try {
+      await expect(captured.hook({ path, hash: 'sha256', isNest: false })).resolves.toBeUndefined()
+      expect(captured.events).toEqual([expect.objectContaining({
+        outcome: 'skipped', reason: 'bad-exe-format', detail: '0x800700C1', repaired: false,
+      })])
+      expect(captured.lines.join('')).not.toContain(password)
+      expect(JSON.stringify(captured.events)).not.toContain(password)
+    }
+    finally {
+      captured.restore()
+    }
+  })
+})
+
+it('still fails a non-uninstaller so the installer signature is not skipped', async () => {
+  const captured = recordedSigner(async () => { throw new Error(`installer sign failed ${password}`) })
+  try {
+    await expect(captured.hook({ path: 'C:\\build\\deepseek-harness-setup.exe', hash: 'sha256', isNest: false }))
+      .rejects.toThrow(`installer sign failed ${password}`)
+    await expect(captured.hook({ path: 'C:\\build\\setup.__uninstaller.exe.bak', hash: 'sha256', isNest: false }))
+      .rejects.toThrow('installer sign failed')
+    expect(captured.events).toEqual([])
+  }
+  finally {
+    captured.restore()
+  }
+})
+
+it('gives electron-builder the self-signed hook and not the PFX password', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-self-sign-config-'))
+  const pfx = join(directory, 'anago.pfx')
+  await writeFile(pfx, 'pfx-fixture')
+  try {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: 'com.example.self-sign',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_SELF_SIGN: '1',
+      DSH_DESKTOP_WINDOWS_PFX_FILE: pfx,
+      DSH_DESKTOP_WINDOWS_PFX_PASSWORD: password,
+      DSH_DESKTOP_PACKAGING_RUN_DIR: directory,
+    }, 'linux', 'x64')
+    expect(config.win.forceCodeSigning).toBe(true)
+    expect(config.win.signtoolOptions).toEqual({
+      sign: expect.any(Function),
+      publisherName: expect.stringMatching(/^CN=/u),
+      signingHashAlgorithms: ['sha256'],
+    })
+    expect(config.win.signtoolOptions.sign?.name).toBe('signWindowsSelfSignedPackagerFile')
+    expect(config.win.signtoolOptions).not.toHaveProperty('certificateFile')
+    expect(config.win.signtoolOptions).not.toHaveProperty('certificatePassword')
+    expect(JSON.stringify(config.win)).not.toContain(password)
+  }
+  finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 })

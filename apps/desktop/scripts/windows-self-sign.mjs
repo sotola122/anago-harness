@@ -5,7 +5,7 @@ import { X509Certificate } from 'node:crypto'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
+import { inspectWindowsExecutableFormat, repairDanglingAuthenticodeDirectory, scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -17,6 +17,10 @@ const CODE_SIGNING_EKU = '1.3.6.1.5.5.7.3.3'
 const PFX_FILE_ENV = 'DSH_DESKTOP_WINDOWS_PFX_FILE'
 const PFX_PASSWORD_ENV = 'DSH_DESKTOP_WINDOWS_PFX_PASSWORD'
 const SIGN_TIMEOUT_MS = 300_000
+// shortcut: 5s and 21 polls, raise only if CI logs reason=not-a-pe while size is still growing
+const UNINSTALLER_ATTEMPTS = 21
+const UNINSTALLER_INTERVAL_MS = 250
+const UNINSTALLER_SUFFIX = '.__uninstaller.exe'
 
 function resolveFile(value, name) {
   const candidate = value?.trim()
@@ -107,7 +111,7 @@ export function resolveWindowsSelfSignEnvironment(environment) {
  * The first call loads Microsoft.PowerShell.Security from the interpreter before any file is signed. The password is not passed to that preflight.
  *
  * @param {{ environment: NodeJS.ProcessEnv, pfxFile: string, password: string }} options Packaging environment and validated PFX inputs.
- * @returns {(configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>} Serialized signing hook for the files electron-builder and the runtime PE walk do not sign themselves.
+ * @returns {(configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>} Serialized signing hook. The packager hook delegates electron-builder files here; beforeBuild and the runtime walk call it directly.
  */
 function powershellArgs(scriptArgs) {
   return ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', SIGN_SCRIPT, ...scriptArgs]
@@ -146,5 +150,92 @@ export function createWindowsSelfSigner(options) {
       }
     })
     return pending
+  }
+}
+
+function isNsisUninstaller(path) {
+  return path.replaceAll('\\', '/').toLowerCase().endsWith(UNINSTALLER_SUFFIX)
+}
+
+function redact(value, secrets) {
+  let output = value
+  for (const secret of secrets ?? []) {
+    if (secret !== '') output = output.replaceAll(secret, '<redacted>')
+  }
+  return output
+}
+
+function uninstallerSignFailure(error, secrets) {
+  const message = redact(error instanceof Error ? error.message : '', secrets).replace(/\s+/gu, ' ')
+  if (/0x800700C1|badexeformat/iu.test(message)) return { reason: 'bad-exe-format', detail: '0x800700C1' }
+  return { reason: 'sign-failed', detail: message === '' ? 'sign-failed' : message.slice(0, 180) }
+}
+
+function publishUninstaller(options, event) {
+  const line = `windows self-sign uninstaller: ${JSON.stringify(event)}\n`
+  process.stdout.write(line)
+  try {
+    options.record?.(event)
+  }
+  catch (error) {
+    const message = redact(error instanceof Error ? error.message : 'unknown', options.secrets)
+    process.stderr.write(`windows self-sign uninstaller: event was not recorded: ${message}\n`)
+  }
+}
+
+async function waitForParseableExecutable(path, attempts, sleep) {
+  let inspection = await inspectWindowsExecutableFormat(path)
+  let attempt = 1
+  while (!inspection.parseable && attempt < attempts) {
+    await sleep(UNINSTALLER_INTERVAL_MS)
+    attempt += 1
+    inspection = await inspectWindowsExecutableFormat(path)
+  }
+  return { ...inspection, attempts: attempt }
+}
+
+/**
+ * Sign electron-builder's Windows files with the self-signed hook.
+ * The generated NSIS uninstaller is polled until it is a parseable PE, then a certificate table that points past the file is cleared.
+ * If SignTool still rejects that stub, the hook records the reason and returns so the installer can still be signed.
+ * Every other file is signed, or the hook throws. The wait is bounded.
+ *
+ * @param {{ sign: (configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>, record?: (event: object) => void, secrets?: readonly string[], uninstallerAttempts?: number, sleep?: (ms: number) => Promise<void> }} options Inner signer, journal callback, values that must not appear in the uninstaller record, and test timing.
+ * @returns {(configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>} electron-builder `signtoolOptions.sign` hook.
+ */
+export function createWindowsSelfSignedPackagerSigner(options) {
+  const attempts = options.uninstallerAttempts ?? UNINSTALLER_ATTEMPTS
+  const sleep = options.sleep ?? (ms => new Promise(resolve => { setTimeout(resolve, ms) }))
+  return async function signWindowsSelfSignedPackagerFile(configuration) {
+    if (!isNsisUninstaller(configuration.path)) return options.sign(configuration)
+    const inspection = await waitForParseableExecutable(configuration.path, attempts, sleep)
+    const event = {
+      type: 'nsis-uninstaller',
+      path: configuration.path,
+      attempts: inspection.attempts,
+      size: inspection.size,
+      dangling: inspection.dangling,
+      repaired: false,
+      detail: inspection.reason,
+    }
+    if (!inspection.parseable) {
+      publishUninstaller(options, { ...event, outcome: 'skipped', reason: 'not-a-pe' })
+      return
+    }
+    try {
+      event.repaired = await repairDanglingAuthenticodeDirectory(configuration.path)
+    }
+    catch (error) {
+      const message = redact(error instanceof Error ? error.message : 'repair-failed', options.secrets)
+      process.stderr.write(`windows self-sign uninstaller: certificate-table repair failed: ${message.slice(0, 180)}\n`)
+    }
+    try {
+      await options.sign(configuration)
+      publishUninstaller(options, { ...event, outcome: 'signed', reason: 'ok', detail: 'ok' })
+    }
+    catch (error) {
+      const failure = uninstallerSignFailure(error, options.secrets)
+      publishUninstaller(options, { ...event, outcome: 'skipped', reason: failure.reason, detail: failure.detail })
+    }
   }
 }

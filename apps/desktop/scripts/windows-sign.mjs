@@ -245,6 +245,52 @@ export function createWindowsTokenSigner(options) {
 }
 
 /**
+ * Read whether SignTool can parse a file as a PE, without modifying it.
+ * A missing or locked file is not parseable; that is a wait condition, not a defect.
+ *
+ * @param {string} path Executable to inspect.
+ * @returns {Promise<{ size: number, parseable: boolean, reason: string, dangling: boolean }>} Header facts. `dangling` is true only for a parseable PE whose certificate table points outside the file.
+ */
+export async function inspectWindowsExecutableFormat(path) {
+  let file
+  try {
+    file = await open(path, 'r')
+  }
+  catch (error) {
+    const code = error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined
+    return { size: 0, parseable: false, reason: code === 'ENOENT' ? 'missing' : 'unreadable', dangling: false }
+  }
+  try {
+    const { size } = await file.stat()
+    if (size < 64) return { size, parseable: false, reason: 'truncated', dangling: false }
+    const header = Buffer.alloc(Math.min(PE_HEADER_READ_SIZE, size))
+    const { bytesRead } = await file.read(header, 0, header.length, 0)
+    if (bytesRead < 64) return { size, parseable: false, reason: 'truncated', dangling: false }
+    if (header.toString('ascii', 0, 2) !== 'MZ') return { size, parseable: false, reason: 'not-mz', dangling: false }
+    const peOffset = header.readUInt32LE(60)
+    const optionalHeaderOffset = peOffset + 24
+    if (optionalHeaderOffset + 2 > header.length
+      || header.toString('ascii', peOffset, peOffset + 4) !== 'PE\0\0') {
+      return { size, parseable: false, reason: 'not-pe', dangling: false }
+    }
+    const magic = header.readUInt16LE(optionalHeaderOffset)
+    if (magic !== PE32_MAGIC && magic !== PE32_PLUS_MAGIC) {
+      return { size, parseable: false, reason: 'bad-magic', dangling: false }
+    }
+    return {
+      size, parseable: true, reason: 'ok',
+      dangling: findDanglingAuthenticodeDirectory(header, size) !== undefined,
+    }
+  }
+  catch {
+    return { size: 0, parseable: false, reason: 'unreadable', dangling: false }
+  }
+  finally {
+    await file.close()
+  }
+}
+
+/**
  * Clear a certificate-table entry that points beyond the end of a generated executable.
  *
  * @param {string} path Executable to inspect.

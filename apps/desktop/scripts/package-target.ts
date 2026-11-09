@@ -107,7 +107,7 @@ export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv)
  * `DSH_DESKTOP_SELF_SIGN` is always `0` or `1` from this invocation, never an inherited value.
  * @param environment - Target packaging environment.
  * @param unsigned - Whether to create a local artifact without release signing or notarization.
- * @param selfSign - Whether electron-builder signs Windows artifacts with the fork's self-signed PFX.
+ * @param selfSign - Whether the self-signed hook signs Windows artifacts with the fork's PFX.
  * @returns Packaging environment without certificate inputs for unsigned builds.
  */
 export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv, unsigned: boolean, selfSign = false): NodeJS.ProcessEnv {

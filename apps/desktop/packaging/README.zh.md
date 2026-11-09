@@ -175,7 +175,7 @@ pnpm run package:desktop:win:x64:unsigned
 pnpm run package:desktop:win:x64:self-sign
 ```
 
-该命令读取 `.env.windows`，要求设置 `DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_WINDOWS_PFX_FILE`（保存私钥的 PFX，位于 checkout 之外）和 `DSH_DESKTOP_WINDOWS_PFX_PASSWORD`。它不需要机器 preset、仓库变量、更新 origin、eToken、签名缓存或上传凭据，也不生成发布完成记录。electron-builder 自带的 signtool 以 SHA-256 摘要和 RFC 3161 时间戳签名应用、卸载器和 NSIS 安装包；[anago-sign.ps1](../windows-signing/anago-sign.ps1) 签名安装器 UI 库以及每个运行时可执行文件和库，[anago-verify.ps1](../windows-signing/anago-verify.ps1) 报告结果。该选项只接受 `win-x64`，拒绝 `--unsigned` 和 `--prepare-only`，eToken 路径保持不变。
+该命令读取 `.env.windows`，要求设置 `DSH_DESKTOP_APP_ID`、`DSH_DESKTOP_WINDOWS_PFX_FILE`（保存私钥的 PFX，位于 checkout 之外）和 `DSH_DESKTOP_WINDOWS_PFX_PASSWORD`。它不需要机器 preset、仓库变量、更新 origin、eToken、签名缓存或上传凭据，也不生成发布完成记录。自签名钩子以 SHA-256 摘要和 RFC 3161 时间戳签名应用、NSIS 辅助文件和安装包。它在生成的卸载器成为可解析的 PE 之后签名该文件；如果 SignTool 仍然拒绝该存根，打包会记录原因并保留未签名的内部卸载器存根。[anago-sign.ps1](../windows-signing/anago-sign.ps1) 执行这些签名，并同时签名安装器 UI 库以及每个运行时可执行文件和库。[anago-verify.ps1](../windows-signing/anago-verify.ps1) 报告结果。该选项只接受 `win-x64`，拒绝 `--unsigned` 和 `--prepare-only`，eToken 路径保持不变。
 
 产物写入 `.desktop-build/targets/win-x64/self-signed-artifacts/`，名称为 `deepseek-harness-<version>-win-x64-self-signed.exe`，因此自签名文件不会被误认为发布产物，也不会与发布目录混用。
 

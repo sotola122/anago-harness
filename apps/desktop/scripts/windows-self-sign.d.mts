@@ -32,10 +32,27 @@ export function resolveWindowsSelfSignEnvironment(environment: NodeJS.ProcessEnv
  * Create the hook that signs one executable with the self-signed PFX through the SDK signtool.
  * The first call loads Microsoft.PowerShell.Security from the interpreter before any file is signed. The password is not passed to that preflight.
  * @param options Packaging environment and validated PFX inputs.
- * @returns Serialized signing hook for the files electron-builder and the runtime PE walk do not sign themselves.
+ * @returns Serialized signing hook. The packager hook delegates electron-builder files here; beforeBuild and the runtime walk call it directly.
  */
 export function createWindowsSelfSigner(options: {
   environment: NodeJS.ProcessEnv
   pfxFile: string
   password: string
+}): (configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>
+
+/**
+ * Sign electron-builder's Windows files with the self-signed hook.
+ * The generated NSIS uninstaller is polled until it is a parseable PE, then a certificate table that points past the file is cleared.
+ * If SignTool still rejects that stub, the hook records the reason and returns so the installer can still be signed.
+ * Every other file is signed, or the hook throws. The wait is bounded.
+ *
+ * @param options Inner signer, journal callback, values that must not appear in the uninstaller record, and test timing.
+ * @returns electron-builder `signtoolOptions.sign` hook.
+ */
+export function createWindowsSelfSignedPackagerSigner(options: {
+  sign: (configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>
+  record?: (event: object) => void
+  secrets?: readonly string[]
+  uninstallerAttempts?: number
+  sleep?: (ms: number) => Promise<void>
 }): (configuration: { path: string, hash: string, isNest: boolean }) => Promise<void>

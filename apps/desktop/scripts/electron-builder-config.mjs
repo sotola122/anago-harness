@@ -27,7 +27,7 @@ import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mj
 import { desktopArtifactOutput, desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
-import { createWindowsSelfSigner, resolveWindowsSelfSignEnvironment } from './windows-self-sign.mjs'
+import { createWindowsSelfSignedPackagerSigner, createWindowsSelfSigner, resolveWindowsSelfSignEnvironment } from './windows-self-sign.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
 import {
@@ -35,9 +35,6 @@ import {
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
-
-/** RFC 3161 timestamp authority for self-signed Windows builds. */
-const SELF_SIGN_TIMESTAMP_SERVER = 'http://timestamp.digicert.com'
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -110,8 +107,8 @@ export function createElectronBuilderConfig(
       })
     : undefined
   const selfSignConfiguration = packagesWindows && selfSign ? resolveWindowsSelfSignEnvironment(env) : undefined
-  // electron-builder signs the application, uninstaller and installer itself; this hook covers the installer UI
-  // and the runtime trees its signtool never sees.
+  // beforeBuild and the runtime walk call this signer directly. electron-builder's files, including the
+  // uninstaller, go through the packager hook below.
   const windowsCodeSigner = windowsSigner ?? (selfSignConfiguration === undefined ? undefined : createWindowsSelfSigner({
     environment: env, pfxFile: selfSignConfiguration.pfxFile, password: selfSignConfiguration.password,
   }))
@@ -276,21 +273,21 @@ export function createElectronBuilderConfig(
     win: {
       icon: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
       forceCodeSigning: !unsigned,
-      // The self-signed mode hands electron-builder the PFX so its own signtool signs the application,
-      // uninstaller and installer; the eToken path passes the hardware-backed hook instead.
-      signtoolOptions: selfSignConfiguration === undefined
-        ? {
-            sign: windowsSigner,
-            publisherName: windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),
-            signingHashAlgorithms: ['sha256'],
-          }
-        : {
-            certificateFile: selfSignConfiguration.pfxFile,
-            certificatePassword: selfSignConfiguration.password,
-            rfc3161TimeStampServer: SELF_SIGN_TIMESTAMP_SERVER,
-            publisherName: resolveWindowsUpdatePublisher(selfSignConfiguration.certificateFile),
-            signingHashAlgorithms: ['sha256'],
+      // Self-signed builds use the same hook shape as the eToken path. electron-builder's own signtool rejects the
+      // freshly extracted NSIS uninstaller with 0x800700C1; the hook waits, repairs that stub, and still signs the installer.
+      signtoolOptions: {
+        sign: selfSignConfiguration === undefined ? windowsSigner : createWindowsSelfSignedPackagerSigner({
+          sign: windowsCodeSigner,
+          secrets: [selfSignConfiguration.password],
+          record: event => {
+            if (env.DSH_DESKTOP_PACKAGING_RUN_DIR) recordPackagingEvent(env.DSH_DESKTOP_PACKAGING_RUN_DIR, event)
           },
+        }),
+        publisherName: selfSignConfiguration !== undefined
+          ? resolveWindowsUpdatePublisher(selfSignConfiguration.certificateFile)
+          : windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),
+        signingHashAlgorithms: ['sha256'],
+      },
       target: ['nsis'],
     },
     linux: {
