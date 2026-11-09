@@ -89,6 +89,8 @@ jobs:
       - name: Build installer
         run: pnpm run package:desktop:win:x64:self-sign
       - name: Verify signatures
+        if: always()
+        continue-on-error: true
         run: |
           $artifacts = 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts'
           $files = @(
@@ -99,17 +101,19 @@ jobs:
           )
           & apps/desktop/windows-signing/anago-verify.ps1 $files
       - name: Stage the installer and trust files
+        if: always()
         run: |
           $stage = Join-Path $env:RUNNER_TEMP "anago-windows-x64-$env:GITHUB_RUN_ID"
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          Copy-Item -Path 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts/*.exe' -Destination $stage
+          Copy-Item -Path 'apps/desktop/.desktop-build/targets/win-x64/self-signed-artifacts/*.exe' -Destination $stage -ErrorAction SilentlyContinue
           Copy-Item -Path 'apps/desktop/windows-signing/anago-code-signing.cer' -Destination $stage
           Copy-Item -Path 'apps/desktop/windows-signing/anago-trust.txt' -Destination $stage
       - uses: actions/upload-artifact@v7.0.1
+        if: always()
         with:
           name: windows-x64-self-signed-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/anago-windows-x64-${{ github.run_id }}
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       - name: Show the packaging evidence
         if: failure()

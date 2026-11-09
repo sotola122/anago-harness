@@ -15,6 +15,33 @@ import { acceptsNpmPlatform } from '../npm-platform.ts'
 import lock from './lock.json' with { type: 'json' }
 import { prunePrimaryRuntimePythonTests } from './prune-python-tests.ts'
 
+
+/**
+ * Fetch a locked archive, retrying the gateway and network failures a release CDN returns intermittently.
+ * A client error is final, so only 5xx and 429 responses and transport failures are attempted again.
+ * @param url - Locked archive URL.
+ * @param timeout - Per-attempt timeout in milliseconds.
+ * @returns Successful response.
+ */
+async function fetchArchive(url: string, timeout: number): Promise<Response> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let retryable = true
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(timeout) })
+      if (response.ok) return response
+      retryable = response.status >= 500 || response.status === 429
+      lastError = new Error(`primary runtime download: ${String(response.status)} ${url}`)
+    }
+    catch (error) {
+      lastError = error
+    }
+    if (!retryable) break
+    if (attempt < 3) await new Promise<void>((resolve) => { setTimeout(resolve, attempt * 5_000) })
+  }
+  throw lastError instanceof Error ? lastError : new Error(`primary runtime download: ${url}`)
+}
+
 /**
  * Download or reuse an archive only when its bytes match the release lock.
  * @param url - Locked archive URL.
@@ -33,8 +60,7 @@ export async function downloadPrimaryRuntimeAsset(url: string, sha256: string, c
     cached = false
     const timeout = Number(process.env.DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS ?? '300000')
     if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 2_147_483_647) throw new Error('DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS must be an integer from 1 to 2147483647')
-    const response = await fetch(url, { signal: AbortSignal.timeout(timeout) })
-    if (!response.ok) throw new Error(`primary runtime download: ${String(response.status)} ${url}`)
+    const response = await fetchArchive(url, timeout)
     bytes = Buffer.from(await response.arrayBuffer())
   }
   if (createHash(algorithm).update(bytes).digest('hex') !== sha256) {
