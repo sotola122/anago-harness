@@ -2,12 +2,16 @@ name: Package Desktop · Windows · x64 (self-signed)
 
 on:
   workflow_dispatch:
+  # Pull requests get a manual entry point: label the pull request `package-desktop`.
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: read
 
 jobs:
   package:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'package-desktop'
     runs-on: windows-latest
     timeout-minutes: 120
     defaults:
@@ -19,6 +23,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+          submodules: recursive
       - uses: pnpm/action-setup@v5.0.0
         with:
           dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
