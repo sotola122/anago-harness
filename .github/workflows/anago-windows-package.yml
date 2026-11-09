@@ -84,10 +84,11 @@ jobs:
           ) | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM
       - name: Trust the bundled certificate for verification
         # A self-signed signature reports Valid only when anago-code-signing.cer is trusted, and the
-        # build verifies its own output before it finishes.
+        # build verifies its own output before it finishes. certutil adds the certificate without the
+        # interactive confirmation that Import-Certificate shows for the Root store.
         run: |
-          Import-Certificate -FilePath 'apps/desktop/windows-signing/anago-code-signing.cer' -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
-          Import-Certificate -FilePath 'apps/desktop/windows-signing/anago-code-signing.cer' -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' | Out-Null
+          certutil -addstore -user Root 'apps/desktop/windows-signing/anago-code-signing.cer'
+          certutil -addstore -user TrustedPublisher 'apps/desktop/windows-signing/anago-code-signing.cer'
       - name: Check packaging configuration and toolchain
         run: pnpm run package:desktop:win:x64:self-sign --check
       - name: Build installer
