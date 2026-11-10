@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { createRequire, type ModuleHooks } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 import { installOfficeEngineResolution } from '../src/office-engine.ts'
 import { PackageManifests } from '../../../packages/boot/hmr/src/package-manifest.ts'
@@ -31,7 +32,8 @@ function fixture(runtimeName = 'dsh') {
   }
   const api = join(runtime, 'node_modules/@deepseek-ai/libreoffice-kit/package.json')
   mkdirSync(dirname(api), { recursive: true })
-  writeFileSync(api, '{"name":"@deepseek-ai/libreoffice-kit"}')
+  writeFileSync(api, JSON.stringify({ name: '@deepseek-ai/libreoffice-kit', type: 'module',
+    exports: { '.': './lib/index.js', './package.json': './package.json' } }))
   const require: (specifier: string) => unknown = createRequire(join(runtime, 'package.json'))
   const hook = installOfficeEngineResolution(runtime)!
   hooks.push(hook)
@@ -44,7 +46,19 @@ it('resolves engine manifests to physical directories and leaves unrelated modul
   expect(f.require('@deepseek-ai/libreoffice-kit-darwin-arm64/package.json'))
     .toMatchObject({ path: realpathSync(dirname(join(f.root, 'app.asar.unpacked', 'dsh', f.manifest))) })
   expect((f.require('node:fs') as typeof import('node:fs')).realpathSync).toBe(realpathSync)
-  expect(f.require('@deepseek-ai/libreoffice-kit/package.json')).toEqual({ name: '@deepseek-ai/libreoffice-kit' })
+  expect(f.require('@deepseek-ai/libreoffice-kit/package.json')).toMatchObject({ name: '@deepseek-ai/libreoffice-kit' })
+})
+
+it('loads the kit from its unpacked copy so engine discovery reads real files', () => {
+  const f = fixture()
+  const kit = 'node_modules/@deepseek-ai/libreoffice-kit/lib/index.js'
+  for (const base of [f.runtime, join(f.root, 'app.asar.unpacked', 'dsh')]) {
+    const path = join(base, kit)
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, 'export const entry = import.meta.url\n')
+  }
+  const loaded = f.require('@deepseek-ai/libreoffice-kit') as { entry: string }
+  expect(loaded.entry).toBe(pathToFileURL(realpathSync(join(f.root, 'app.asar.unpacked', 'dsh', kit))).href)
 })
 
 it('resolves an absolute engine manifest to its unpacked copy', () => {

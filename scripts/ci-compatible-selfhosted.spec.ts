@@ -103,7 +103,7 @@ describe('Node compatibility self-hosted routing', () => {
         environment === 'self-hosted' ? '--import=./scripts/ci-compatible-toolcache.mjs' : '',
       )
     }
-    expect(job.steps[0]?.with).toEqual({ 'persist-credentials': false })
+    expect(job.steps[0]?.with).toEqual({ 'persist-credentials': false, submodules: 'recursive' })
     expect(job.steps.some(step => step.uses?.startsWith('actions/cache/'))).toBe(false)
   })
 

@@ -105,7 +105,7 @@ describe('Desktop local packaging configuration', () => {
   it('selects macOS local defaults while excluding inherited release settings and retaining build networking', () => {
     const parent = {
       PATH: 'build-tools', HTTPS_PROXY: 'http://proxy.example:8080', DSH_DESKTOP_NPM_REGISTRY: 'https://registry.npmmirror.com',
-      DSH_DESKTOP_APP_ID: 'com.example.release', DSH_DESKTOP_UNSIGNED: '0',
+      DSH_DESKTOP_APP_ID: 'com.example.release', DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_SELF_SIGN: '1',
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'production', DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: 'invalid-json',
       DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy.example.com',
       DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Release identity', CSC_LINK: 'missing.p12',
@@ -175,6 +175,7 @@ describe('Desktop local packaging configuration', () => {
         DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://stale.example.com',
         dsh_desktop_mandatory_update_prod_origin: 'https://stale.example.com',
         DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'stale-pin', APPLE_ID: 'stale-apple-id',
+        DSH_DESKTOP_SELF_SIGN: '1', dsh_desktop_self_sign: '1',
         CSC_LINK: 'stale-certificate', DOWNLOAD_TEST_ORIGIN: 'https://stale.example.com',
         DOWNLOAD_TEST_RELEASE_ID: 'a'.repeat(32), download_test_release_id: 'b'.repeat(32),
         dsh_desktop_windows_key_container: 'case-insensitive-stale-container',
@@ -254,6 +255,25 @@ describe('Desktop local packaging configuration', () => {
     expect(() => {
       validateDesktopPackageEnvironment({ ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }, WINDOWS, { prepareOnly: true })
     }).not.toThrow()
+  })
+
+  it('validates only the PFX pair for a self-signed Windows build', async () => {
+    await withDirectory(async (directory) => {
+      const pfx = join(directory, 'anago-code-signing.pfx')
+      await writeFile(pfx, 'fixture-pfx')
+      const settings = { DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID,
+        DSH_DESKTOP_WINDOWS_PFX_FILE: pfx, DSH_DESKTOP_WINDOWS_PFX_PASSWORD: 'fixture-password' }
+      // No update policy, release origin, or eToken field is required.
+      expect(() => { validateDesktopPackageEnvironment(settings, WINDOWS, { selfSign: true }) }).not.toThrow()
+      expect(() => {
+        validateDesktopPackageEnvironment({ ...settings, DSH_DESKTOP_WINDOWS_PFX_FILE: join(directory, 'missing.pfx') },
+          WINDOWS, { selfSign: true })
+      }).toThrow(/DSH_DESKTOP_WINDOWS_PFX_FILE/u)
+      expect(() => {
+        validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID,
+          DSH_DESKTOP_WINDOWS_PFX_FILE: pfx }, WINDOWS, { selfSign: true })
+      }).toThrow(/DSH_DESKTOP_WINDOWS_PFX_PASSWORD/u)
+    })
   })
 
   it('accepts unsigned macOS configuration without Apple or update policy settings while keeping release validation', () => {

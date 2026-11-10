@@ -67,6 +67,20 @@ export function createRedactedWindowsSigningError(
 ): Error
 
 /**
+ * Read whether SignTool can parse a file as a PE, without modifying it.
+ * A missing or locked file is not parseable; that is a wait condition, not a defect.
+ *
+ * @param path Executable to inspect.
+ * @returns Header facts. `dangling` is true only for a parseable PE whose certificate table points outside the file.
+ */
+export function inspectWindowsExecutableFormat(path: string): Promise<{
+  size: number
+  parseable: boolean
+  reason: string
+  dangling: boolean
+}>
+
+/**
  * Clear a certificate-table entry that points beyond the end of a generated executable.
  *
  * @param path Executable to inspect.

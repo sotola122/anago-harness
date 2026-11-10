@@ -56,6 +56,12 @@ describe('Client UI i18n source check', () => {
     `)).toEqual([])
   })
 
+  it('accepts a one-glyph font-measure constant and still rejects copy', () => {
+    expect(messages('const TERMINAL_MEASURE_TEXT = \'W\'')).toEqual([])
+    expect(messages('const label = \'W\'')).toEqual(['W'])
+    expect(messages('const TERMINAL_MEASURE_TEXT = \'Welcome\'')).toEqual(['Welcome'])
+  })
+
   it('does not inspect locale dictionary owners', () => {
     expect(findUiI18nViolations(
       'packages/client/ui-example/src/client/locales.ts',

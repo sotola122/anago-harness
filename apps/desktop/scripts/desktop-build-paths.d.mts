@@ -1,10 +1,12 @@
-import type { DesktopAutoUpdateTarget } from './desktop-auto-update-environment.mjs'
+/** One target the packaging scripts build; Linux produces an AppImage and is never uploaded. */
+export type DesktopBuildTarget = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64'
 
 /** Mutable target directories plus shared download and package caches. */
 export interface DesktopTargetBuildPaths {
   readonly root: string
   readonly artifacts: string
   readonly unsignedArtifacts: string
+  readonly selfSignedArtifacts: string
   readonly unnotarizedArtifacts: string
   readonly runtime: string
   readonly packageSet: string
@@ -29,7 +31,7 @@ export function resolveDesktopBuildTarget(
   env?: NodeJS.ProcessEnv,
   hostPlatform?: NodeJS.Platform,
   hostArch?: string,
-): DesktopAutoUpdateTarget
+): DesktopBuildTarget
 
 /**
  * Return the mutable preparation and artifact directories owned by one release target.
@@ -37,7 +39,7 @@ export function resolveDesktopBuildTarget(
  * @param environment - Packaging environment with an optional absolute cache directory.
  * @returns Target paths plus shared download and package caches.
  */
-export function desktopTargetBuildPaths(target: DesktopAutoUpdateTarget, environment?: NodeJS.ProcessEnv): DesktopTargetBuildPaths
+export function desktopTargetBuildPaths(target: DesktopBuildTarget, environment?: NodeJS.ProcessEnv): DesktopTargetBuildPaths
 
 /**
  * Return the platform and architecture of the payload one release target prepares.
@@ -45,8 +47,8 @@ export function desktopTargetBuildPaths(target: DesktopAutoUpdateTarget, environ
  * @param target - Supported Desktop target name.
  * @returns Platform and architecture of the prepared payload.
  */
-export function desktopTargetPlatform(target: DesktopAutoUpdateTarget): {
-  readonly platform: 'darwin' | 'win32'
+export function desktopTargetPlatform(target: DesktopBuildTarget): {
+  readonly platform: 'darwin' | 'win32' | 'linux'
   readonly arch: 'arm64' | 'x64'
 }
 
@@ -83,6 +85,6 @@ export function developmentRuntimeDirectory(
  * @returns Matching artifact destination and filename marker.
  */
 export function desktopArtifactOutput(
-  paths: Pick<DesktopTargetBuildPaths, 'artifacts' | 'unsignedArtifacts' | 'unnotarizedArtifacts'>,
-  mode: { unsigned: boolean, skipNotarization: boolean },
+  paths: Pick<DesktopTargetBuildPaths, 'artifacts' | 'unsignedArtifacts' | 'selfSignedArtifacts' | 'unnotarizedArtifacts'>,
+  mode: { unsigned: boolean, selfSign?: boolean, skipNotarization: boolean },
 ): { directory: string, suffix: string }

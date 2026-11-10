@@ -37,6 +37,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+          submodules: recursive
       - name: Enable Developer Mode (symlink support)
         shell: pwsh
         run: >-
@@ -127,6 +128,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+          submodules: recursive
       # Checkout removes the gitignored duration history, so restore it from
       # the GitHub cache before coverage and save the updated one afterwards.
       # The coordinator then weights partitions by measured durations on the
@@ -191,6 +193,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+          submodules: recursive
       - name: Enable Developer Mode (symlink support)
         shell: pwsh
         run: >-

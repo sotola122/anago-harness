@@ -207,6 +207,21 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
 })
 
+it('builds a self-signed Windows package from local inputs without the token preflight or a release record', async () => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['win-x64', '--self-sign'], 'win32', 'x64'), environment, run)
+  expect(stages[0]).toBe('run build --profile local')
+  expect(stages.some(stage => stage.startsWith('exec tsx apps/desktop/scripts/pack-local-packages.ts'))).toBe(true)
+  expect(stages).not.toContain('preflight:windows-signing')
+  expect(stages).not.toContain('run sign:primary-runtime')
+  expect(stages).not.toContain('run sign:primary-runtime --dsh')
+  expect(withWindowsSigningStage).not.toHaveBeenCalled()
+  expect(writeFileSync).not.toHaveBeenCalled()
+  expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --self-sign')
+  const builder = run.run.mock.calls.find(([stage]) => stage.startsWith('exec electron-builder'))!
+  expect(builder[3].env).toMatchObject({ DSH_DESKTOP_SELF_SIGN: '1', DSH_DESKTOP_UNSIGNED: '0' })
+})
+
 it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the signing mode for %s', async (target) => {
   const modes = [[], ['--unsigned'], ['--dir'], ['--unsigned', '--dir'], ['--prepare-only'],
     ...(target === 'win-x64' ? [] : [['--skip-notarization'], ['--skip-notarization', '--dir']])]

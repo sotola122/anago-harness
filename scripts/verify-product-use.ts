@@ -204,7 +204,12 @@ export function verifyProductUse(
   })
   const profiles = [...Object.entries(templates).map(([name, value]) => {
     if (!isRecord(value)) throw new Error(`${PROFILE_SOURCE}: invalid ${name} profile`)
-    return stringList(value.bundles, `${PROFILE_SOURCE} ${name}`)
+    const bundles = stringList(value.bundles, `${PROFILE_SOURCE} ${name}`)
+    // Shipped web appends this bundle in app-boot; the literal template omits it so upstream can replace bundles.ts.
+    if (name === 'web' && packages.has('@anago-harness/anago-web') && !bundles.includes('@anago-harness/anago-web')) {
+      bundles.push('@anago-harness/anago-web')
+    }
+    return bundles
   }), fallback]
   for (const names of profiles) {
     if (names.length === 0) failures.push(`${PROFILE_SOURCE}: shipped profile has no bundles`)

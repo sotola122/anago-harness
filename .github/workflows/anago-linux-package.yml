@@ -1,0 +1,94 @@
+name: Package Desktop · Linux · x64
+
+on:
+  workflow_dispatch:
+  # Pull requests get a manual entry point: label the pull request `package-desktop`.
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'package-desktop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Serve a local Electron mirror
+        # GitHub release downloads intermittently answer 504, and @electron/get also fetches SHASUMS256.txt
+        # from the same release. Fetch both once through the authenticated API, verify the archive against
+        # Electron's published digest, then let the build read them from a loopback mirror.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          electron="$(node -p "const p=require('./apps/desktop/package.json');((p.dependencies&&p.dependencies.electron)||(p.devDependencies&&p.devDependencies.electron)||'').replace(/^[^0-9]*/, '')")"
+          test "$electron" = '44.7.0' || { echo "electron moved to $electron; update the digest in this step"; exit 1; }
+          mirror="$RUNNER_TEMP/mirror/v$electron"
+          mkdir -p "$mirror"
+          gh release download "v$electron" -R electron/electron -p "electron-v$electron-linux-x64.zip" -p 'SHASUMS256.txt' -D "$mirror" --clobber
+          printf '%s  %s\n' '3ae7d5bdad61c664486c6ab61361dd084d064c8c08af8d13a687096e18ce555a' "$mirror/electron-v$electron-linux-x64.zip" | sha256sum -c -
+          node .github/scripts/local-mirror.cjs "$RUNNER_TEMP/mirror" 8099 >/dev/null 2>&1 &
+          sleep 3
+          curl -fsS -m 20 "http://127.0.0.1:8099/v$electron/SHASUMS256.txt" > /dev/null
+          echo 'ELECTRON_MIRROR=http://127.0.0.1:8099/' >> "$GITHUB_ENV"
+      - name: Pre-seed the primary runtime archives
+        # The build's own downloader dies on truncated release responses from this network. Cache the Node and
+        # Python archives the lock file names, after checking each digest, so packaging needs no network.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node_version="$(node -p "require('./scripts/primary-runtime/lock.json').nodeVersion")"
+          node_suffix="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeArchive")"
+          node_archive="node-v$node_version-$node_suffix"
+          node_sha="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].nodeSha256")"
+          python_release="$(node -p "require('./scripts/primary-runtime/lock.json').pythonRelease")"
+          python_version="$(node -p "require('./scripts/primary-runtime/lock.json').pythonVersion")"
+          python_suffix="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonTarget")"
+          python_target="cpython-$python_version+$python_release-$python_suffix-install_only_stripped.tar.gz"
+          python_sha="$(node -p "require('./scripts/primary-runtime/lock.json').targets['linux-x64'].pythonSha256")"
+          cache=apps/desktop/.desktop-build/downloads
+          mkdir -p "$cache"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/$node_archive" "https://nodejs.org/dist/v$node_version/$node_archive"
+          printf '%s  %s\n' "$node_sha" "$RUNNER_TEMP/$node_archive" | sha256sum -c -
+          cp "$RUNNER_TEMP/$node_archive" "$cache/$node_sha"
+          gh release download "$python_release" -R astral-sh/python-build-standalone -p "$python_target" -D "$RUNNER_TEMP" --clobber
+          printf '%s  %s\n' "$python_sha" "$RUNNER_TEMP/$python_target" | sha256sum -c -
+          cp "$RUNNER_TEMP/$python_target" "$cache/$python_sha"
+      - name: Write packaging environment
+        # Linux packaging reads .env.linux; an unsigned AppImage needs only the application identifier.
+        env:
+          DSH_DESKTOP_APP_ID: ${{ vars.DSH_DESKTOP_APP_ID || 'com.deepseek.harness' }}
+        run: printf 'DSH_DESKTOP_APP_ID=%s\n' "$DSH_DESKTOP_APP_ID" > apps/desktop/.env.linux
+      - name: Check packaging configuration and toolchain
+        run: pnpm run package:desktop:linux:x64:unsigned --check
+      - name: Build AppImage
+        run: pnpm run package:desktop:linux:x64:unsigned
+      - name: Show the packaging evidence
+        if: failure()
+        run: |
+          run="$(ls -dt apps/desktop/.desktop-build/packaging-runs/*/ 2>/dev/null | head -1)"
+          if [ -z "$run" ]; then echo 'no packaging run directory'; exit 0; fi
+          tail -n 60 "$run/events.jsonl" || true
+          tail -n 40 "$run/stderr.log" 2>/dev/null || true
+      - name: Retain AppImage
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: linux-x64-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*.AppImage
+          if-no-files-found: error
+          retention-days: 14

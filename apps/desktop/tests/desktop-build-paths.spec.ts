@@ -1,6 +1,7 @@
 import { join, resolve, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  desktopArtifactOutput,
   desktopTargetBuildPaths,
   desktopTargetPlatform,
   developmentRuntimeDirectory,
@@ -17,6 +18,7 @@ describe('desktop build paths', () => {
       'root',
       'artifacts',
       'unsignedArtifacts',
+      'selfSignedArtifacts',
       'unnotarizedArtifacts',
       'runtime',
       'packageSet',
@@ -34,6 +36,18 @@ describe('desktop build paths', () => {
     expect(arm64.artifacts).toContain(join('targets', 'mac-arm64', 'artifacts'))
     expect(x64.dsh).toContain(join('targets', 'mac-x64', 'dsh'))
     expect(windows.runtime).toContain(join('targets', 'win-x64', 'runtime'))
+  })
+
+  it('marks every non-release mode in its own directory and filename', () => {
+    const paths = desktopTargetBuildPaths('win-x64')
+    expect(desktopArtifactOutput(paths, { unsigned: false, skipNotarization: false }))
+      .toEqual({ directory: paths.artifacts, suffix: '' })
+    expect(desktopArtifactOutput(paths, { unsigned: true, skipNotarization: false }))
+      .toEqual({ directory: paths.unsignedArtifacts, suffix: '-unsigned' })
+    expect(desktopArtifactOutput(paths, { unsigned: false, selfSign: true, skipNotarization: false }))
+      .toEqual({ directory: paths.selfSignedArtifacts, suffix: '-self-signed' })
+    expect(desktopArtifactOutput(paths, { unsigned: false, skipNotarization: true }))
+      .toEqual({ directory: paths.unnotarizedArtifacts, suffix: '-unnotarized' })
   })
 
   it('shares download and package caches outside target output directories', () => {
@@ -79,7 +93,8 @@ describe('desktop build paths', () => {
     expect(desktopTargetPlatform('mac-arm64')).toEqual({ platform: 'darwin', arch: 'arm64' })
     expect(desktopTargetPlatform('mac-x64')).toEqual({ platform: 'darwin', arch: 'x64' })
     expect(desktopTargetPlatform('win-x64')).toEqual({ platform: 'win32', arch: 'x64' })
-    expect(() => desktopTargetPlatform('linux-x64' as 'mac-x64')).toThrow(/unsupported target/u)
+    expect(desktopTargetPlatform('linux-x64')).toEqual({ platform: 'linux', arch: 'x64' })
+    expect(() => desktopTargetPlatform('linux-arm64' as 'mac-x64')).toThrow(/unsupported target/u)
   })
 
   it('resolves environment overrides and rejects unsupported targets', () => {
@@ -88,7 +103,8 @@ describe('desktop build paths', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
     }, 'darwin', 'arm64')).toBe('mac-x64')
     expect(resolveDesktopBuildTarget({}, 'win32', 'x64')).toBe('win-x64')
-    expect(() => resolveDesktopBuildTarget({}, 'linux', 'x64')).toThrow(/unsupported target/u)
-    expect(() => desktopTargetBuildPaths('linux-x64' as 'mac-x64')).toThrow(/unsupported target/u)
+    expect(resolveDesktopBuildTarget({}, 'linux', 'x64')).toBe('linux-x64')
+    expect(() => resolveDesktopBuildTarget({}, 'freebsd', 'x64')).toThrow(/unsupported target/u)
+    expect(() => desktopTargetBuildPaths('linux-arm64' as 'mac-x64')).toThrow(/unsupported target/u)
   })
 })

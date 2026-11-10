@@ -1,7 +1,7 @@
 /** Retain completed CI packages for later manual publication. */
 import { appendFile, readFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
-import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
+import { desktopTargetBuildPaths, resolveDesktopBuildTarget, type DesktopBuildTarget } from './desktop-build-paths.mjs'
 import { desktopBuildRecordFilename, desktopUpdateMetadataFilename, resolveDesktopUpdateChannel } from './desktop-auto-update-environment.mjs'
 import { loadDesktopPackageEnvironment } from './desktop-package-environment.mjs'
 import { retainDesktopRelease, type DesktopRetainedSource } from './desktop-release-store.ts'
@@ -13,6 +13,13 @@ function required(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name]
   if (!value) throw new Error(`desktop retention: ${name} is required`)
   return value
+}
+
+/** Linux packages are downloaded directly and have no publication or auto-update feed. */
+function retainedTarget(env: NodeJS.ProcessEnv): Exclude<DesktopBuildTarget, 'linux-x64'> {
+  const target = resolveDesktopBuildTarget(env)
+  if (target === 'linux-x64') throw new Error('desktop retention: linux-x64 is not published')
+  return target
 }
 
 /**
@@ -33,7 +40,7 @@ export function desktopReleasesRoot(env: NodeJS.ProcessEnv): string {
  * @returns The exact label used by the later GitHub archival job.
  */
 export function resolveDesktopRetentionRunner(env: NodeJS.ProcessEnv): string {
-  const target = resolveDesktopBuildTarget(env)
+  const target = retainedTarget(env)
   const routes = desktopPublishRunnersSchema.parse(JSON.parse(required(env, 'DESKTOP_PUBLISH_RUNNERS')))
   const route = routes[required(env, 'RUNNER_NAME')]
   if (!route || !route.target.includes(target)
@@ -50,7 +57,7 @@ export function resolveDesktopRetentionRunner(env: NodeJS.ProcessEnv): string {
  * @returns Retained directory, including explicitly qualified debugging packages.
  */
 export async function retainDesktopCi(env: NodeJS.ProcessEnv, appRoot = resolve(import.meta.dirname, '..')): Promise<string> {
-  const target = resolveDesktopBuildTarget(env)
+  const target = retainedTarget(env)
   const runnerLabel = resolveDesktopRetentionRunner(env)
   const windows = target === 'win-x64'
   const platform = windows ? 'win32' : 'darwin'

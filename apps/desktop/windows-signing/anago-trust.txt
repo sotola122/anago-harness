@@ -1,0 +1,125 @@
+Anago Harness Windows builds: certificate and signature trust
+============================================================
+
+What this is
+------------
+
+Windows x64 builds from the Anago Harness fork are signed with the fork's own
+self-signed certificate, not with a public CA certificate. Windows does not
+trust that certificate until you install it, so a downloaded installer reports
+an unknown publisher until then.
+
+Signer identity
+  Subject:         CN=Anago Harness, O=Anago, C=JP
+  Issuer:          CN=Anago Harness, O=Anago, C=JP (self-signed)
+  Validity:        2026-11-09 to 2029-11-08
+  Key:             RSA 3072, SHA-256
+  Extended key:    Code Signing
+  SHA-256:         AC:A8:37:0D:75:C4:97:7B:80:11:CC:23:48:F0:A1:FA:93:40:AD:13:65:28:E1:46:F5:58:B4:F5:53:A5:A2:46
+
+The public certificate is the file anago-code-signing.cer next to this document
+and next to the downloaded installer. It is DER encoded and contains no private
+key. The private key is not distributed.
+
+The signature covers the installer, the installed application
+(DeepSeek Harness.exe), the uninstaller, and the runtime executables and
+libraries the application loads. Each signature uses a SHA-256 digest and an
+RFC 3161 timestamp, so a signed file stays verifiable after the certificate
+expires.
+
+What a self-signed signature does and does not mean
+---------------------------------------------------
+
+It identifies files built by this fork with this certificate. It does not
+establish that the build came from DeepSeek, and it does not make Windows
+SmartScreen or enterprise code-integrity policy accept the file.
+
+Trust the certificate
+---------------------
+
+Install the public certificate into both stores for your own account:
+
+  1. Trusted Root Certification Authorities makes the signature report Valid.
+  2. Trusted Publishers makes Windows show the publisher name in the UAC prompt.
+
+Either use the certificate viewer:
+
+  Double-click anago-code-signing.cer, choose Install Certificate, select
+  Current User, choose "Place all certificates in the following store", click
+  Browse, and select Trusted Root Certification Authorities. Repeat with
+  Trusted Publishers.
+
+Or run PowerShell in the directory that holds the certificate and installer:
+
+  Import-Certificate -FilePath .\anago-code-signing.cer -CertStoreLocation Cert:\CurrentUser\Root
+  Import-Certificate -FilePath .\anago-code-signing.cer -CertStoreLocation Cert:\CurrentUser\TrustedPublisher
+
+Check the fingerprint before you install it. The file is the DER certificate
+itself, so its file hash is the certificate fingerprint:
+
+  Get-FileHash -Algorithm SHA256 -LiteralPath .\anago-code-signing.cer
+
+The printed hash must equal the SHA-256 value above with the colons removed.
+
+Unblock the download
+--------------------
+
+Files downloaded by a browser or copied from a network share carry the
+Mark-of-the-Web, which makes Windows evaluate SmartScreen and code-integrity
+policy even when the signature is valid. Remove it before running the installer:
+
+  Unblock-File .\deepseek-harness-<version>-win-x64-self-signed.exe
+
+The same action is File > Properties > General > Unblock in Explorer.
+
+Expected Windows behavior
+-------------------------
+
+Before the certificate is trusted:
+
+  - The UAC prompt reports an unknown publisher.
+  - SmartScreen may show "Windows protected your PC". Choose More info, then
+    Run anyway.
+  - Application control or code-integrity policy may refuse the installer
+    entirely; trusting the certificate can satisfy a policy that accepts this
+    publisher, but that is a separate administrative decision.
+
+After the certificate is trusted, the UAC prompt and the file's Digital
+Signatures tab show "Anago Harness" as the signer. SmartScreen reputation is
+tracked separately and can keep warning about a new publisher even when the
+signature verifies.
+
+Verify the publisher
+--------------------
+
+  Get-AuthenticodeSignature .\deepseek-harness-<version>-win-x64-self-signed.exe | Format-List Status, StatusMessage, SignerCertificate, TimeStamperCertificate
+
+Expected after the certificate is installed: Status is Valid,
+SignerCertificate.Subject is CN=Anago Harness, O=Anago, C=JP, and
+TimeStamperCertificate is present. Before installation, that same signature
+reports UnknownError. NotTrusted, HashMismatch, and NotSigned are different
+results; do not treat them as an untrusted self-signed signature.
+
+The same report for the installed application:
+
+  Get-AuthenticodeSignature "$env:LOCALAPPDATA\Programs\DeepSeek Harness\DeepSeek Harness.exe" | Format-List Status, SignerCertificate
+
+Remove the certificate
+----------------------
+
+  certlm.msc or certmgr.msc
+  Trusted Root Certification Authorities > Certificates
+  select "Anago Harness", then Delete
+  Trusted Publishers > Certificates
+  select "Anago Harness", then Delete
+
+Removing the certificate makes the existing signatures report as untrusted and
+blocks installation under policies that require a trusted publisher.
+
+Security note
+-------------
+
+Installing a root certificate makes Windows trust anything signed with that
+private key. Install it only when the certificate and the signed files come
+from the same place you got this document, and only when the fingerprint
+matches. Removing it has no effect on files that already ran.

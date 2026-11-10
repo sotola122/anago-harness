@@ -2,11 +2,11 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { delimiter, dirname, join, resolve } from 'node:path'
+import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { checkPnpm } from './pnpm-smoke.mjs'
 
@@ -106,16 +106,73 @@ function checkKoffi() {
   }
 }
 
-/** Encode and decode a pixel through the packaged libvips binary. */
+/** Encode a pixel with the packaged libvips binary and decode the result. */
 async function checkSharp() {
   const sharp = requireRuntime('sharp')
   const pixel = Buffer.from([17, 103, 231])
   const png = await sharp(pixel, { raw: { width: 1, height: 1, channels: 3 } }).png().toBuffer()
-  const decoded = await sharp(png).raw().toBuffer({ resolveWithObject: true })
+  // Electron links system GLib, so an image read in that process segfaults on Linux
+  // (sharp's documented Electron/Linux conflict). Decode with the primary-runtime Node.
+  const packed = process.platform === 'linux' && requireRuntime.resolve('sharp').includes('.asar')
+  const decoded = process.platform === 'linux'
+    ? decodeWithPrimaryNode(png)
+    : await sharp(png).raw().toBuffer({ resolveWithObject: true })
   assert.equal(decoded.info.width, 1)
   assert.equal(decoded.info.height, 1)
   assert.equal(decoded.info.channels, 3)
   assert.deepEqual(decoded.data, pixel)
+  if (packed) console.error('runtime payload: sharp decoded outside the archive')
+}
+
+/**
+ * Decode PNG bytes under the payload's primary-runtime Node.
+ * @param {Buffer} png - Encoded PNG bytes.
+ * @returns {{ info: { width: number, height: number, channels: number }, data: Buffer }} Decoded pixels.
+ */
+function decodeWithPrimaryNode(png) {
+  const node = join(resourcesRuntime, 'primary-runtime', 'dependencies', 'node', 'bin', 'node')
+  const script = `
+const { createRequire } = require('node:module')
+const sharp = createRequire(process.argv[2])('sharp')
+sharp(Buffer.from(process.argv[1], 'base64')).raw().toBuffer({ resolveWithObject: true })
+  .then(({ info, data }) => process.stdout.write(JSON.stringify({ info, data: data.toString('base64') })),
+    error => { console.error(error); process.exitCode = 1 })
+`
+  const output = execFileSync(node, ['-e', script, png.toString('base64'), sharpRequireAnchor()],
+    { encoding: 'utf8', timeout: 45_000, windowsHide: true })
+  const { info, data } = JSON.parse(output)
+  return { info, data: Buffer.from(data, 'base64') }
+}
+
+/**
+ * Anchor the primary-runtime Node at a real directory. It cannot read app.asar.
+ * @returns {string} package.json path createRequire can use.
+ */
+function sharpRequireAnchor() {
+  const resolved = requireRuntime.resolve('sharp')
+  if (!resolved.includes('.asar')) return join(root, 'package.json')
+  const modules = resolved.slice(0, resolved.lastIndexOf(`${sep}sharp${sep}`))
+  const destModules = join(scratch, 'sharp-node', 'node_modules')
+  for (const name of ['sharp', 'detect-libc', 'semver', '@img']) copyTree(join(modules, name), join(destModules, name))
+  const anchor = join(scratch, 'sharp-node', 'package.json')
+  writeFileSync(anchor, '{}\n')
+  return anchor
+}
+
+/**
+ * Copy an archive directory. cpSync only extracts a file from app.asar.
+ * @param {string} from - Archive directory.
+ * @param {string} to - Destination directory.
+ * @returns {void}
+ */
+function copyTree(from, to) {
+  mkdirSync(to, { recursive: true })
+  for (const name of readdirSync(from)) {
+    const src = join(from, name)
+    const target = join(to, name)
+    if (statSync(src).isDirectory()) copyTree(src, target)
+    else writeFileSync(target, readFileSync(src))
+  }
 }
 
 /** Exercise Domino parsing through the HTML converter and GFM plugin used by web_fetch. */

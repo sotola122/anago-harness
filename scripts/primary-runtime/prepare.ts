@@ -7,6 +7,8 @@ import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { get as httpGet, type IncomingMessage } from 'node:http'
+import { get as httpsGet } from 'node:https'
 import { parseArgs } from 'node:util'
 import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
@@ -15,8 +17,159 @@ import { acceptsNpmPlatform } from '../npm-platform.ts'
 import lock from './lock.json' with { type: 'json' }
 import { prunePrimaryRuntimePythonTests } from './prune-python-tests.ts'
 
+
+/** At most 20 redirects, matching fetch. A further redirect fails the attempt. */
+const REDIRECT_LIMIT = 20
+
+/**
+ * Download failure. `status` is set for an HTTP response, including a redirect the client will not follow.
+ * Absent `status` is a transport failure and is retried.
+ * @param message - Operator-facing summary including the archive URL.
+ * @param status - HTTP status, when the server sent one.
+ * @param cause - Underlying parser or socket failure.
+ * @returns Error the retry loop can classify without reading the message.
+ */
+function downloadFailure(message: string, status?: number, cause?: unknown): Error & { status?: number } {
+  const failure = new Error(message, cause === undefined ? undefined : { cause }) as Error & { status?: number }
+  if (status !== undefined) failure.status = status
+  return failure
+}
+
+/**
+ * Fetch a locked archive, retrying the gateway and network failures a release CDN returns intermittently.
+ * Node's fetch parser aborts the process on a truncated compressed response, so this path owns the connection:
+ * at most 20 redirects, a declared-length check, and truncation as a failed attempt. A client error, including
+ * a malformed or missing redirect, is final.
+ * @param url - Locked archive URL.
+ * @param timeout - Wall-clock deadline for one attempt, including redirects and the body, in milliseconds.
+ * @returns Archive bytes.
+ */
+async function fetchArchive(url: string, timeout: number): Promise<Buffer> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let retryable = true
+    try {
+      return await download(url, timeout)
+    }
+    catch (error) {
+      const status = (error as { status?: number }).status
+      retryable = status === undefined || status >= 500 || status === 429
+      lastError = error
+    }
+    if (!retryable) break
+    if (attempt < 3) await new Promise<void>((resolveWait) => { setTimeout(resolveWait, attempt * 5_000) })
+  }
+  throw lastError instanceof Error ? lastError : new Error(`primary runtime download: ${url}`)
+}
+
+/**
+ * Read one URL, following at most 20 redirects and refusing a short or unfinished body.
+ * @param url - Archive URL.
+ * @param timeout - Wall-clock deadline for this attempt, including redirects and the body, in milliseconds.
+ * @returns Archive bytes.
+ */
+function download(url: string, timeout: number): Promise<Buffer> {
+  const controller = new AbortController()
+  // One deadline for every redirect and the body. A per-socket idle timer resets on each hop and each drip.
+  const deadline = setTimeout(() => {
+    controller.abort(downloadFailure(`primary runtime download: timeout ${url}`))
+  }, timeout)
+  return readArchive(url, controller.signal, 0).finally(() => { clearTimeout(deadline) })
+}
+
+/**
+ * Read one hop. Redirect failures reject here, including a `Location` that is not a URL, so a bad header cannot
+ * escape the response callback.
+ * @param url - Current hop.
+ * @param signal - Deadline for the whole attempt.
+ * @param redirects - Redirects already followed.
+ * @returns Archive bytes.
+ */
+function readArchive(url: string, signal: AbortSignal, redirects: number): Promise<Buffer> {
+  return new Promise((resolveDownload, rejectDownload) => {
+    if (signal.aborted) {
+      rejectDownload(signal.reason instanceof Error ? signal.reason : downloadFailure(`primary runtime download: timeout ${url}`))
+      return
+    }
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      rejectDownload(downloadFailure(`primary runtime download: unsupported redirect ${url}`))
+      return
+    }
+    let received = 0
+    let reading = false
+    let declared = Number.NaN
+    const fail = (error: unknown): void => {
+      const timedOut = signal.aborted && signal.reason instanceof Error ? signal.reason : undefined
+      if (timedOut !== undefined) { rejectDownload(timedOut); return }
+      const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined
+      // A reset before the response callback still means the archive did not arrive intact.
+      const reset = code === 'ECONNRESET' || (error instanceof Error && error.message === 'aborted')
+      if (reading || reset) {
+        const declaredText = Number.isFinite(declared) ? String(declared) : 'unfinished'
+        rejectDownload(downloadFailure(
+          `primary runtime download: truncated response (${String(received)} of ${declaredText}) ${url}`,
+          undefined,
+          error instanceof Error ? error : undefined,
+        ))
+        return
+      }
+      rejectDownload(error instanceof Error ? error : downloadFailure(`primary runtime download: ${url}`))
+    }
+    const onResponse = (response: IncomingMessage): void => {
+      const status = response.statusCode ?? 0
+      if (status >= 300 && status < 400) {
+        response.resume()
+        const location = response.headers.location
+        if (location === undefined || location === '') {
+          rejectDownload(downloadFailure(`primary runtime download: redirect missing Location ${url}`, status))
+          return
+        }
+        if (redirects >= REDIRECT_LIMIT) {
+          rejectDownload(downloadFailure(`primary runtime download: too many redirects ${url}`, status))
+          return
+        }
+        let next: URL
+        try { next = new URL(location, parsed) }
+        catch (error) {
+          rejectDownload(downloadFailure(`primary runtime download: malformed redirect Location ${url}`, status, error))
+          return
+        }
+        if (next.protocol !== 'http:' && next.protocol !== 'https:') {
+          rejectDownload(downloadFailure(`primary runtime download: unsupported redirect ${url}`, status))
+          return
+        }
+        readArchive(next.toString(), signal, redirects + 1).then(resolveDownload, rejectDownload)
+        return
+      }
+      if (status !== 200) {
+        response.resume()
+        rejectDownload(downloadFailure(`primary runtime download: ${String(status)} ${url}`, status))
+        return
+      }
+      reading = true
+      declared = Number(response.headers['content-length'])
+      const chunks: Buffer[] = []
+      response.on('data', (chunk: Buffer) => { chunks.push(chunk); received += chunk.length })
+      response.on('end', () => {
+        if (!response.complete || (Number.isFinite(declared) && declared !== received)) {
+          fail(new Error('incomplete body'))
+          return
+        }
+        resolveDownload(Buffer.concat(chunks))
+      })
+      response.on('error', fail)
+    }
+    const options = { headers: { 'accept-encoding': 'identity' }, signal }
+    const request = parsed.protocol === 'https:' ? httpsGet(parsed, options, onResponse) : httpGet(parsed, options, onResponse)
+    request.on('error', fail)
+  })
+}
+
 /**
  * Download or reuse an archive only when its bytes match the release lock.
+ * A digest mismatch deletes the cache file and does not publish the bytes.
+ * `DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS` is the wall-clock deadline for one attempt, including redirects and the body.
  * @param url - Locked archive URL.
  * @param sha256 - Expected hexadecimal digest for the selected algorithm.
  * @param cache - Download cache directory.
@@ -33,9 +186,7 @@ export async function downloadPrimaryRuntimeAsset(url: string, sha256: string, c
     cached = false
     const timeout = Number(process.env.DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS ?? '300000')
     if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 2_147_483_647) throw new Error('DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS must be an integer from 1 to 2147483647')
-    const response = await fetch(url, { signal: AbortSignal.timeout(timeout) })
-    if (!response.ok) throw new Error(`primary runtime download: ${String(response.status)} ${url}`)
-    bytes = Buffer.from(await response.arrayBuffer())
+    bytes = await fetchArchive(url, timeout)
   }
   if (createHash(algorithm).update(bytes).digest('hex') !== sha256) {
     rmSync(destination, { force: true })

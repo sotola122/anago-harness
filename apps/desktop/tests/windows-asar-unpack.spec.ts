@@ -10,7 +10,7 @@ import { readAsar } from 'app-builder-lib/out/asar/asar.js'
 import { afterEach, expect, it, vi } from 'vitest'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from '../scripts/windows-asar-unpack.mjs'
 import { createElectronBuilderConfig } from '../scripts/electron-builder-config.mjs'
-import { verifyRuntimeArchive } from '../scripts/verify-runtime-archive.ts'
+import { verifyRuntimeArchive, type ArchiveHashExclusion } from '../scripts/verify-runtime-archive.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { inventoryDesktopRuntime, type DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
 
@@ -310,7 +310,41 @@ it('verifies archived bytes against the preparation descriptor', async () => {
   const archive = join(input.resources, 'app.asar')
   await expect(verifyRuntimeArchive(archive, expected)).resolves.toBeUndefined()
   await writeFile(join(input.resources, 'app.asar.unpacked/dsh/node_modules/foo/native.node'), 'tampered')
-  await expect(verifyRuntimeArchive(archive, expected)).rejects.toThrow('ASAR integrity')
+  await expect(verifyRuntimeArchive(archive, expected))
+    .rejects.toThrow(/ASAR integrity verification failed: node_modules\/foo\/native\.node sha256/u)
+})
+
+it('skips only a recorded authenticode rewrite and still rejects another changed file', async () => {
+  const input = await fixture(false)
+  input.config.asarUnpack = ['**/*.node', '**/companion.json']
+  const expected = await seal(input)
+  await packageFixture(input)
+  const archive = join(input.resources, 'app.asar')
+  const native = 'node_modules/foo/native.node'
+  const exclusion: ArchiveHashExclusion[] = [{ path: native, reason: 'authenticode-appended' }]
+  await writeFile(join(input.resources, 'app.asar.unpacked/dsh/node_modules/foo/native.node'), 'signed-bytes')
+  await expect(verifyRuntimeArchive(archive, expected, exclusion)).resolves.toBeUndefined()
+  await writeFile(join(input.resources, 'app.asar.unpacked/dsh/node_modules/foo/companion.json'), 'corrupt')
+  await expect(verifyRuntimeArchive(archive, expected, exclusion)).rejects.toThrow(
+    /1 authenticode-appended file\(s\) excluded.*node_modules\/foo\/companion\.json sha256/u)
+  await expect(verifyRuntimeArchive(archive, expected)).rejects.toThrow(/native\.node sha256/u)
+})
+
+it('refuses to skip a packed file or a path absent from the inventory', async () => {
+  const input = await fixture(false)
+  const expected = await seal(input)
+  await packageFixture(input)
+  const archive = join(input.resources, 'app.asar')
+  await expect(verifyRuntimeArchive(archive, expected, [
+    { path: 'node_modules/foo/companion.json', reason: 'authenticode-appended' },
+  ])).rejects.toThrow('signed file is not unpacked: node_modules/foo/companion.json')
+  await expect(verifyRuntimeArchive(archive, expected, [
+    { path: 'missing.node', reason: 'authenticode-appended' },
+  ])).rejects.toThrow('signed file is not in both inventories: missing.node')
+  await expect(verifyRuntimeArchive(archive, expected, [
+    { path: 'node_modules/foo/native.node', reason: 'authenticode-appended' },
+    { path: 'node_modules/foo/native.node', reason: 'authenticode-appended' },
+  ])).rejects.toThrow('duplicate archive hash exclusion')
 })
 
 it.each(['sharedPackages', 'release', 'files'] as const)('rejects changed archived descriptor %s', async (field) => {

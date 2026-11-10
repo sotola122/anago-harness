@@ -118,6 +118,7 @@ jobs:
           persist-credentials: false
           clean: true
           ref: ${{ inputs.source_ref }}
+          submodules: recursive
       - name: Validate selected source and adapter support
         run: >-
           node -e "const fs=require('node:fs'); const ref=process.env.PACKAGE_SOURCE_REF;
@@ -229,6 +230,7 @@ jobs:
         with:
           persist-credentials: false
           path: artifact-archiver
+          submodules: recursive
       - uses: pnpm/action-setup@v5.0.0
         with:
           package_json_file: artifact-archiver/package.json
