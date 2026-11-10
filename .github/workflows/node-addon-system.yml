@@ -59,6 +59,8 @@ jobs:
       matrix: ${{ fromJson(needs.matrix.outputs.ci) }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
 
       # pnpm v11 ships no darwin-x64 standalone binary, and the pnpm/action-setup
       # v6 self-update path needs one; this job stays on the v5 npm-install line.

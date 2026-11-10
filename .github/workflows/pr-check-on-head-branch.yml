@@ -56,6 +56,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
+          submodules: recursive
 
       # Merging is the precondition of the build below, so a failure here warns and skips it in `report` mode and fails
       # in `block` mode.
