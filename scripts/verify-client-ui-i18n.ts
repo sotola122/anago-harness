@@ -82,6 +82,17 @@ function containsProductText(text: string): boolean {
     && /\p{L}/u.test(normalized)
 }
 
+/**
+ * One-glyph `*_MEASURE_TEXT` constant. `FontFaceSet.load` uses the character to
+ * select a font file by script; localizing it would measure the wrong face.
+ * A word in the same name is still copy.
+ */
+function measuredGlyphConstant(name: string, initializer: ts.Expression): boolean {
+  if (!/(?:^|_)MEASURE_TEXT$/.test(name)) return false
+  if (!ts.isStringLiteral(initializer) && !ts.isNoSubstitutionTemplateLiteral(initializer)) return false
+  return /^\p{L}$/u.test(initializer.text)
+}
+
 function propertyName(node: ts.PropertyName | ts.BindingName): string | undefined {
   return ts.isIdentifier(node) || ts.isStringLiteral(node) ? node.text : undefined
 }
@@ -277,7 +288,11 @@ export function findUiI18nViolations(file: string, sourceText: string): UiI18nVi
 
     if (ts.isVariableDeclaration(node) && node.initializer !== undefined) {
       const name = propertyName(node.name)
-      if (name !== undefined && (COPY_NAME.test(name) || COPY_SUFFIX.test(name))) {
+      if (
+        name !== undefined
+        && (COPY_NAME.test(name) || COPY_SUFFIX.test(name))
+        && !measuredGlyphConstant(name, node.initializer)
+      ) {
         collectExpression(node.initializer, `${name} value`)
       }
     }
