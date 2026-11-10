@@ -915,7 +915,7 @@
           "content": [
             {
               "type": "text",
-              "text": "started subagent agent-1"
+              "text": "started subagent agent-1 · smoke-model · high"
             }
           ],
           "isError": false,
@@ -923,7 +923,10 @@
         },
         "meta": {
           "kind": "activation",
-          "name": "agent-1"
+          "name": "agent-1",
+          "provider": "deepseek-official",
+          "model": "smoke-model",
+          "reasoningEffort": "high"
         }
       },
       "sourceEventSeqs": [
@@ -2811,7 +2814,7 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "started subagent agent-1"
+                  "text": "started subagent agent-1 · smoke-model · high"
                 }
               ],
               "isError": false,
@@ -2819,7 +2822,10 @@
             },
             "meta": {
               "kind": "activation",
-              "name": "agent-1"
+              "name": "agent-1",
+              "provider": "deepseek-official",
+              "model": "smoke-model",
+              "reasoningEffort": "high"
             }
           },
           "sourceEventSeqs": [

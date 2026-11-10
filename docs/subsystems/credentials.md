@@ -102,6 +102,18 @@ list(): readonly AuthorizationEntry[]
 describe(key: CredentialKey): AuthorizationEntry | undefined
 
 /**
+ * Bring one stored credential up to date without asking the human anything.
+ * It takes no attempt slot, because no conversation runs and the flow's write
+ * path serializes writers of the record.
+ * @param key - the credential record to renew.
+ * @param signal - stops the caller's wait; see {@link AuthorizationFlow.renew}.
+ * @returns `current` once the flow's renewal path finished, or `unavailable`
+ *   when no registered flow offers one for this key.
+ * @throws whatever the flow's renewal throws, including the signal's reason.
+ */
+async renew(key: CredentialKey, signal: AbortSignal): Promise<AuthorizationRenewal>
+
+/**
  * Withdraw the attempt running for a key, if any. Separate from the
  * request's own signal because a request/response transport answers a Cancel
  * button on a second call, with no handle on the first one's signal.

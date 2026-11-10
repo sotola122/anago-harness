@@ -559,6 +559,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the entry, or undefined when no flow claims that key.',
       },
       {
+        signature: 'async renew(key: CredentialKey, signal: AbortSignal): Promise<AuthorizationRenewal>',
+        description: 'Bring one stored credential up to date without asking the human anything. It takes no attempt slot, because no conversation runs and the flow\'s write path serializes writers of the record.',
+        parameters: [{ name: 'key', description: 'the credential record to renew.' }, { name: 'signal', description: 'stops the caller\'s wait; see {@link AuthorizationFlow.renew}.' }],
+        returns: '`current` once the flow\'s renewal path finished, or `unavailable` when no registered flow offers one for this key.',
+        throws: ['whatever the flow\'s renewal throws, including the signal\'s reason.'],
+      },
+      {
         signature: 'cancel(key: CredentialKey): void',
         description: 'Withdraw the attempt running for a key, if any. Separate from the request\'s own signal because a request/response transport answers a Cancel button on a second call, with no handle on the first one\'s signal.',
         parameters: [{ name: 'key', description: 'the credential record whose attempt should stop.' }],
@@ -5667,6 +5674,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
   },
   {
+    name: 'ApprovalPolicy',
+    declaration: 'export type ApprovalPolicy = \'ask\' | \'never\';',
+  },
+  {
     name: 'ApprovalRequest',
     declaration: 'export interface ApprovalRequest extends ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n}',
   },
@@ -5768,7 +5779,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AuthorizationFlow',
-    declaration: 'export interface AuthorizationFlow {\n    readonly key: CredentialKey;\n    readonly label: string;\n    readonly methods: readonly [\n        AuthorizationMethod,\n        ...AuthorizationMethod[]\n    ];\n    run(session: AuthorizationSession): Promise<void>;\n}',
+    declaration: 'export interface AuthorizationFlow {\n    readonly key: CredentialKey;\n    readonly label: string;\n    readonly methods: readonly [\n        AuthorizationMethod,\n        ...AuthorizationMethod[]\n    ];\n    run(session: AuthorizationSession): Promise<void>;\n    renew?(signal: AbortSignal): Promise<void>;\n}',
   },
   {
     name: 'AuthorizationInteraction',
@@ -5793,6 +5804,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AuthorizationPromptOption',
     declaration: 'export interface AuthorizationPromptOption {\n    id: string;\n    label: string;\n    description?: string;\n}',
+  },
+  {
+    name: 'AuthorizationRenewal',
+    declaration: 'export type AuthorizationRenewal = \'current\' | \'unavailable\';',
   },
   {
     name: 'AuthorizationRequest',
@@ -6797,6 +6812,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'IndexInjectionPlacement',
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
+  },
+  {
+    name: 'InspectOptions',
+    declaration: 'export interface InspectOptions {\n    readonly registry?: Registry;\n}',
   },
   {
     name: 'InspectorId',
@@ -9336,7 +9355,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentProvider',
-    declaration: 'export interface SubagentProvider {\n    readonly name: string;\n    readonly capabilities: SubagentCapabilities;\n    readonly inheritsParentContext: boolean;\n    readonly agentRouteDefaults?: Readonly<{\n        provider: string;\n        model: string;\n    }>;\n    start?(request: ResolvedSubagentStartRequest): Promise<SubagentRun>;\n    prepareContinuable?(request: ContinuableCreateRequest): Promise<ContinuableCreateSpec>;\n}',
+    declaration: 'export interface SubagentProvider {\n    readonly name: string;\n    readonly capabilities: SubagentCapabilities;\n    readonly inheritsParentContext: boolean;\n    readonly agentRouteDefaults?: Readonly<{\n        provider: string;\n        model: string;\n    }>;\n    readonly permissionModes?: readonly string[];\n    readonly defaultPermissionMode?: string;\n    start?(request: ResolvedSubagentStartRequest): Promise<SubagentRun>;\n    prepareContinuable?(request: ContinuableCreateRequest): Promise<ContinuableCreateSpec>;\n}',
   },
   {
     name: 'SubagentResult',
@@ -9368,7 +9387,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentStartRequest',
-    declaration: 'export interface SubagentStartRequest {\n    readonly cwd?: string;\n    readonly agentPreset?: string;\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n}',
+    declaration: 'export interface SubagentStartRequest {\n    readonly cwd?: string;\n    readonly agentPreset?: string;\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly permissionMode?: string;\n}',
   },
   {
     name: 'SubagentStopReason',

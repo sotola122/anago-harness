@@ -862,6 +862,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   AuthorizationMethod: 'credentials.md',
   AuthorizationNotice: 'credentials.md',
   AuthorizationOutcome: 'credentials.md',
+  AuthorizationRenewal: 'credentials.md',
   AccountView: 'credentials.md',
   AccountDetails: 'credentials.md',
   AccountClientMetadata: 'credentials.md',
