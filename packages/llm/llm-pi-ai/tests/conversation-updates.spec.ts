@@ -304,11 +304,18 @@ describe('historical tool availability on the wire', () => {
       ] },
     })
     expect(requests).toHaveLength(1)
-    expect(requests[0]).toHaveProperty('tools', [expect.objectContaining({ name: 'search' })])
-    expect(requests[0]).toHaveProperty('input', [
-      { role: 'user', content: [{ type: 'input_text', text: 'first' }] },
-      { role: 'developer', content: 'Instruction one.\nInstruction two.' },
-    ])
+    // Responses cannot remove a top-level tool, so the rebuilt baseline is the leading additional_tools item.
+    expect(requests[0]).not.toHaveProperty('tools')
+    expect(requests[0]).toMatchObject({
+      input: [
+        {
+          type: 'additional_tools', role: 'developer',
+          tools: [{ type: 'function', name: 'search', description: added.description, parameters: added.parameters }],
+        },
+        { role: 'user', content: [{ type: 'input_text', text: 'first' }] },
+        { role: 'developer', content: 'Instruction one.\nInstruction two.' },
+      ],
+    })
     expect(JSON.stringify(requests[0])).not.toContain('tool_removal')
     expect(JSON.stringify(requests[0])).not.toContain('Read a file')
   })
