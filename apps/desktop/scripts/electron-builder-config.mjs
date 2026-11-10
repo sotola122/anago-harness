@@ -167,10 +167,9 @@ export function createElectronBuilderConfig(
       'lib/preload-welcome.cjs',
       'renderer/**/*',
       'package.json',
-      // The main bundle evaluates fork-policy's package-relative require from lib/main.js.
-      // Those two files must sit beside lib/, not only under dsh/node_modules.
-      { from: fileURLToPath(new URL('../../../plugins/fork-policy/egress-guard.cjs', import.meta.url)), to: 'egress-guard.cjs' },
-      { from: fileURLToPath(new URL('../../../plugins/fork-policy/denylist.json', import.meta.url)), to: 'denylist.json' },
+      // The desktop bundle rebases fork-policy's package-relative guard require onto lib/main.js.
+      // electron-builder walks a files `from` as a directory, so a file outside this app is not copied
+      // to the asar root. The loader falls back to dsh/node_modules/@anago-harness/fork-policy/.
       '!node_modules/**/*.{js,cjs,mjs,ts,cts,mts,css}.map',
       '!node_modules/**/*.tsbuildinfo',
       { from: buildPaths.dsh, to: 'dsh', filter: ['**/*'] },
