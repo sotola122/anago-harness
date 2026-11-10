@@ -45,6 +45,9 @@ export interface CrashReportInput {
 /** File name prefix every report shares. */
 export const CRASH_REPORT_PREFIX = 'crash-'
 
+/** Stable name overwritten on each fatal, so a failed start has one path to hand over. */
+export const STARTUP_FAILURE_LOG = 'startup-failure.log'
+
 /** The exact generated file name syntax; pruning touches only files that match it. */
 const CRASH_REPORT_NAME = /^crash-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-(?:host|web-boot|renderer|main)\.log$/u
 
@@ -145,20 +148,30 @@ function boundedErrorSection(error: unknown): string {
  * Write one report into `directory`, creating it when absent. Failure is
  * reported to `console.error` and yields `undefined`: the recovery dialog
  * proceeds without a file rather than failing over a diagnostic aid.
+ * Also overwrites {@link STARTUP_FAILURE_LOG} in the same directory. A failed
+ * overwrite does not discard the timestamped report.
  * @param directory - the application logs directory.
  * @param input - the failure and its context.
- * @returns the written file path, or `undefined` when writing failed.
+ * @returns the written timestamped file path, or `undefined` when writing failed.
  */
 export async function writeCrashReport(directory: string, input: CrashReportInput): Promise<string | undefined> {
   const path = join(directory, crashReportFileName(input.time, input.source))
+  const body = renderCrashReport(input)
   try {
     await mkdir(directory, { recursive: true, mode: 0o700 })
-    await writeFile(path, renderCrashReport(input), { mode: 0o600, flag: 'wx' })
-    return path
+    await writeFile(path, body, { mode: 0o600, flag: 'wx' })
   } catch (error) {
     console.error('dsh desktop: crash report could not be written', path, error)
     return undefined
   }
+  const stable = join(directory, STARTUP_FAILURE_LOG)
+  try {
+    await writeFile(stable, body, { mode: 0o600, flag: 'w' })
+  } catch (error) {
+    // The timestamped report is already durable; the stable alias is only a handoff path.
+    console.error('dsh desktop: startup failure log could not be written', stable, error)
+  }
+  return path
 }
 
 /**

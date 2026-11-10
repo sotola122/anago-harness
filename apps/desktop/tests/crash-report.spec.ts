@@ -69,6 +69,7 @@ it('writes an owner-only report into a directory it creates and returns its path
   const path = await writeCrashReport(directory, input())
   expect(path).toBe(join(directory, 'crash-2026-09-22T10-30-00-123Z-host.log'))
   expect(await readFile(path!, 'utf8')).toContain('source: host')
+  expect(await readFile(join(directory, 'startup-failure.log'), 'utf8')).toContain('source: host')
   if (process.platform !== 'win32') expect((await stat(path!)).mode & 0o777).toBe(0o600)
 })
 
