@@ -233,6 +233,7 @@ async function serveLoopback(
     sockets.add(socket)
     socket.on('close', () => { sockets.delete(socket) })
   })
+  /* jscpd:ignore-start -- loopback listen stays local; the failure text differs. */
   await new Promise<void>((resolveListen, rejectListen) => {
     server.once('error', rejectListen)
     server.listen(0, '127.0.0.1', () => {
@@ -242,6 +243,7 @@ async function serveLoopback(
   })
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('download fixture has no TCP address')
+  /* jscpd:ignore-end */
   return {
     origin: `http://127.0.0.1:${String(address.port)}`,
     close: async () => {
@@ -288,9 +290,9 @@ it('stops after 20 redirects and does not retry the loop', async () => {
   })
   const root = await mkdtemp(join(tmpdir(), 'primary-redirect-loop-'))
   try {
-    await expect(downloadPrimaryRuntimeAsset(`${fixture.origin}/loop`, 'ab'.repeat(32), root)).rejects.toMatchObject({
-      status: 302, message: expect.stringContaining('too many redirects'),
-    })
+    const pending = downloadPrimaryRuntimeAsset(`${fixture.origin}/loop`, 'ab'.repeat(32), root)
+    await expect(pending).rejects.toMatchObject({ status: 302 })
+    await expect(pending).rejects.toThrow('too many redirects')
     expect(hits).toBe(21)
     expect(await readdir(root)).toEqual([])
   } finally {
@@ -315,9 +317,9 @@ it.each([
   })
   const root = await mkdtemp(join(tmpdir(), 'primary-redirect-bad-'))
   try {
-    await expect(downloadPrimaryRuntimeAsset(`${fixture.origin}/archive`, 'ab'.repeat(32), root)).rejects.toMatchObject({
-      status: 302, message: expect.stringMatching(message),
-    })
+    const pending = downloadPrimaryRuntimeAsset(`${fixture.origin}/archive`, 'ab'.repeat(32), root)
+    await expect(pending).rejects.toMatchObject({ status: 302 })
+    await expect(pending).rejects.toThrow(message)
     await new Promise((resolveWait) => { setImmediate(resolveWait) })
     expect(uncaught).toEqual([])
     expect(hits).toBe(1)
@@ -338,9 +340,9 @@ it('rejects a redirect that omits Location', async () => {
   })
   const root = await mkdtemp(join(tmpdir(), 'primary-redirect-missing-'))
   try {
-    await expect(downloadPrimaryRuntimeAsset(`${fixture.origin}/archive`, 'ab'.repeat(32), root)).rejects.toMatchObject({
-      status: 302, message: expect.stringContaining('redirect missing Location'),
-    })
+    const pending = downloadPrimaryRuntimeAsset(`${fixture.origin}/archive`, 'ab'.repeat(32), root)
+    await expect(pending).rejects.toMatchObject({ status: 302 })
+    await expect(pending).rejects.toThrow('redirect missing Location')
     expect(hits).toBe(1)
   } finally {
     await fixture.close()

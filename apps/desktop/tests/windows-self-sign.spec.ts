@@ -139,10 +139,10 @@ function recordedSigner(sign: (configuration: { path: string; hash: string; isNe
   const events: Array<Record<string, unknown>> = []
   const lines: string[] = []
   const write = process.stdout.write.bind(process.stdout)
-  process.stdout.write = ((chunk: string | Uint8Array) => {
+  process.stdout.write = (chunk: string | Uint8Array) => {
     lines.push(String(chunk))
     return true
-  }) as typeof process.stdout.write
+  }
   const hook = createWindowsSelfSignedPackagerSigner({
     sign,
     secrets: [password],
@@ -275,15 +275,13 @@ it('gives electron-builder the self-signed hook and not the PFX password', async
       DSH_DESKTOP_WINDOWS_PFX_PASSWORD: password,
       DSH_DESKTOP_PACKAGING_RUN_DIR: directory,
     }, 'linux', 'x64')
+    const options = config.win.signtoolOptions
     expect(config.win.forceCodeSigning).toBe(true)
-    expect(config.win.signtoolOptions).toEqual({
-      sign: expect.any(Function),
-      publisherName: expect.stringMatching(/^CN=/u),
-      signingHashAlgorithms: ['sha256'],
-    })
-    expect(config.win.signtoolOptions.sign?.name).toBe('signWindowsSelfSignedPackagerFile')
-    expect(config.win.signtoolOptions).not.toHaveProperty('certificateFile')
-    expect(config.win.signtoolOptions).not.toHaveProperty('certificatePassword')
+    expect(Object.keys(options).sort()).toEqual(['publisherName', 'sign', 'signingHashAlgorithms'])
+    expect(options.signingHashAlgorithms).toEqual(['sha256'])
+    expect(typeof options.sign).toBe('function')
+    expect(options.sign?.name).toBe('signWindowsSelfSignedPackagerFile')
+    expect(options.publisherName).toEqual(expect.stringMatching(/^CN=/u) as string)
     expect(JSON.stringify(config.win)).not.toContain(password)
   }
   finally {
